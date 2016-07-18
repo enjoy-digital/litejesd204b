@@ -46,7 +46,7 @@ class BaseSoC(SoCCore):
         self.submodules.eth_core = LiteEthUDPIPCore(self.eth_phy, mac_address, convert_ip(ip_address), clk_freq)
 
         # ethernet <--> wishbone
-        self.submodules.etherbone = LiteEthEtherbone(self.eth_core.udp, 0x1234)
+        self.submodules.etherbone = LiteEthEtherbone(self.eth_core.udp, 1234)
         self.add_wb_master(self.etherbone.master.bus)
 
         # timing constraints
@@ -68,7 +68,7 @@ class BaseSoC(SoCCore):
 def main():
     platform = kc705.Platform()
     soc = BaseSoC(platform)
-    builder = Builder(soc, output_dir="build")
+    builder = Builder(soc, output_dir="build", csr_csv="../test/csr.csv")
     builder.build()
 
 
