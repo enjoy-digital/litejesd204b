@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+
+import argparse
+
 from litex.build.generic_platform import *
 from litex.boards.platforms import kc705
+
+from litex.soc.integration.builder import *
+
+from kc705_base import BaseSoC
 
 _jesd204b_io = [
     ("jesd204b_clocks", 0,
@@ -12,7 +20,7 @@ _jesd204b_io = [
         Subsignal("sync2_p", Pins("HPC:LA02_P")),
         Subsignal("sync2_n", Pins("HPC:LA02_N")),
         Subsignal("sysref_p", Pins("HPC:LA00_CC_P")),
-        Subsignal("sysref_n", Pins("HPC:LA00_CC_N"))                
+        Subsignal("sysref_n", Pins("HPC:LA00_CC_N"))
     ),
     #   FMC lanes / AD9154 lanes
     #         DP0 / SERIND7
@@ -57,3 +65,19 @@ class Platform(kc705.Platform):
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 2.5 [current_design]
 """)
+
+
+class AD9154SoC(BaseSoC):
+    def __init__(self, platform):
+        BaseSoC.__init__(self, platform)
+
+
+def main():
+    platform = Platform()
+    soc = AD9154SoC(platform)
+    builder = Builder(soc, output_dir="build")
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()
