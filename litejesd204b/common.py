@@ -17,4 +17,3 @@ def data_link_layout(dw):
     return EndpointDescription(layout)
 
 # Physical layer
-

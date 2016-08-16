@@ -2,7 +2,7 @@ from litejesd204b.common import *
 
 
 class LiteJESD204BDataLinkTx(Module):
-    """JESD204 Data Link Tx layers
+    """JESD204 Data Link Tx layer
     """
     def __init__(self, dw):
         self.reset = Signal()
