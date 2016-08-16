@@ -37,4 +37,34 @@ def data_link_layout(dw):
     ]
     return EndpointDescription(layout)
 
+configuration_data_length = 13
+configuration_data_fields = {
+    "DID":       HeaderField(0,  0, 8),
+    "BID":       HeaderField(1,  0, 4),
+    "ADJCNT":    HeaderField(1,  4, 8),
+    "LID":       HeaderField(2,  0, 5),
+    "PHADJ":     HeaderField(2,  5, 5),
+    "ADJDIR":    HeaderField(2,  6, 6),
+    "L":         HeaderField(3,  0, 5),
+    "SCR":       HeaderField(3,  5, 8),
+    "F":         HeaderField(4,  0, 8),
+    "K":         HeaderField(5,  0, 4),
+    "M":         HeaderField(6,  0, 8),
+    "N":         HeaderField(7,  0, 5),
+    "CS":        HeaderField(7,  5, 8),
+    "N":         HeaderField(8,  0, 5),
+    "SUBCLASS":  HeaderField(8,  5, 8),
+    "S":         HeaderField(9,  0, 5),
+    "JESDV":     HeaderField(9,  5, 8),
+    "CF":        HeaderField(10, 0, 5),
+    "HD":        HeaderField(10, 5, 8),
+    "RESERVED1": HeaderField(11, 0, 8),
+    "RESERVED2": HeaderField(12, 0, 8),
+    "FCHK":      HeaderField(13, 0, 8)
+}
+configuration_data_header = Header(fconfiguration_data_fields,
+                                   configuration_data_length,
+                                   swap_field_bytes=False)
+
+
 # Physical layer
