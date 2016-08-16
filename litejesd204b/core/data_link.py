@@ -8,6 +8,39 @@ class LiteJESD204BScrambler(Module):
         # TODO (optional), polynom = 1 + X^14 + X^15
 
 
+class LiteJESD204BCharacterRemplacement(Module):
+    """JESD204 Character Remplacement
+    """
+    def __init__(self):
+        # TODO
+        # if not scrambled:
+        #   if dn = dn-1:
+        #     if end of multiframe:
+        #       dn = A
+        #     if end of frame:
+        #       dn = F
+        # if scrambled:
+        #   if dn = 0x7c:
+        #     if end of multiframe:
+        #       dn = A
+        #   if dn = 0xfc:
+        #     if end of frame:
+        #       dn = F
+
+
+class LiteJESD204BILAS(Module):
+    """JESD204 Initial Lane Alignment Sequence
+    """
+    def __init__(self):
+        # TODO
+        # 4 or more multiframes
+        # last character of each multiframe = A
+        # first, third and fourth multiframes first data = R
+        # for ADI DACs, data in between is a ramp
+        # second multiframe = R, Q, followed by link parameters
+        # after the last A character of the last ILAS multiframe, user data starts
+
+
 class LiteJESD204BDataLinkTx(Module):
     """JESD204 Data Link Tx layer
     """
