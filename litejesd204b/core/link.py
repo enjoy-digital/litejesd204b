@@ -41,8 +41,8 @@ class LiteJESD204BILAS(Module):
         # after the last A character of the last ILAS multiframe, user data starts
 
 
-class LiteJESD204BDataLinkTx(Module):
-    """JESD204 Data Link Tx layer
+class LiteJESD204BDLinkTx(Module):
+    """JESD204 Data Tx layer
     """
     def __init__(self, dw):
         self.reset = Signal()
