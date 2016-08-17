@@ -1,23 +1,53 @@
 from litejesd204b.common import *
 
+
 class LiteJESD204BCharacterRemplacement(Module):
     """JESD204 Character Remplacement
     """
-    def __init__(self):
-        # TODO
-        # if not scrambled:
-        #   if dn = dn-1:
-        #     if end of multiframe:
-        #       dn = A
-        #     if end of frame:
-        #       dn = F
-        # if scrambled:
-        #   if dn = 0x7c:
-        #     if end of multiframe:
-        #       dn = A
-        #   if dn = 0xfc:
-        #     if end of frame:
-        #       dn = F
+    def __init__(self, dw):
+        self.sink = sink = stream.Endpoint(link_layout(dw))
+        self.source = source = stream.Endpoint(link_layout(dw))
+
+        # # #
+
+        last_dn = Signal(8)
+        dn = Signal(8)
+        new_dn = Signal(8)
+
+        self.comb += [
+            sink.connect(source),
+            dn.eq(sink.data[:8]),
+            If(sink.valid & sink.ready,
+                If(~sink.scrambled,
+                    If(dn == last_dn,
+                        If(sink.multiframe_last,
+                            new_dn.eq(control_characters["A"])
+                        ).Elif(sink.frame_last,
+                            new_dn.eq(control_characters["F"])
+                        )
+                    )
+                ).Else(
+                    If(dn == 0x7c,
+                        If(sink.multiframe_last,
+                            new_dn.eq(control_characters["A"])
+                        )
+                    ).Elif(dn == 0xfc,
+                        If(sink.frame_last,
+                            new_dn.eq(control_characters["F"])
+                        )
+                    )
+                )
+            ),
+            If(new_dn,
+                source.data.eq(Cat(new_dn, sink.data[8:])),
+                source.charisk.eq(1)
+            )
+        ]
+
+        self.sync += \
+            If(sink.valid & sink.ready & sink.frame_last,
+                last_dn.eq(dn)
+            )
 
 
 class LiteJESD204BILAS(Module):
