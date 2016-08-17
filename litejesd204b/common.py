@@ -21,7 +21,7 @@
 
 # Transport layer
 
-# Data link layer
+# Link layer
 control_characters = {
     "R": 0b00011100, # K28.0, start of multi-frame
     "A": 0b01111100, # K28.3, Lane alignment
@@ -30,41 +30,76 @@ control_characters = {
     "F": 0b11111100, # K28.7, Frame alignment
 }
 
-def data_link_layout(dw):
+def link_layout(dw):
     layout = [
         ("data", dw),
         ("charisk", dw//8),
     ]
     return EndpointDescription(layout)
 
-configuration_data_length = 13
-configuration_data_fields = {
-    "DID":       HeaderField(0,  0, 8),
-    "BID":       HeaderField(1,  0, 4),
-    "ADJCNT":    HeaderField(1,  4, 8),
-    "LID":       HeaderField(2,  0, 5),
-    "PHADJ":     HeaderField(2,  5, 5),
-    "ADJDIR":    HeaderField(2,  6, 6),
-    "L":         HeaderField(3,  0, 5),
-    "SCR":       HeaderField(3,  5, 8),
-    "F":         HeaderField(4,  0, 8),
-    "K":         HeaderField(5,  0, 4),
-    "M":         HeaderField(6,  0, 8),
-    "N":         HeaderField(7,  0, 5),
-    "CS":        HeaderField(7,  5, 8),
-    "N":         HeaderField(8,  0, 5),
-    "SUBCLASS":  HeaderField(8,  5, 8),
-    "S":         HeaderField(9,  0, 5),
-    "JESDV":     HeaderField(9,  5, 8),
-    "CF":        HeaderField(10, 0, 5),
-    "HD":        HeaderField(10, 5, 8),
-    "RESERVED1": HeaderField(11, 0, 8),
-    "RESERVED2": HeaderField(12, 0, 8),
-    "FCHK":      HeaderField(13, 0, 8)
-}
-configuration_data_header = Header(fconfiguration_data_fields,
-                                   configuration_data_length,
-                                   swap_field_bytes=False)
+class Field:
+    def __init__(self, octet, offset, width):
+        self.octet = octet
+        self.offset = offset
+        self.width = width
 
+
+configuration_data_length = 14
+configuration_data_fields = {
+    #----------- octet 0 --------------
+    "did":       Field(0,  0, 8),
+    #----------- octet 1 --------------
+    "bid":       Field(1,  0, 4),
+    "adjcnt":    Field(1,  4, 8),
+    #----------- octet 2 --------------
+    "lid":       Field(2,  0, 5),
+    "phadj":     Field(2,  5, 5),
+    "adjdir":    Field(2,  6, 6),
+    #----------- octet 3 --------------
+    "l":         Field(3,  0, 5),
+    "scr":       Field(3,  7, 8),
+    #----------- octet 4 --------------
+    "f":         Field(4,  0, 8),
+    #----------- octet 5 --------------
+    "k":         Field(5,  0, 4),
+    #----------- octet 6 --------------
+    "m":         Field(6,  0, 8),
+    #----------- octet 7 --------------
+    "n":         Field(7,  0, 5),
+    "cs":        Field(7,  6, 8),
+    #----------- octet 8 --------------
+    "n":         Field(8,  0, 5),
+    "subclassv": Field(8,  5, 8),
+    #----------- octet 9 --------------
+    "s":         Field(9,  0, 5),
+    "jesdv":     Field(9,  5, 8),
+    #----------- octet 10 -------------
+    "cf":        Field(10, 0, 5),
+    "hd":        Field(10, 5, 8),
+    #----------- octet 11 -------------
+    "res1":      Field(11, 0, 8),
+    #----------- octet 12 -------------
+    "res2":      Field(12, 0, 8),
+    #----------- octet 13 -------------
+    "fchk":      Field(13, 0, 8)
+}
+
+class LiteJESD204ConfigurationData:
+    def __init__(self):
+        for k in configuration_data_fields.keys():
+            setattr(self, k, 0)
+
+    def get_octets(self):
+        octets = [0]*configuration_data_length
+        for name, field in configuration_data_fields.items():
+            octets[field.octet] |= ((getattr(self, name) << field.offset) &
+                                    2**(field.width-field.offset)-1)
+        return octets
+
+    def get_checksum(self):
+        checksum = 0
+        for octet in self.get_octets()[:-1]:
+                checksum = (checksum + octet) % 256
+        return checksum
 
 # Physical layer

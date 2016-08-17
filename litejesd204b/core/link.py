@@ -42,8 +42,8 @@ class LiteJESD204BDLinkTx(Module):
         self.ready = Signal()
         self.sync = Signal()
 
-        self.sink = stream.Endpoint(data_link_layout(dw))
-        self.source = stream.Endpoint(data_link_layout(dw))
+        self.sink = stream.Endpoint(link_layout(dw))
+        self.source = stream.Endpoint(link_layout(dw))
 
         # # #
 
