@@ -1,13 +1,5 @@
 from litejesd204b.common import *
 
-
-class LiteJESD204BScrambler(Module):
-    """JESD204 Scrambler
-    """
-    def __init__(self):
-        # TODO (optional), polynom = 1 + X^14 + X^15
-
-
 class LiteJESD204BCharacterRemplacement(Module):
     """JESD204 Character Remplacement
     """
