@@ -1,6 +1,6 @@
 # XXX memo
 
-# JESD204B parameters
+# JESD204B parameters:
 # L:    Number of lanes per converter device, 1-8
 # M:    Number of converters per device, 1-256
 # F:    Number of octets per frame, 1, 2, 4-256
@@ -13,9 +13,19 @@
 # HD:   High Density user data format,0 or 1
 # LMFC: Local multiframe clock, (F × K /4) link clock counts
 
-# JESD204B parameters relationship
+# JESD204B parameters relationship:
 # JESD204B word size = N’
 # F = (M x S x N')/(8 x L)
+
+# AD9154 parameters:
+# CF always 0 for ADI devices
+# K=16 or 32
+# control bits not supported
+# M=4
+# L=4 with KC705/L=8 with KU105
+# if F=1, HD must be set to 1
+# S=1
+# F=2
 
 # XXX memo
 
@@ -34,6 +44,9 @@ def link_layout(dw):
     layout = [
         ("data", dw),
         ("charisk", dw//8),
+        ("frame_last", 1),
+        ("multiframe_last", 1),
+        ("scrambled", 1)
     ]
     return EndpointDescription(layout)
 
