@@ -136,7 +136,7 @@ class LiteJESD204BConfigurationData:
 # Physical layer
 
 class LiteJESD204BPhysicalSettings:
-    def __init__(self, l, m, n, np, sc=None):
+    def __init__(self, l, m, n, np, sc):
         self.l = l
         self.m = m
         self.n = n
@@ -180,3 +180,14 @@ class LiteJESD204BSettings:
         octets = cd.get_octets()
         chksum = cd.get_checksum()
         return octets[:-1] + [chksum]
+
+    def get_clocks(self):
+        ts = self.transport_settings
+        ps = self.phy_settings
+
+        fc = ps.sc/ts.s
+        lmfc = fc/ts.k
+
+        lr = (ps.m*ts.s*ps.np*10/8*fc)/ps.l
+
+        return ps.sc, fc, lmfc, lr
