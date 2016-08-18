@@ -17,15 +17,24 @@
 # JESD204B word size = N’
 # F = (M x S x N')/(8 x L)
 
+# SC: Converter sample clock
+# FC: Frame clock
+# LR: Line Rate
+# LMFC: Local multi-frame clock
+
+# FC = SC/S
+# LMFC = FC/K
+# LR = (M x S x N' x 10/8 x FC)/L
+
 # AD9154 parameters:
 # CF always 0 for ADI devices
-# K=16 or 32
+# K = 16 or 32
 # control bits not supported
-# M=4
-# L=4 with KC705/L=8 with KU105
-# if F=1, HD must be set to 1
-# S=1
-# F=2
+# M = 4
+# L = 4 with KC705/L=8 with KU105
+# if F = 1, HD must be set to 1
+# S = 1
+# F = 2
 
 # XXX memo
 
