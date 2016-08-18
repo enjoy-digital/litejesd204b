@@ -40,6 +40,14 @@
 
 # Transport layer
 
+class LiteJESD204BTransportSettings:
+    def __init__(self, f, s, k, cs):
+        self.f = f
+        self.s = s
+        self.k = k
+        self.cs = cs
+
+
 # Link layer
 control_characters = {
     "R": 0b00011100, # K28.0, start of multi-frame
@@ -69,17 +77,17 @@ class Field:
 configuration_data_length = 14
 configuration_data_fields = {
     #----------- octet 0 --------------
-    "did":       Field(0,  0, 8),
+    "did":       Field(0,  0, 8), # device id
     #----------- octet 1 --------------
-    "bid":       Field(1,  0, 4),
-    "adjcnt":    Field(1,  4, 8),
+    "bid":       Field(1,  0, 4), # bank id
+    "adjcnt":    Field(1,  4, 8), # N/A (subclass 2 only)
     #----------- octet 2 --------------
-    "lid":       Field(2,  0, 5),
-    "phadj":     Field(2,  5, 5),
-    "adjdir":    Field(2,  6, 6),
+    "lid":       Field(2,  0, 5), # lane id
+    "phadj":     Field(2,  5, 5), # N/A (subclass 2 only)
+    "adjdir":    Field(2,  6, 6), # N/A (subclass 2 only)
     #----------- octet 3 --------------
     "l":         Field(3,  0, 5),
-    "scr":       Field(3,  7, 8),
+    "scr":       Field(3,  7, 8), # scrambling enable
     #----------- octet 4 --------------
     "f":         Field(4,  0, 8),
     #----------- octet 5 --------------
@@ -91,10 +99,10 @@ configuration_data_fields = {
     "cs":        Field(7,  6, 8),
     #----------- octet 8 --------------
     "n":         Field(8,  0, 5),
-    "subclassv": Field(8,  5, 8),
+    "subclassv": Field(8,  5, 8), # device subclass version
     #----------- octet 9 --------------
     "s":         Field(9,  0, 5),
-    "jesdv":     Field(9,  5, 8),
+    "jesdv":     Field(9,  5, 8), # jsed204 version
     #----------- octet 10 -------------
     "cf":        Field(10, 0, 5),
     "hd":        Field(10, 5, 8),
@@ -103,10 +111,11 @@ configuration_data_fields = {
     #----------- octet 12 -------------
     "res2":      Field(12, 0, 8),
     #----------- octet 13 -------------
-    "fchk":      Field(13, 0, 8)
+    "chksum":    Field(13, 0, 8)
 }
 
-class LiteJESD204ConfigurationData:
+
+class LiteJESD204BConfigurationData:
     def __init__(self):
         for k in configuration_data_fields.keys():
             setattr(self, k, 0)
@@ -125,3 +134,49 @@ class LiteJESD204ConfigurationData:
         return checksum
 
 # Physical layer
+
+class LiteJESD204BPhysicalSettings:
+    def __init__(self, l, m, n, np, sc=None):
+        self.l = l
+        self.m = m
+        self.n = n
+        self.np = np
+        self.sc = sc
+
+        # only support subclass 1
+        self.subclassv = 0b001
+        self.adjcnt = 0
+        self.adjdir = 0
+        self.phadj = 0
+
+        # jsed204b revision
+        self.jsedv = 0b001
+
+
+# Global
+
+class LiteJESD204BSettings:
+    def __init__(self,
+        phy_settings,
+        transport_settings,
+        did, bid):
+        self.phy_settings = phy_settings
+        self.transport_settings = transport_settings
+        self.did = did
+        self.bid = bid
+
+    def get_configuration_data(self):
+        cd = LiteJESD204BConfigurationData()
+        for k in configuration_data_fields.keys():
+            for settings in [self.phy_settings,
+                             self.transport_settings]:
+                try:
+                    setattr(cd, k, getattr(settings, k))
+                except:
+                    pass
+        cd.did = self.did
+        cd.bid = self.bid
+
+        octets = cd.get_octets()
+        chksum = cd.get_checksum()
+        return octets[:-1] + [chksum]
