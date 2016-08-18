@@ -182,8 +182,8 @@ class LiteJESD204BSettings:
         return octets[:-1] + [chksum]
 
     def get_clocks(self):
-        ts = self.transport_settings
         ps = self.phy_settings
+        ts = self.transport_settings
 
         fc = ps.sc/ts.s
         lmfc = fc/ts.k
@@ -191,3 +191,39 @@ class LiteJESD204BSettings:
         lr = (ps.m*ts.s*ps.np*10/8*fc)/ps.l
 
         return ps.sc, fc, lmfc, lr
+
+    def __repr__(self):
+        ps = self.phy_settings
+        ts = self.transport_settings
+
+        r = ""
+        r += "phy settings\n"
+        r += "-"*20 + "\n"
+        r += "lanes (l): {:d}\n".format(ps.l)
+        r += "converters (m): {:d}\n".format(ps.m)
+        r += "bits per sample (n): {:d}\n".format(ps.n)
+        r += "transmitted bits per sample (np): {:d}\n".format(ps.np)
+        r += "\n"
+
+        r += "transport settings\n"
+        r += "-"*20 + "\n"
+        r += "octets per frame (f): {:d}\n".format(ts.f)
+        r += "samples per converter per frame (s): {:d}\n".format(ts.s)
+        r += "frames per multiframe (k): {:d}\n".format(ts.k)
+        r += "control bits per conversion sample (cs): {:d}\n".format(ts.cs)
+        r += "\n"
+
+        sc, fc, lmfc, lr = self.get_clocks()
+        r += "clocks\n"
+        r += "-"*20 + "\n"
+        r += "sample clock: {:f} gsps\n".format(sc/1e9)
+        r += "frame clock: {:f} mhz\n".format(fc/1e6)
+        r += "local multiframe clock: {:f} mhz\n".format(lmfc/1e6)
+        r += "line rate: {:f} gbps\n".format(lr/1e9)
+        r += "\n"
+
+        r += "configuration data\n"
+        r += "-"*20 + "\n"
+        r += str(self.get_configuration_data())
+
+        return r
