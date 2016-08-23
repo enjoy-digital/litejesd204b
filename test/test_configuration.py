@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from litejesd204b.common import *
 
 phy_settings = LiteJESD204BPhysicalSettings(l=4, m=4, n=16, np=16, sc=1*1e9)
