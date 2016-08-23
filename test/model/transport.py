@@ -1,3 +1,5 @@
+from math import ceil
+
 from litejesd204b.common import *
 
 
@@ -5,55 +7,72 @@ class TransportLayer:
     def __init__(self, settings):
         self.settings = settings
 
-    def map_samples_to_lanes(self, l, m, samples):
-        # see spec p45
-        assert m == len(samples[0])
-        s = self.settings.s
+    def map_samples_to_lanes_octets(self, nlanes, nconverters, nbits, samples):
+        """
+        inputs:
+        -nlanes: Number of lanes per converter
+        -nconverters: Number of converters
+        -nbits: Number of convertion bits
+        -samples: Samples from converters:
+                  samples[n][i] = sample i of converter n
+        output:
+        lanes: Samples mapped to lanes
+               lanes[n][i] = frame i of lane n
+        """
+        assert nconverters == len(samples)
 
-        lanes_data = []
+        samples_per_frame = self.settings.s
+        lanes_octets = [[]]*nlanes
+        n = 0
 
-        while len(samples):
-            # frame samples
+        while n < len(samples[0]):
+            # frame's samples
             frame_samples = []
-            for i in range(s):
-                for c in range(m):
-                    frame_samples.append(samples[i][c])
-            for i in range(s):
-                samples.pop(0)
+            for i in range(samples_per_frame):
+                for j in range(nconverters):
+                    frame_samples.append(samples[j][n+i])
+            n += samples_per_frame
 
-            # frame words, XXX append control bits?
-            frame_words = frame_samples
+            # frame's words
+            frame_words = frame_samples # no control bits
 
-            # frame nibble groups, XXX extend to nibble boundary?
-            frame_nibble_groups = frame_words
+            # frame's nibbles
+            nibbles_per_word = ceil(nbits//4)
+            frame_nibbles = []
+            for word in frame_words:
+                for i in reversed(range(nibbles_per_word)):
+                    frame_nibbles.append((word>>4*i) & 0xf)
 
-            # frame octets
+            # frame's octets
             frame_octets = []
-            for nibble_group in frame_nibble_groups:
-                for i in range(2): # XXX should be np//8
-                    frame_octets.append((nibble_group >> 8*i) & 0xff)
+            for i in range(len(frame_nibbles)//2):
+                octet = (frame_nibbles[2*i]<<4) + frame_nibbles[2*i+1]
+                frame_octets.append(octet)
 
-            # map octets to lanes
-            lanes_octets = []
-            for l in range(m):
-                octets_per_lane = len(frame_octets)//m
-                lanes_octets.append(frame_octets[l*octets_per_lane:(l+1)*octets_per_lane])
+            # lanes' octets for a frame
+            octets_per_lane = len(frame_octets)//nlanes
+            for i in range(nlanes):
+                frame_lane_octets = frame_octets[i*octets_per_lane:
+                                                 (i+1)*octets_per_lane]
+                lanes_octets[i] = lanes_octets[i] + frame_lane_octets
 
-            lanes_data.append(lanes_octets)
-
-        return lanes_data
+        return lanes_octets
 
 
 if __name__ == "__main__":
     transport_settings = LiteJESD204BTransportSettings(f=2, s=1, k=16, cs=1)
     transport = TransportLayer(transport_settings)
 
-    l = 4
-    m = 4
+    nlanes = 4
+    nconverters = 4
 
     samples = []
-    for i in range(32):
-        samples.append([i+j*256 for j in range(m)])
-    lanes_data = transport.map_samples_to_lanes(l, m, samples)
-    for data in lanes_data:
-        print(data)
+    for i in range(nconverters):
+        samples.append([j+i*256 for j in range(8)])
+    lanes_octets = transport.map_samples_to_lanes_octets(nlanes, nconverters, 16, samples)
+
+    # debug
+    for converter_samples in samples:
+        print(converter_samples)
+    for lane_octets in lanes_octets:
+        print(lane_octets)
