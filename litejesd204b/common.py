@@ -31,7 +31,7 @@
 # K = 16 or 32
 # control bits not supported
 # M = 4
-# L = 4 with KC705/L=8 with KU105
+# L = 4 with KC705/L=8 with KCU105
 # if F = 1, HD must be set to 1
 # S = 1
 # F = 2
