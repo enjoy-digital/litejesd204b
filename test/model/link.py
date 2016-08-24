@@ -65,8 +65,10 @@ class LinkLayer:
                 if dn & is_control_character:
                     dn = dn & 0xff
                     if self.scrambled:
-                        # TODO
-                        pass
+                        if dn == control_characters["A"]:
+                            dn = 0x7c
+                        elif control_characters["F"]:
+                            dn = 0xfc
                     else:
                         if dn == control_characters["A"]:
                             dn = last_dn
