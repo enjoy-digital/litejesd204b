@@ -26,15 +26,15 @@ class LinkLayer:
                 if self.scrambled:
                     if dn == 0x7c:
                         if last_frame_of_multiframe:
-                            dn = control_characters["A"]
+                            dn = is_control_character | control_characters["A"]
                     if dn == 0xfc:
-                        dn = control_characters["F"]
+                        dn = is_control_character | control_characters["F"]
                 else:
                     if dn == last_dn:
                         if last_frame_of_multiframe:
-                            dn = control_characters["A"]
+                            dn = is_control_character | control_characters["A"]
                         else:
-                            dn = control_characters["F"]
+                            dn = is_control_character | control_characters["F"]
                 frame[-1] = dn
                 last_dn = dn
                 n = n + 1
@@ -50,15 +50,38 @@ class LinkLayer:
         -lanes: Lanes' octets organized in frames
                 lanes[i][j][k]: octet k of frame j of lane i
         """
+        new_lanes = []
         for lane in lanes:
-            last_frame_of_multiframe = False
+            new_lane = []
+            last_dn = -1
+            n = 0
             for frame in lane:
-                if self.scrambled:
-                   pass
+                dn = frame[-1]
+                if n%self.frames_per_multiframe == (self.frames_per_multiframe-1):
+                    last_frame_of_multiframe = True
                 else:
-                   pass
+                    last_frame_of_multiframe = False
 
-        return lanes
+                if dn & is_control_character:
+                    dn = dn & 0xff
+                    if self.scrambled:
+                        # TODO
+                        pass
+                    else:
+                        if dn == control_characters["A"]:
+                            dn = last_dn
+                        elif dn == control_characters["F"]:
+                            dn = last_dn
+
+                frame[-1] = dn
+                last_dn = dn
+                n = n + 1
+
+                new_lane.append(frame)
+
+            new_lanes.append(new_lane)
+
+        return new_lanes
 
 
 if __name__ == "__main__":

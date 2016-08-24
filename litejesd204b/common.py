@@ -57,6 +57,8 @@ control_characters = {
     "F": 0b11111100, # K28.7, Frame alignment
 }
 
+is_control_character = 1 << 8
+
 def link_layout(dw):
     layout = [
         ("data", dw),
