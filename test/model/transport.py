@@ -7,17 +7,17 @@ class TransportLayer:
     def __init__(self, settings):
         self.settings = settings
 
-    def map_samples_to_lanes_octets(self, nlanes, nconverters, nbits, samples):
+    def samples_to_lanes(self, nlanes, nconverters, nbits, samples):
         """
         inputs:
-        -nlanes: Number of lanes per converter
+        -nlanes:      Number of lanes per converter
         -nconverters: Number of converters
-        -nbits: Number of convertion bits
-        -samples: Samples from converters:
-                  samples[n][i] = sample i of converter n
+        -nbits:       Number of convertion bits
+        -samples:     Samples from converters:
+                        samples[i][j]: sample j of converter i
         output:
-        lanes: Samples mapped to lanes
-               lanes[n][i] = octet i of lane n
+        -lanes: Lanes' octets organized in frames
+                lanes[i][j][k]: octet k of frame j of lane i
         """
         assert nconverters == len(samples)
 
@@ -25,7 +25,7 @@ class TransportLayer:
         nibbles_per_word = ceil(nbits//4)
         octets_per_lane = samples_per_frame*nibbles_per_word//2
 
-        lanes_octets = [[]]*nlanes
+        lanes = [[]]*nlanes
         n = 0
 
         while n < len(samples[0]):
@@ -55,23 +55,23 @@ class TransportLayer:
             for i in range(nlanes):
                 frame_lane_octets = frame_octets[i*octets_per_lane:
                                                  (i+1)*octets_per_lane]
-                lanes_octets[i] = lanes_octets[i] + frame_lane_octets
+                lanes[i] = lanes[i] + [frame_lane_octets]
 
-        return lanes_octets
+        return lanes
 
-    def map_lanes_octets_to_samples(self, nlanes, nconverters, nbits, lanes_octets):
+    def lanes_to_samples(self, nlanes, nconverters, nbits, lanes):
         """
         inputs:
-        -nlanes: Number of lanes per converter
+        -nlanes:      Number of lanes per converter
         -nconverters: Number of converters
-        -nbits: Number of convertion bits
-        -lanes: Samples mapped to lanes
-                lanes[n][i] = octet i of lane n
+        -nbits:       Number of convertion bits
+        -lanes:       Lanes' octets organized in frames
+                      lanes[i][j][k]: octet k of frame j of lane i
         output:
         -samples: Samples from converters:
-                  samples[n][i] = sample i of converter n
+                    samples[i][j]: sample j of converter i
         """
-        assert nlanes == len(lanes_octets)
+        assert nlanes == len(lanes)
 
         samples_per_frame = self.settings.s
         nibbles_per_word = ceil(nbits//4)
@@ -80,12 +80,12 @@ class TransportLayer:
         samples = [[]]*nconverters
         n = 0
 
-        while n < len(lanes_octets[0]):
+        while n < len(lanes[0]):
             # frame's octets
             frame_octets = []
             for i in range(nlanes):
-                frame_octets = frame_octets + lanes_octets[i][n:n+octets_per_lane]
-            n += octets_per_lane
+                frame_octets = frame_octets + lanes[i][n]
+            n += 1
 
             # frame's nibbles
             frame_nibbles = []
@@ -123,13 +123,16 @@ if __name__ == "__main__":
     for i in range(nconverters):
         samples.append([j+i*256 for j in range(8)])
 
-    lanes_octets = transport.map_samples_to_lanes_octets(nlanes, nconverters, 16, samples)
-    reverted_samples = transport.map_lanes_octets_to_samples(nlanes, nconverters, 16, lanes_octets)
+    lanes = transport.samples_to_lanes(nlanes, nconverters, 16, samples)
+    reverted_samples = transport.lanes_to_samples(nlanes, nconverters, 16, lanes)
 
     # debug
     print("-"*80)
-    print(samples)
+    for converter_samples in samples:
+        print(converter_samples)
     print("-"*80)
-    print(lanes_octets)
+    for lane in lanes:
+        print(lane)
     print("-"*80)
-    print(reverted_samples)
+    for converter_samples in reverted_samples:
+        print(converter_samples)
