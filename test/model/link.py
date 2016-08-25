@@ -15,18 +15,13 @@ class LinkLayer:
         for lane in lanes:
             new_lane = []
             last_dn = -1
-            n = 0
-            for frame in lane:
+            for n, frame in enumerate(lane):
                 dn = frame[-1]
-                if n%self.frames_per_multiframe == (self.frames_per_multiframe-1):
-                    last_frame_of_multiframe = True
-                else:
-                    last_frame_of_multiframe = False
+                last_frame_of_multiframe = ((n+1)%self.frames_per_multiframe == 0)
 
                 if self.scrambled:
-                    if dn == 0x7c:
-                        if last_frame_of_multiframe:
-                            dn = is_control_character | control_characters["A"]
+                    if (dn == 0x7c) & last_frame_of_multiframe:
+                        dn = is_control_character | control_characters["A"]
                     if dn == 0xfc:
                         dn = is_control_character | control_characters["F"]
                 else:
@@ -35,9 +30,9 @@ class LinkLayer:
                             dn = is_control_character | control_characters["A"]
                         else:
                             dn = is_control_character | control_characters["F"]
+
                 frame[-1] = dn
                 last_dn = dn
-                n = n + 1
 
                 new_lane.append(frame)
 
@@ -54,13 +49,9 @@ class LinkLayer:
         for lane in lanes:
             new_lane = []
             last_dn = -1
-            n = 0
-            for frame in lane:
+            for n, frame in enumerate(lane):
                 dn = frame[-1]
-                if n%self.frames_per_multiframe == (self.frames_per_multiframe-1):
-                    last_frame_of_multiframe = True
-                else:
-                    last_frame_of_multiframe = False
+                last_frame_of_multiframe = ((n+1)%self.frames_per_multiframe == 0)
 
                 if dn & is_control_character:
                     dn = dn & 0xff
@@ -77,7 +68,6 @@ class LinkLayer:
 
                 frame[-1] = dn
                 last_dn = dn
-                n = n + 1
 
                 new_lane.append(frame)
 
@@ -94,6 +84,7 @@ if __name__ == "__main__":
         [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
         [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
     ]
+    print(lanes)
     lanes = link.insert_alignment_characters(lanes)
     print(lanes)
     lanes = link.remove_alignment_characters(lanes)
