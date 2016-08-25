@@ -1,0 +1,45 @@
+     __   _ __         _____________  ___  ___  ____ ___
+    / /  (_) /____ __ / / __/ __/ _ \|_  |/ _ \/ / // _ )
+   / /__/ / __/ -_) // / _/_\ \/ // / __// // /_  _/ _  |
+  /____/_/\__/\__/\___/___/___/____/____/\___/ /_//____/
+
+             Copyright 2016 / EnjoyDigital
+             Copyright 2016 / M-Labs Ltd
+
+    A small footprint and configurable JESD204B core
+
+              ********************
+              * WORK IN PROGRESS *
+              ********************
+
+[> Intro
+---------
+LiteJESD204B provides a small footprint and configurable JESD204B core.
+TODO
+
+[> Features
+-----------
+TODO
+
+[> Possible improvements
+-------------------------
+TODO
+
+[> Getting started
+------------------
+TODO
+
+[> Simulations
+--------------
+TODO
+
+[> Tests
+--------
+TODO
+
+[> License
+----------
+TODO
+
+[> Contact
+E-mail: florent [AT] enjoy-digital.fr
