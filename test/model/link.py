@@ -10,6 +10,8 @@ class LinkLayer:
         """
         -lanes: Lanes' octets organized in frames
                 lanes[i][j][k]: octet k of frame j of lane i
+
+        cf section 5.3.3.4
         """
         new_lanes = []
         for lane in lanes:
@@ -44,6 +46,8 @@ class LinkLayer:
         """
         -lanes: Lanes' octets organized in frames
                 lanes[i][j][k]: octet k of frame j of lane i
+
+        cf section 5.3.3.4
         """
         new_lanes = []
         for lane in lanes:

@@ -18,6 +18,8 @@ class TransportLayer:
         output:
         -lanes: Lanes' octets organized in frames
                 lanes[i][j][k]: octet k of frame j of lane i
+
+        cf section 5.1.3
         """
         assert nconverters == len(samples)
 
@@ -70,6 +72,8 @@ class TransportLayer:
         output:
         -samples: Samples from converters:
                     samples[i][j]: sample j of converter i
+
+        cf section 5.1.3
         """
         assert nlanes == len(lanes)
 
