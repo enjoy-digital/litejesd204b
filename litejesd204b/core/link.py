@@ -8,17 +8,11 @@ class LiteJESD204BScrambler(Module):
         # TODO, polynom = 1 + X^14 + X^15
 
 
-class LiteJESD204BDescrambler(Module):
-    """JESD204 Descrambler
-    """
-    def __init__(self):
-        # TODO, polynom = 1 + X^14 + X^15
-
-
-class LiteJESD204BCharacterRemplacement(Module):
-    """JESD204 Character Remplacement
+class LiteJESD204BAlignmentCharacterInserter(Module):
+    """JESD204 Alignment Character Inserter
     """
     def __init__(self, dw):
+        # XXX refactor to operate on // datas
         self.sink = sink = stream.Endpoint(link_layout(dw))
         self.source = source = stream.Endpoint(link_layout(dw))
 
@@ -64,8 +58,8 @@ class LiteJESD204BCharacterRemplacement(Module):
             )
 
 
-class LiteJESD204BILAS(Module):
-    """JESD204 Initial Lane Alignment Sequence
+class LiteJESD204BILASGenerator(Module):
+    """JESD204 Initial Lane Alignment Sequence Generator
     """
     def __init__(self):
         # TODO
@@ -90,6 +84,10 @@ class LiteJESD204BDLinkTx(Module):
         self.source = stream.Endpoint(link_layout(dw))
 
         # # #
+
+        #                                       ILAS generator +
+        #                                                      + mux --> 8b/10b --> source
+        # sink --> scrambler --> alignement_character_inserter +
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET"))
         self.submodules += fsm
