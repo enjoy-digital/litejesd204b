@@ -36,6 +36,10 @@
 # S = 1
 # F = 2
 
+# Validation:
+# Need to define a test plan to validate the core with the AD9154, can probably be based on:
+# http://www.xilinx.com/publications/prod_mktg/JESD204B_Interop_Report_AD9250.pdf
+
 # XXX memo
 
 # Transport layer
