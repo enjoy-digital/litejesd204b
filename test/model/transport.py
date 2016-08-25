@@ -3,6 +3,63 @@ from math import ceil
 from litejesd204b.common import *
 
 
+def short_test_pattern(nconverters, samples_per_frame, repeats):
+    """
+    Generates the short transport layer test pattern:
+    - one frame duration
+    - repeated continuously
+    - each sample should have a unique value that can be identified with the
+      position of the sample in the user data format.
+
+    cf section 5.1.6.2
+    """
+    samples = []
+    for c in range(nconverters):
+        converter_samples = []
+        for r in range(repeats):
+            for s in range(samples_per_frame):
+                # unique id = converter_id*16 + sample_id
+                converter_samples.append(c*16+s)
+        samples.append(converter_samples)
+    return samples
+
+
+def long_test_pattern(nconverters, nbits, samples_per_frame, frame_per_multiframe, repeats):
+    """
+    Generates the long transport layer test pattern:
+    - duration of max(nconverters*samples_per_frame+2, 4) rounded up to lowest
+      number of full multiframes.
+    - repeated continuously
+    - frame 0: Converter ID + 1
+    - frame 1: Samples ID + 1
+    - frame N: MSB bit set to 1
+
+    limitations:
+    - control and tail bits no supported
+
+    cf section 5.1.6.3
+    """
+    nframes = min(max(nconverters*samples_per_frame+2, 4), frame_per_multiframe)
+
+    samples = []
+    for c in range(nconverters):
+        converter_samples = []
+        for r in range(repeats):
+            for f in range(nframes):
+                for s in range(samples_per_frame):
+                    # converter id + 1
+                    if f == 0:
+                        converter_samples.append(c+1)
+                    # sample id + 1
+                    elif f == 1:
+                        converter_samples.append(s+1)
+                    # sample's msb bit set to 1
+                    else:
+                        converter_samples.append(2**(nbits-1))
+        samples.append(converter_samples)
+    return samples
+
+
 class TransportLayer:
     def __init__(self, settings):
         self.settings = settings
@@ -10,14 +67,14 @@ class TransportLayer:
     def samples_to_lanes(self, nlanes, nconverters, nbits, samples):
         """
         inputs:
-        -nlanes:      Number of lanes per converter
-        -nconverters: Number of converters
-        -nbits:       Number of convertion bits
-        -samples:     Samples from converters:
-                        samples[i][j]: sample j of converter i
+        - nlanes:      Number of lanes per converter
+        - nconverters: Number of converters
+        - nbits:       Number of convertion bits
+        - samples:     Samples from converters:
+                       samples[i][j]: sample j of converter i
         output:
-        -lanes: Lanes' octets organized in frames
-                lanes[i][j][k]: octet k of frame j of lane i
+        - lanes: Lanes' octets organized in frames
+                 lanes[i][j][k]: octet k of frame j of lane i
 
         cf section 5.1.3
         """
@@ -64,14 +121,14 @@ class TransportLayer:
     def lanes_to_samples(self, nlanes, nconverters, nbits, lanes):
         """
         inputs:
-        -nlanes:      Number of lanes per converter
-        -nconverters: Number of converters
-        -nbits:       Number of convertion bits
-        -lanes:       Lanes' octets organized in frames
-                      lanes[i][j][k]: octet k of frame j of lane i
+        - nlanes:      Number of lanes per converter
+        - nconverters: Number of converters
+        - nbits:       Number of convertion bits
+        - lanes:       Lanes' octets organized in frames
+                       lanes[i][j][k]: octet k of frame j of lane i
         output:
-        -samples: Samples from converters:
-                    samples[i][j]: sample j of converter i
+        - samples: Samples from converters:
+                   samples[i][j]: sample j of converter i
 
         cf section 5.1.3
         """
@@ -123,6 +180,8 @@ if __name__ == "__main__":
     nlanes = 4
     nconverters = 4
 
+
+    print("test mapping")
     samples = []
     for i in range(nconverters):
         samples.append([j+i*256 for j in range(8)])
@@ -130,7 +189,6 @@ if __name__ == "__main__":
     lanes = transport.samples_to_lanes(nlanes, nconverters, 16, samples)
     reverted_samples = transport.lanes_to_samples(nlanes, nconverters, 16, lanes)
 
-    # debug
     print("-"*80)
     for converter_samples in samples:
         print(converter_samples)
@@ -139,4 +197,20 @@ if __name__ == "__main__":
         print(lane)
     print("-"*80)
     for converter_samples in reverted_samples:
+        print(converter_samples)
+
+    print("test short_test_pattern")
+    samples = short_test_pattern(nconverters=4,
+                                 samples_per_frame=2,
+                                 repeats=8)
+    for converter_samples in samples:
+        print(converter_samples)
+
+    print("test long_test_pattern")
+    samples = long_test_pattern(nconverters=4,
+                                nbits=16,
+                                samples_per_frame=2,
+                                frame_per_multiframe=8,
+                                repeats=1)
+    for converter_samples in samples:
         print(converter_samples)
