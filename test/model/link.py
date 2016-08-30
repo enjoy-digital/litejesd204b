@@ -1,6 +1,20 @@
 from litejesd204b.common import *
 
 
+def scramble(lane):
+    """
+    cf section 5.2
+    """
+    pass
+
+
+def descramble(lane):
+    """
+    cf section 5.2
+    """
+    pass
+
+
 class LinkLayer:
     def __init__(self, frames_per_multiframe, scrambled=False):
         self.frames_per_multiframe = frames_per_multiframe
