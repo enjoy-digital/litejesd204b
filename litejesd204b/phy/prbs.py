@@ -22,3 +22,18 @@ class PRBSGenerator(Module):
             state.eq(Cat(*curval[:n_state])),
             self.o.eq(Cat(*curval))
         ]
+
+
+class PRBS7Generator(PRBSGenerator):
+	def __init__(self, n_out):
+		PRBSGenerator.__init__(self, n_out, n_state=7, taps=[5, 6])
+
+
+class PRBS15Generator(PRBSGenerator):
+	def __init__(self, n_out):
+		PRBSGenerator.__init__(self, n_out, n_state=15, taps=[13, 14])
+
+
+class PRBS31Generator(PRBSGenerator):
+	def __init__(self, n_out):
+		PRBSGenerator.__init__(self, n_out, n_state=31, taps=[27, 30])
