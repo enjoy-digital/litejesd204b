@@ -6,30 +6,24 @@ from litejesd204b.common import *
 class LiteJESD204BScrambler(Module):
     """JESD204 Scrambler
     """
-    def __init__(self):
+    def __init__(self, dw):
         self.enable = Signal()
-        self.data_in = Signal(32)
-        self.data_out = Signal(32)
+        self.data_in = Signal(dw)
+        self.data_out = Signal(dw)
 
         # # #
 
-        swizzle_in = Signal(32)
-        swizzle_out = Signal(32)
+        swizzle_in = Signal(dw)
+        swizzle_out = Signal(dw)
         state = Signal(15, reset=0x7fff)
-        feedback = Signal(32)
-        full = Signal(32+15)
+        feedback = Signal(dw)
+        full = Signal(dw+15)
 
         self.comb += [
-            swizzle_in.eq(Cat(self.data_in[24:32],
-                              self.data_in[16:24],
-                              self.data_in[8:16],
-                              self.data_in[0:8])),
-            self.data_out.eq(Cat(swizzle_out[24:32],
-                                 swizzle_out[16:24],
-                                 swizzle_out[8:16],
-                                 swizzle_out[0:8])),
+            swizzle_in.eq(Cat(*[self.data_in[dw-8*(i+1):dw-8*i] for i in range(dw//8)])),
+            self.data_out.eq(Cat(*[swizzle_out[dw-8*(i+1):dw-8*i] for i in range(dw//8)])),
             full.eq(Cat(feedback, state)),
-            feedback.eq(full[15:15+32] ^ full[14:14+32] ^ swizzle_in)
+            feedback.eq(full[15:15+dw] ^ full[14:14+dw] ^ swizzle_in)
         ]
 
         self.sync += [
