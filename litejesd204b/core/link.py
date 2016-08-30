@@ -1,3 +1,5 @@
+from litex.gen import *
+
 from litejesd204b.common import *
 
 
@@ -5,7 +7,39 @@ class LiteJESD204BScrambler(Module):
     """JESD204 Scrambler
     """
     def __init__(self):
-        # TODO, polynom = 1 + X^14 + X^15
+        self.enable = Signal()
+        self.data_in = Signal(32)
+        self.data_out = Signal(32)
+
+        # # #
+
+        swizzle_in = Signal(32)
+        swizzle_out = Signal(32)
+        state = Signal(15, reset=0x7fff)
+        feedback = Signal(32)
+        full = Signal(32+15)
+
+        self.comb += [
+            swizzle_in.eq(Cat(self.data_in[24:32],
+                              self.data_in[16:24],
+                              self.data_in[8:16],
+                              self.data_in[0:8])),
+            self.data_out.eq(Cat(swizzle_out[24:32],
+                                 swizzle_out[16:24],
+                                 swizzle_out[8:16],
+                                 swizzle_out[0:8])),
+            full.eq(Cat(feedback, state)),
+            feedback.eq(full[15:15+32] ^ full[14:14+32] ^ swizzle_in)
+        ]
+
+        self.sync += [
+            If(self.enable,
+                swizzle_out.eq(feedback)
+            ).Else(
+                swizzle_out.eq(swizzle_in)
+            ),
+            state.eq(full)
+        ]
 
 
 class LiteJESD204BAlignmentCharacterInserter(Module):
@@ -69,6 +103,7 @@ class LiteJESD204BILASGenerator(Module):
         # for ADI DACs, data in between is a ramp
         # second multiframe = R, Q, followed by link parameters
         # after the last A character of the last ILAS multiframe, user data starts
+        pass
 
 
 class LiteJESD204BDLinkTx(Module):
