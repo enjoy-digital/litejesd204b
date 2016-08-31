@@ -5,7 +5,7 @@ from litejesd204b.phy.prbs import PRBS7Generator
 from litejesd204b.phy.prbs import PRBS15Generator
 from litejesd204b.phy.prbs import PRBS31Generator
 
-from model.phy import PRBS
+from model.phy import PRBS7, PRBS15, PRBS31
 
 
 def main_generator(dut, prbs, dw, cycles=1024):
@@ -25,9 +25,9 @@ if __name__ == "__main__":
         "prbs31": PRBS31Generator(32)
     }
     models = {
-        "prbs7":  PRBS(n_state=7,  taps=[5, 6]),
-        "prbs15": PRBS(n_state=15, taps=[13, 14]),
-        "prbs31": PRBS(n_state=31, taps=[27, 30])
+        "prbs7":  PRBS7(),
+        "prbs15": PRBS15(),
+        "prbs31": PRBS31()
     }
     for test in ["prbs7", "prbs15", "prbs31"]:
         print(test)
