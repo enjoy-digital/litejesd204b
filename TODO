@@ -1,5 +1,5 @@
+- standardize tests (use python's unittest?)
 - add scrambler model
-- add 8b10b model (if not already implemented)
 - test whole model: samples-->transport-->link-->phy-->link-->transport-->samples
 - find best data with/frequency compromise for our design (but try to be generic)
 - finish phy
