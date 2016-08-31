@@ -1,10 +1,9 @@
 - add scrambler model
-- add prbs model to test phy (prbs7, prbs15 or prbs31 implemented in ADI devices)
 - add 8b10b model (if not already implemented)
 - test whole model: samples-->transport-->link-->phy-->link-->transport-->samples
 - find best data with/frequency compromise for our design (but try to be generic)
-- finish phy and implement prbs
-- test phy with model and on board with ADI prbs checker
+- finish phy
+- test phy with model and on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31)
 - find SPI configuration for our design (map lanes correctly for KC705)
 - implement link layer (try to be generic on supported data width: 16,32,64, 128?)
 - implement transport layer (try to be generic on supported data width: 16,32,64, 128?)
