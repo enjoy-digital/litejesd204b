@@ -1,5 +1,4 @@
 - standardize tests (use python's unittest?)
-- test scrambler model with datas
 - test whole model: samples-->transport-->link-->phy-->link-->transport-->samples
 - find best data with/frequency compromise for our design (but try to be generic)
 - finish phy
