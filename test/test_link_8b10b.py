@@ -97,15 +97,3 @@ class TestLineCoding(unittest.TestCase):
     def test_roundtrip(self):
         self.assertEqual(self.input_sequence,
                          decode_sequence(self.output_sequence))
-
-
-test = TestLineCoding()
-test.setUpClass()
-#print("test_comma")
-#test.test_comma()
-print("test_running_disparity")
-test.test_running_disparity()
-print("test_no_spurious_commas")
-test.test_no_spurious_commas()
-print("test_roundtrip")
-test.test_roundtrip()
