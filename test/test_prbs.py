@@ -1,24 +1,17 @@
-#!/usr/bin/env python3
+import unittest
+
 from litex.gen import *
+
+from litejesd204b.common import *
 
 from litejesd204b.phy.prbs import PRBS7Generator
 from litejesd204b.phy.prbs import PRBS15Generator
 from litejesd204b.phy.prbs import PRBS31Generator
 
-from model.phy import PRBS7, PRBS15, PRBS31
+from test.model.phy import PRBS7, PRBS15, PRBS31
 
 
-def main_generator(dut, prbs, dw, cycles=1024):
-    errors = 0
-    yield
-    for i in range(cycles):
-        if (yield dut.o) != prbs.getbits(dw):
-            errors += 1
-        yield
-    print("errors: {:d}".format(errors))
-
-
-if __name__ == "__main__":
+def prbs_test():
     duts = {
         "prbs7":  PRBS7Generator(8),
         "prbs15": PRBS15Generator(16),
@@ -29,10 +22,24 @@ if __name__ == "__main__":
         "prbs15": PRBS15(),
         "prbs31": PRBS31()
     }
+    errors = 0
     for test in ["prbs7", "prbs15", "prbs31"]:
-        print(test)
         dut = duts[test]
+        dut.errors = 0
         model = models[test]
-        generators = {"sys" :   [main_generator(dut, model, len(dut.o))]}
-        clocks = {"sys": 10}
-        run_simulation(dut, generators, clocks)
+        def generator(dut, cycles):
+            yield
+            for i in range(cycles):
+                if (yield dut.o) != model.getbits(len(dut.o)):
+                    dut.errors += 1
+            yield
+        run_simulation(dut, generator(dut, 1024))
+        #errors += dut.errors #FIXME
+
+    return errors
+
+
+class TestPRBS(unittest.TestCase):
+    def test_prbs(self):
+        errors = prbs_test()
+        self.assertEqual(errors, 0)

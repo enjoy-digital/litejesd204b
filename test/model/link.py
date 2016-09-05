@@ -74,7 +74,7 @@ def scramble_lanes(lanes):
     return scrambled_lanes
 
 
-def descramble_lanes(lane):
+def descramble_lanes(lanes):
     descrambled_lanes = []
     for lane in lanes:
         descrambled_lanes.append(descramble_lane(lane))
@@ -158,49 +158,3 @@ class LinkLayer:
             new_lanes.append(new_lane)
 
         return new_lanes
-
-
-if __name__ == "__main__":
-    print("scrambler unit test")
-    scrambler = Scrambler()
-    descrambler = Descrambler()
-    errors = 0
-    for i in range(128):
-        if descrambler.descramble(scrambler.scramble(i, 32), 32) != i:
-            errors += 1
-    print("errors: {:d}".format(errors))
-
-    print("scrambler lane test")
-    lane = [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]
-    print(descramble_lane(scramble_lane(lane)))
-
-    print("link test (scrambling disabled)")
-    link = LinkLayer(4, False)
-    lanes = [
-        [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
-        [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
-        [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
-        [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
-    ]
-    print(lanes)
-    lanes = link.insert_alignment_characters(lanes)
-    print(lanes)
-    lanes = link.remove_alignment_characters(lanes)
-    print(lanes)
-
-    print("link test (scrambling enabled)")
-    link = LinkLayer(4, True)
-    lanes = [
-        [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
-        [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
-        [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
-        [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
-    ]
-    lanes = scramble_lanes(lanes)
-    print(lanes)
-    lanes = link.insert_alignment_characters(lanes)
-    print(lanes)
-    lanes = link.remove_alignment_characters(lanes)
-    print(lanes)
-    lanes = descramble_lanes(lanes)
-    print(lanes)
