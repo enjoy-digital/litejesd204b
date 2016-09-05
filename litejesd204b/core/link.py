@@ -24,11 +24,9 @@ class LiteJESD204BScrambler(Module):
 
         self.sync += [
             If(self.enable,
-                self.data_out.eq(feedback)
-            ).Else(
-                self.data_out.eq(self.data_in)
-            ),
-            state.eq(full)
+                self.data_out.eq(feedback),
+                state.eq(full)
+            )
         ]
 
 

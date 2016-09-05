@@ -18,8 +18,8 @@ class Scrambler:
         v = 0
         for i in range(n):
             v <<= 1
-            v |= self.shift(data & 0x1)
-            data >>= 1
+            v |= self.shift((data >> (n-1)) & 0x1)
+            data <<= 1
         return v
 
 

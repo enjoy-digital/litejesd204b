@@ -15,16 +15,17 @@ class TB(Module):
 
 def main_generator(dut):
     scrambler_model = Scrambler()
-    yield tb.scrambler.enable.eq(1)
     yield tb.scrambler.data_in.eq(0)
+    yield tb.scrambler.enable.eq(1)
     yield
+    yield tb.scrambler.data_in.eq(1)
     yield
     errors = 0
-    dummy = scrambler_model.scramble(0, 32) # XXX understand why needed
     for i in range(512):
-        reference = scrambler_model.scramble(0, 32)
+        reference = scrambler_model.scramble(i, 32)
         if (yield tb.scrambler.data_out) != reference:
             errors += 1
+        yield tb.scrambler.data_in.eq(i+2)
         yield
     print("errors: {:d}".format(errors))
 
