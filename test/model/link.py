@@ -144,7 +144,7 @@ if __name__ == "__main__":
     descrambler = Descrambler()
     errors = 0
     for i in range(128):
-        if descrambler.descramble(scrambler.scramble(0, 32), 32) != 0:
+        if descrambler.descramble(scrambler.scramble(i, 32), 32) != i:
             errors += 1
     print("errors: {:d}".format(errors))
 
