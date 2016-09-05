@@ -7,9 +7,6 @@ from litejesd204b.core.link import LiteJESD204BScrambler
 
 from model.link import Scrambler
 
-def swap32(i):
-    return struct.unpack("<I", struct.pack(">I", i))[0]
-
 
 class TB(Module):
     def __init__(self):
@@ -23,9 +20,9 @@ def main_generator(dut):
     yield
     yield
     errors = 0
-    dummy = swap32(scrambler_model.scramble(0, 32)) # XXX understand why needed
+    dummy = scrambler_model.scramble(0, 32) # XXX understand why needed
     for i in range(512):
-        reference = swap32(scrambler_model.scramble(0, 32))
+        reference = scrambler_model.scramble(0, 32)
         if (yield tb.scrambler.data_out) != reference:
             errors += 1
         yield

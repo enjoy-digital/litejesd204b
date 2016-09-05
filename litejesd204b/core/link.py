@@ -13,24 +13,20 @@ class LiteJESD204BScrambler(Module):
 
         # # #
 
-        swizzle_in = Signal(dw)
-        swizzle_out = Signal(dw)
         state = Signal(15, reset=0x7fff)
         feedback = Signal(dw)
         full = Signal(dw+15)
 
         self.comb += [
-            swizzle_in.eq(Cat(*[self.data_in[dw-8*(i+1):dw-8*i] for i in range(dw//8)])),
-            self.data_out.eq(Cat(*[swizzle_out[dw-8*(i+1):dw-8*i] for i in range(dw//8)])),
             full.eq(Cat(feedback, state)),
-            feedback.eq(full[15:15+dw] ^ full[14:14+dw] ^ swizzle_in)
+            feedback.eq(full[15:15+dw] ^ full[14:14+dw] ^ self.data_in)
         ]
 
         self.sync += [
             If(self.enable,
-                swizzle_out.eq(feedback)
+                self.data_out.eq(feedback)
             ).Else(
-                swizzle_out.eq(swizzle_in)
+                self.data_out.eq(self.data_in)
             ),
             state.eq(full)
         ]
