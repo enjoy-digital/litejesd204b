@@ -166,7 +166,7 @@ if __name__ == "__main__":
     lane = [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]
     print(descramble_lane(scramble_lane(lane)))
 
-    print("link test")
+    print("link test (scrambling disabled)")
     link = LinkLayer(4, False)
     lanes = [
         [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
@@ -180,4 +180,23 @@ if __name__ == "__main__":
     lanes = link.remove_alignment_characters(lanes)
     print(lanes)
 
-
+    print("link test (scrambling enabled)")
+    link = LinkLayer(4, True)
+    lanes = [
+        scramble_lane([[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]),
+        scramble_lane([[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]]),
+        scramble_lane([[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]]),
+        scramble_lane([[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]]),
+    ]
+    print(lanes)
+    lanes = link.insert_alignment_characters(lanes)
+    print(lanes)
+    lanes = link.remove_alignment_characters(lanes)
+    print(lanes)
+    lanes = [
+    	descramble_lane(lanes[0]),
+    	descramble_lane(lanes[1]),
+    	descramble_lane(lanes[2]),
+    	descramble_lane(lanes[3]),
+    ]
+    print(lanes)
