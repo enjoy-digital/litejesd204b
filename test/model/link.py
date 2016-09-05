@@ -1,6 +1,28 @@
 from litejesd204b.common import *
 
 
+class Scrambler:
+    """
+    cf section 5.2.3
+    """
+    def __init__(self):
+        self.state = [1]*15
+
+    def getbit(self, d15):
+        s15 = (d15 ^ self.state[1] ^ self.state[0]) & 0x1
+        self.state.pop(0)
+        self.state.append(s15)
+        return s15
+
+    def getbits(self, n, data):
+        v = 0
+        for i in range(n):
+            v <<= 1
+            v |= self.getbit(data & 0x1)
+            data >>= 1
+        return v
+
+
 def scramble(lane):
     """
     cf section 5.2
