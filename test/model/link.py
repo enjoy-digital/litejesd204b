@@ -24,9 +24,6 @@ class Scrambler:
 
 
 class Descrambler:
-    """
-    cf section 5.2.3
-    """
     def __init__(self):
         self.state = [1]*15
 
@@ -46,9 +43,6 @@ class Descrambler:
 
 
 def scramble_lane(lane):
-    """
-    cf section 5.2
-    """
     scrambler = Scrambler()
     scrambled_lane = []
     for frame in lane:
@@ -71,6 +65,20 @@ def descramble_lane(lane):
             descrambled_frame.append(descrambler.descramble(octet, 8))
         descrambled_lane.append(descrambled_frame)
     return descrambled_lane
+
+
+def scramble_lanes(lanes):
+    scrambled_lanes = []
+    for lane in lanes:
+        scrambled_lanes.append(scramble_lane(lane))
+    return scrambled_lanes
+
+
+def descramble_lanes(lane):
+    descrambled_lanes = []
+    for lane in lanes:
+        descrambled_lanes.append(descramble_lane(lane))
+    return descrambled_lanes
 
 
 class LinkLayer:
@@ -183,20 +191,16 @@ if __name__ == "__main__":
     print("link test (scrambling enabled)")
     link = LinkLayer(4, True)
     lanes = [
-        scramble_lane([[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]),
-        scramble_lane([[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]]),
-        scramble_lane([[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]]),
-        scramble_lane([[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]]),
+        [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
+        [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
+        [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
+        [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
     ]
+    lanes = scramble_lanes(lanes)
     print(lanes)
     lanes = link.insert_alignment_characters(lanes)
     print(lanes)
     lanes = link.remove_alignment_characters(lanes)
     print(lanes)
-    lanes = [
-    	descramble_lane(lanes[0]),
-    	descramble_lane(lanes[1]),
-    	descramble_lane(lanes[2]),
-    	descramble_lane(lanes[3]),
-    ]
+    lanes = descramble_lanes(lanes)
     print(lanes)
