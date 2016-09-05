@@ -8,18 +8,40 @@ class Scrambler:
     def __init__(self):
         self.state = [1]*15
 
-    def getbit(self, d15):
+    def shift(self, d15):
         s15 = (d15 ^ self.state[1] ^ self.state[0]) & 0x1
         self.state.pop(0)
         self.state.append(s15)
         return s15
 
-    def getbits(self, n, data):
+    def scramble(self, data, n):
         v = 0
         for i in range(n):
             v <<= 1
-            v |= self.getbit(data & 0x1)
+            v |= self.shift(data & 0x1)
             data >>= 1
+        return v
+
+
+class Descrambler:
+    """
+    cf section 5.2.3
+    """
+    def __init__(self):
+        self.state = [1]*15
+
+    def shift(self, s15):
+        d15 = (s15 ^ self.state[1] ^ self.state[0]) & 0x1
+        self.state.pop(0)
+        self.state.append(s15)
+        return d15
+
+    def descramble(self, data, n):
+        v = 0
+        for i in range(n):
+            v <<= 1
+            v |= self.shift((data >> (n-1)) & 0x1)
+            data <<= 1
         return v
 
 
@@ -117,6 +139,16 @@ class LinkLayer:
 
 
 if __name__ == "__main__":
+    print("scrambler test")
+    scrambler = Scrambler()
+    descrambler = Descrambler()
+    errors = 0
+    for i in range(128):
+        if descrambler.descramble(scrambler.scramble(0, 32), 32) != 0:
+            errors += 1
+    print("errors: {:d}".format(errors))
+
+    print("link test")
     link = LinkLayer(4, False)
     lanes = [
         [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
