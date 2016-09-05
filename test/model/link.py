@@ -45,18 +45,32 @@ class Descrambler:
         return v
 
 
-def scramble(lane):
+def scramble_lane(lane):
     """
     cf section 5.2
     """
-    pass
+    scrambler = Scrambler()
+    scrambled_lane = []
+    for frame in lane:
+        scrambled_frame = []
+        for octet in frame:
+            scrambled_frame.append(scrambler.scramble(octet, 8))
+        scrambled_lane.append(scrambled_frame)
+    return scrambled_lane
 
 
-def descramble(lane):
+def descramble_lane(lane):
     """
     cf section 5.2
     """
-    pass
+    descrambler = Descrambler()
+    descrambled_lane = []
+    for frame in lane:
+        descrambled_frame = []
+        for octet in frame:
+            descrambled_frame.append(descrambler.descramble(octet, 8))
+        descrambled_lane.append(descrambled_frame)
+    return descrambled_lane
 
 
 class LinkLayer:
@@ -139,7 +153,7 @@ class LinkLayer:
 
 
 if __name__ == "__main__":
-    print("scrambler test")
+    print("scrambler unit test")
     scrambler = Scrambler()
     descrambler = Descrambler()
     errors = 0
@@ -147,6 +161,10 @@ if __name__ == "__main__":
         if descrambler.descramble(scrambler.scramble(i, 32), 32) != i:
             errors += 1
     print("errors: {:d}".format(errors))
+
+    print("scrambler lane test")
+    lane = [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]
+    print(descramble_lane(scramble_lane(lane)))
 
     print("link test")
     link = LinkLayer(4, False)
@@ -161,3 +179,5 @@ if __name__ == "__main__":
     print(lanes)
     lanes = link.remove_alignment_characters(lanes)
     print(lanes)
+
+
