@@ -4,15 +4,18 @@ from litejesd204b.common import *
 
 from test.model.common import seed_to_data
 
+from test.model.transport import TransportLayer
+from test.model.transport import short_test_pattern, long_test_pattern
+from test.model.transport import samples_to_lanes, lanes_to_samples
+
 from test.model.link import Scrambler, Descrambler
 from test.model.link import scramble_lane, descramble_lane
 from test.model.link import scramble_lanes, descramble_lanes
 from test.model.link import insert_alignment_characters, remove_alignment_characters
 from test.model.link import LinkLayer
 
-from test.model.transport import TransportLayer
-from test.model.transport import short_test_pattern, long_test_pattern
-from test.model.transport import samples_to_lanes, lanes_to_samples
+from test.model.line_coding import encode_lane, decode_lane
+from test.model.line_coding import encode_lanes, decode_lanes
 
 class TestModel(unittest.TestCase):
     def test_transport_mapping(self):
@@ -126,6 +129,13 @@ class TestModel(unittest.TestCase):
         output_lanes = descramble_lanes(lanes)
         self.assertEqual(input_lanes, output_lanes)
 
+
+    def test_line_coding(self):
+         input_lane = [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]
+         encoded_lane = encode_lane(input_lane)
+         output_lane = decode_lane(encoded_lane)
+         self.assertEqual(input_lane, output_lane)
+
     def test_loopback(self):
         # config
         nlanes = 4
@@ -144,17 +154,17 @@ class TestModel(unittest.TestCase):
         tx_lanes = transport.encode(tx_samples)
         # link
         tx_data = link.encode(tx_lanes)
-        # phy
-        # XXX TODO
+        # line_coding
+        tx_encoded_data = encode_lanes(tx_data)
 
         # >> loopback >>
         # # #
-        rx_data = tx_data
+        rx_encoded_data = tx_encoded_data
 
         # >> rx
         # # #
-        # phy
-        # XXX TODO
+        # line_coding
+        rx_data = decode_lanes(rx_encoded_data)
         # link
         rx_lanes = link.decode(rx_data)
         # transport
