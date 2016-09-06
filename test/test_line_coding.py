@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from litex.gen import *
 
-from litejesd204b.core import link_8b10b
+from litejesd204b.core import line_coding
 
 
 Control = namedtuple("Control", "value")
@@ -13,7 +13,7 @@ Control = namedtuple("Control", "value")
 def encode_sequence(seq):
     output = []
 
-    dut = link_8b10b.Encoder()
+    dut = line_coding.Encoder()
     def pump():
         for w in seq:
             if isinstance(w, Control):
@@ -35,7 +35,7 @@ def encode_sequence(seq):
 def decode_sequence(seq):
     output = []
 
-    dut = link_8b10b.Decoder()
+    dut = line_coding.Decoder()
     def pump():
         for w in seq:
             yield dut.input.eq(w)
@@ -83,7 +83,7 @@ class TestLineCoding(unittest.TestCase):
     def test_running_disparity(self):
         rd = -1
         for w in self.output_sequence:
-            rd += link_8b10b.disparity(w, 10)
+            rd += line_coding.disparity(w, 10)
             self.assertIn(rd, {-1, 1})
 
     def test_no_spurious_commas(self):

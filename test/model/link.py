@@ -1,6 +1,6 @@
 from litejesd204b.common import *
 
-
+# scrambling
 class Scrambler:
     """
     cf section 5.2.3
@@ -80,7 +80,7 @@ def descramble_lanes(lanes):
         descrambled_lanes.append(descramble_lane(lane))
     return descrambled_lanes
 
-
+# alignment characters
 def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
     """
     -lanes: Lanes' octets organized in frames
