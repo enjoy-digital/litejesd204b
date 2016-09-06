@@ -81,80 +81,99 @@ def descramble_lanes(lanes):
     return descrambled_lanes
 
 
+def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
+    """
+    -lanes: Lanes' octets organized in frames
+            lanes[i][j][k]: octet k of frame j of lane i
+
+    cf section 5.3.3.4
+    """
+    new_lanes = []
+    for lane in lanes:
+        new_lane = []
+        last_dn = -1
+        for n, frame in enumerate(lane):
+            dn = frame[-1]
+            last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
+
+            if scrambled:
+                if (dn == 0x7c) & last_frame_of_multiframe:
+                    dn = is_control_character | control_characters["A"]
+                if dn == 0xfc:
+                    dn = is_control_character | control_characters["F"]
+            else:
+                if dn == last_dn:
+                    if last_frame_of_multiframe:
+                        dn = is_control_character | control_characters["A"]
+                    else:
+                        dn = is_control_character | control_characters["F"]
+
+            frame[-1] = dn
+            last_dn = dn
+
+            new_lane.append(frame)
+
+        new_lanes.append(new_lane)
+
+    return new_lanes
+
+
+def remove_alignment_characters(frames_per_multiframe, scrambled, lanes):
+    """
+    -lanes: Lanes' octets organized in frames
+            lanes[i][j][k]: octet k of frame j of lane i
+
+    cf section 5.3.3.4
+    """
+    new_lanes = []
+    for lane in lanes:
+        new_lane = []
+        last_dn = -1
+        for n, frame in enumerate(lane):
+            dn = frame[-1]
+            last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
+
+            if dn & is_control_character:
+                dn = dn & 0xff
+                if scrambled:
+                    if dn == control_characters["A"]:
+                        dn = 0x7c
+                    elif control_characters["F"]:
+                        dn = 0xfc
+                else:
+                    if dn == control_characters["A"]:
+                        dn = last_dn
+                    elif dn == control_characters["F"]:
+                        dn = last_dn
+
+            frame[-1] = dn
+            last_dn = dn
+
+            new_lane.append(frame)
+
+        new_lanes.append(new_lane)
+
+    return new_lanes
+
+
 class LinkLayer:
     def __init__(self, frames_per_multiframe, scrambled=False):
         self.frames_per_multiframe = frames_per_multiframe
-        self.scrambled = False
+        self.scrambled = scrambled
 
-    def insert_alignment_characters(self, lanes):
-        """
-        -lanes: Lanes' octets organized in frames
-                lanes[i][j][k]: octet k of frame j of lane i
-
-        cf section 5.3.3.4
-        """
+    def encode(self, lanes):
         new_lanes = []
-        for lane in lanes:
-            new_lane = []
-            last_dn = -1
-            for n, frame in enumerate(lane):
-                dn = frame[-1]
-                last_frame_of_multiframe = ((n+1)%self.frames_per_multiframe == 0)
-
-                if self.scrambled:
-                    if (dn == 0x7c) & last_frame_of_multiframe:
-                        dn = is_control_character | control_characters["A"]
-                    if dn == 0xfc:
-                        dn = is_control_character | control_characters["F"]
-                else:
-                    if dn == last_dn:
-                        if last_frame_of_multiframe:
-                            dn = is_control_character | control_characters["A"]
-                        else:
-                            dn = is_control_character | control_characters["F"]
-
-                frame[-1] = dn
-                last_dn = dn
-
-                new_lane.append(frame)
-
-            new_lanes.append(new_lane)
-
+        if self.scrambled:
+            new_lanes = scramble_lanes(lanes)
+        new_lanes = insert_alignment_characters(self.frames_per_multiframe,
+                                                self.scrambled,
+                                                new_lanes)
         return new_lanes
 
-    def remove_alignment_characters(self, lanes):
-        """
-        -lanes: Lanes' octets organized in frames
-                lanes[i][j][k]: octet k of frame j of lane i
-
-        cf section 5.3.3.4
-        """
-        new_lanes = []
-        for lane in lanes:
-            new_lane = []
-            last_dn = -1
-            for n, frame in enumerate(lane):
-                dn = frame[-1]
-                last_frame_of_multiframe = ((n+1)%self.frames_per_multiframe == 0)
-
-                if dn & is_control_character:
-                    dn = dn & 0xff
-                    if self.scrambled:
-                        if dn == control_characters["A"]:
-                            dn = 0x7c
-                        elif control_characters["F"]:
-                            dn = 0xfc
-                    else:
-                        if dn == control_characters["A"]:
-                            dn = last_dn
-                        elif dn == control_characters["F"]:
-                            dn = last_dn
-
-                frame[-1] = dn
-                last_dn = dn
-
-                new_lane.append(frame)
-
-            new_lanes.append(new_lane)
-
+    def decode(self, lanes):
+        new_lanes = remove_alignment_characters(self.frames_per_multiframe,
+                                                self.scrambled,
+                                                lanes)
+        if self.scrambled:
+            new_lanes = descramble_lanes(lanes)
         return new_lanes
