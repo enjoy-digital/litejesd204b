@@ -32,9 +32,9 @@ def prbs_test():
             for i in range(cycles):
                 if (yield dut.o) != model.getbits(len(dut.o)):
                     dut.errors += 1
-            yield
+                yield
         run_simulation(dut, generator(dut, 1024))
-        #errors += dut.errors #FIXME
+        errors += dut.errors
 
     return errors
 
