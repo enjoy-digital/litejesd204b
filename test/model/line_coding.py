@@ -137,6 +137,15 @@ line_coding_data_rd_p = [
     0b0011100001, 0b0100011110, 0b1000011110, 0b0101001110
 ]
 
+def inverse_data_rd(table):
+    inverse_table = {}
+    for i in range(256):
+        inverse_table[table[i]] = i
+    return inverse_table
+
+line_coding_data_rd_m_inverse = inverse_data_rd(line_coding_data_rd_m)
+line_coding_data_rd_p_inverse = inverse_data_rd(line_coding_data_rd_p)
+
 line_coding_control_rd_m = {
     0b00011100: 0b0011110100, #K28.0
     0b00111100: 0b0011111001, #K28.1
@@ -169,7 +178,7 @@ line_coding_control_rd_p = {
 
 
 def encode_lane(lane):
-    # XXX manage control characters
+    # XXX manage control characters correctly
     table = "m"
     change_table = False
     running_disparity = 0
@@ -180,12 +189,16 @@ def encode_lane(lane):
         for octet in frame:
             if change_table:
                 table = "p" if table == "m" else "m"
+            if octet & is_control_character:
+                octet = octet & 0xff
+                if table == "p":
+                    encoded_octet = line_coding_control_rd_p[octet]
+                else:
+                    encoded_octet = line_coding_control_rd_m[octet]
             if table == "p":
-                #encoded_octet = line_coding_data_rd_p[octet]
-                encoded_octet = line_coding_data_rd_p[octet%256] # XXX FIXME
+                encoded_octet = line_coding_data_rd_p[octet]
             else:
-                #encoded_octet = line_coding_data_rd_m[octet]
-                encoded_octet = line_coding_data_rd_m[octet%256] # XXX FIXME
+                encoded_octet = line_coding_data_rd_m[octet]
             running_disparity += disparity(encoded_octet, 10)
             change_table = (disparity(encoded_octet, 10) != 0)
             new_frame.append(encoded_octet)
@@ -196,23 +209,15 @@ def encode_lane(lane):
 
 
 def decode_lane(lane):
-    # XXX manage control characters
-    data_rd_p_inverse = {}
-    for i in range(256):
-        data_rd_p_inverse[line_coding_data_rd_p[i]] = i
-
-    data_rd_m_inverse = {}
-    for i in range(256):
-        data_rd_m_inverse[line_coding_data_rd_m[i]] = i  
-
+    # XXX manage control characters correctly
     decoded_lane = []
     for frame in lane:
         new_frame = []
         for encoded_octet in frame:
             try:
-                octet = data_rd_m_inverse[encoded_octet]
+                octet = line_coding_data_rd_m_inverse[encoded_octet]
             except:
-                octet = data_rd_p_inverse[encoded_octet]
+                octet = line_coding_data_rd_p_inverse[encoded_octet]
             new_frame.append(octet)
 
         decoded_lane.append(new_frame)
