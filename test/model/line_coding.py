@@ -186,8 +186,8 @@ def encode_lane(lane):
             else:
                 #encoded_octet = line_coding_data_rd_m[octet]
                 encoded_octet = line_coding_data_rd_m[octet%256] # XXX FIXME
-            running_disparity += disparity(encoded_octet, 8)
-            change_table = (disparity(encoded_octet, 8) != 0)
+            running_disparity += disparity(encoded_octet, 10)
+            change_table = (disparity(encoded_octet, 10) != 0)
             new_frame.append(encoded_octet)
 
         encoded_lane.append(new_frame)
