@@ -157,7 +157,7 @@ class TestModel(unittest.TestCase):
 
         # tx >>
         # # #
-        tx_samples = [[i for j in range(2048)] for i in range(nconverters)]
+        tx_samples = [[j for j in range(2048)] for i in range(nconverters)]
         # transport
         tx_lanes = transport.encode(tx_samples)
         # link
