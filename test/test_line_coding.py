@@ -63,12 +63,8 @@ class TestLineCoding(unittest.TestCase):
         cls.output_sequence = encode_sequence(cls.input_sequence)
 
     def test_coding(self):
-        prng = random.Random(42)
-        input_sequence = [prng.randrange(256) for _ in range(10000)]
-        reference_sequence = encode_lanes([[input_sequence]])[0][0]
-        output_sequence = encode_sequence(input_sequence)
-        self.assertEqual(reference_sequence,
-                         output_sequence)
+        reference_sequence = encode_lanes([[self.input_sequence]])[0][0]
+        self.assertEqual(reference_sequence, self.output_sequence)
 
     def test_comma(self):
         control_chars = [
