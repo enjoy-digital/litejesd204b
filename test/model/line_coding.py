@@ -197,7 +197,6 @@ def encode_lane(lane):
     # XXX manage control characters correctly
     table = "m"
     change_table = False
-    running_disparity = 0
 
     encoded_lane = []
     for frame in lane:
@@ -215,7 +214,6 @@ def encode_lane(lane):
                 encoded_octet = line_coding_data_rd_p[octet]
             else:
                 encoded_octet = line_coding_data_rd_m[octet]
-            running_disparity += disparity(encoded_octet, 10)
             change_table = (disparity(encoded_octet, 10) != 0)
             new_frame.append(encoded_octet)
 
