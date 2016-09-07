@@ -24,6 +24,9 @@ class Scrambler:
 
 
 class Descrambler:
+    """
+    cf section 5.2
+    """
     def __init__(self):
         self.state = [1]*15
 
@@ -42,43 +45,33 @@ class Descrambler:
         return v
 
 
-def scramble_lane(lane):
-    scrambler = Scrambler()
-    scrambled_lane = []
-    for frame in lane:
-        scrambled_frame = []
-        for octet in frame:
-            scrambled_frame.append(scrambler.scramble(octet, 8))
-        scrambled_lane.append(scrambled_frame)
-    return scrambled_lane
-
-
-def descramble_lane(lane):
-    """
-    cf section 5.2
-    """
-    descrambler = Descrambler()
-    descrambled_lane = []
-    for frame in lane:
-        descrambled_frame = []
-        for octet in frame:
-            descrambled_frame.append(descrambler.descramble(octet, 8))
-        descrambled_lane.append(descrambled_frame)
-    return descrambled_lane
-
-
 def scramble_lanes(lanes):
     scrambled_lanes = []
     for lane in lanes:
-        scrambled_lanes.append(scramble_lane(lane))
+        scrambler = Scrambler()
+        scrambled_lane = []
+        for frame in lane:
+            scrambled_frame = []
+            for octet in frame:
+                scrambled_frame.append(scrambler.scramble(octet, 8))
+            scrambled_lane.append(scrambled_frame)
+        scrambled_lanes.append(scrambled_lane)
     return scrambled_lanes
 
 
 def descramble_lanes(lanes):
     descrambled_lanes = []
     for lane in lanes:
-        descrambled_lanes.append(descramble_lane(lane))
+        descrambler = Descrambler()
+        descrambled_lane = []
+        for frame in lane:
+            descrambled_frame = []
+            for octet in frame:
+                descrambled_frame.append(descrambler.descramble(octet, 8))
+            descrambled_lane.append(descrambled_frame)
+        descrambled_lanes.append(descrambled_lane)
     return descrambled_lanes
+
 
 # alignment characters
 def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):

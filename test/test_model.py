@@ -9,7 +9,6 @@ from test.model.transport import short_test_pattern, long_test_pattern
 from test.model.transport import samples_to_lanes, lanes_to_samples
 
 from test.model.link import Scrambler, Descrambler
-from test.model.link import scramble_lane, descramble_lane
 from test.model.link import scramble_lanes, descramble_lanes
 from test.model.link import insert_alignment_characters, remove_alignment_characters
 from test.model.link import LinkLayer
@@ -92,9 +91,14 @@ class TestModel(unittest.TestCase):
 
     def test_link_lane_scrambling(self):
         # FIXME use random data
-        input_lane = [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]
-        output_lane = descramble_lane(scramble_lane(input_lane))
-        self.assertEqual(input_lane, output_lane)
+        input_lanes = [
+            [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
+            [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
+            [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
+            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
+        ]
+        output_lanes = descramble_lanes(scramble_lanes(input_lanes))
+        self.assertEqual(input_lanes, output_lanes)
 
     def test_link_alignment_characters_without_scrambling(self):
         # FIXME use random data
