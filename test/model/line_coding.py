@@ -70,6 +70,7 @@ line_coding_data_rd_m = [
     0b0011101110, 0b1011100001, 0b0111100001, 0b1010110001
 ]
 
+
 line_coding_data_rd_p = [
     0b0110001011, 0b1000101011, 0b0100101011, 0b1100010100,
     0b0010101011, 0b1010010100, 0b0110010100, 0b0001110100,
@@ -137,14 +138,17 @@ line_coding_data_rd_p = [
     0b0011100001, 0b0100011110, 0b1000011110, 0b0101001110
 ]
 
+
 def inverse_data_rd(table):
     inverse_table = {}
     for i in range(256):
         inverse_table[table[i]] = i
     return inverse_table
 
+
 line_coding_data_rd_m_inverse = inverse_data_rd(line_coding_data_rd_m)
 line_coding_data_rd_p_inverse = inverse_data_rd(line_coding_data_rd_p)
+
 
 line_coding_control_rd_m = {
     0b00011100: 0b0011110100, #K28.0
@@ -161,6 +165,7 @@ line_coding_control_rd_m = {
     0b11111110: 0b0111101000  #K30.7
 }
 
+
 line_coding_control_rd_p = {
     0b00011100: 0b1100001011, #K28.0
     0b00111100: 0b1100000110, #K28.1
@@ -175,6 +180,17 @@ line_coding_control_rd_p = {
     0b11111101: 0b0100010111, #K29.7
     0b11111110: 0b1000010111  #K30.7
 }
+
+
+def inverse_control_rd(table):
+    inverse_table = {}
+    for k, v in table.items():
+        inverse_table[v] = k
+    return inverse_table
+
+
+line_coding_control_rd_m_inverse = inverse_control_rd(line_coding_control_rd_m)
+line_coding_control_rd_p_inverse = inverse_control_rd(line_coding_control_rd_p)
 
 
 def encode_lane(lane):
