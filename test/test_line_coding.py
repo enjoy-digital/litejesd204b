@@ -6,7 +6,7 @@ from litex.gen import *
 
 from litejesd204b.core import line_coding
 
-from test.model.line_coding import encode_lane
+from test.model.line_coding import encode_lanes
 
 Control = namedtuple("Control", "value")
 
@@ -67,7 +67,7 @@ class TestLineCoding(unittest.TestCase):
     def test_coding(self):
         prng = random.Random(42)
         input_sequence = [prng.randrange(256) for _ in range(10000)]
-        reference_sequence = encode_lane([input_sequence])[0]
+        reference_sequence = encode_lanes([[input_sequence]])[0][0]
         output_sequence = encode_sequence(input_sequence)
         self.assertEqual(reference_sequence,
                          output_sequence)
