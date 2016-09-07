@@ -144,7 +144,7 @@ class TestModel(unittest.TestCase):
         output_lanes = decode_lanes(encoded_lanes)
         self.assertEqual(input_lanes, output_lanes)
 
-    def test_loopback(self):
+    def test_roundtrip(self):
         # config
         nlanes = 4
         nconverters = 4
