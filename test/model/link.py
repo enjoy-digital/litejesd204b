@@ -1,5 +1,7 @@
 from litejesd204b.common import *
 
+from test.model.common import Control
+
 # scrambling
 class Scrambler:
     """
@@ -91,15 +93,15 @@ def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
 
             if scrambled:
                 if (dn == 0x7c) & last_frame_of_multiframe:
-                    dn = is_control_character | control_characters["A"]
+                    dn = Control(control_characters["A"])
                 if dn == 0xfc:
-                    dn = is_control_character | control_characters["F"]
+                    dn = Control(control_characters["F"])
             else:
                 if dn == last_dn:
                     if last_frame_of_multiframe:
-                        dn = is_control_character | control_characters["A"]
+                        dn = Control(control_characters["A"])
                     else:
-                        dn = is_control_character | control_characters["F"]
+                        dn = Control(control_characters["F"])
 
             frame[-1] = dn
             last_dn = dn
@@ -126,8 +128,7 @@ def remove_alignment_characters(frames_per_multiframe, scrambled, lanes):
             dn = frame[-1]
             last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
 
-            if dn & is_control_character:
-                dn = dn & 0xff
+            if isinstance(dn, Control):
                 if scrambled:
                     if dn == control_characters["A"]:
                         dn = 0x7c
@@ -167,6 +168,7 @@ class LinkLayer:
         new_lanes = remove_alignment_characters(self.frames_per_multiframe,
                                                 self.scrambled,
                                                 lanes)
+        new_lanes = lanes
         if self.scrambled:
             new_lanes = descramble_lanes(lanes)
         return new_lanes

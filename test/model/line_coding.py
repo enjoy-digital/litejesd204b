@@ -1,6 +1,7 @@
 from litejesd204b.common import *
-
 from litejesd204b.core.line_coding import disparity
+
+from test.model.common import Control
 
 # line coding
 line_coding_data_rd_m = [
@@ -192,7 +193,6 @@ def inverse_control_rd(table):
 line_coding_control_rd_m_inverse = inverse_control_rd(line_coding_control_rd_m)
 line_coding_control_rd_p_inverse = inverse_control_rd(line_coding_control_rd_p)
 
-# XXX manage control characters correctly
 
 def encode_lanes(lanes):
     encoded_lanes = []
@@ -206,16 +206,16 @@ def encode_lanes(lanes):
             for octet in frame:
                 if change_table:
                     table = "p" if table == "m" else "m"
-                if octet & is_control_character:
-                    octet = octet & 0xff
+                if isinstance(octet, Control):
                     if table == "p":
-                        encoded_octet = line_coding_control_rd_p[octet]
+                        encoded_octet = line_coding_control_rd_p[octet.value]
                     else:
-                        encoded_octet = line_coding_control_rd_m[octet]
-                if table == "p":
-                    encoded_octet = line_coding_data_rd_p[octet]
+                        encoded_octet = line_coding_control_rd_m[octet.value]
                 else:
-                    encoded_octet = line_coding_data_rd_m[octet]
+                    if table == "p":
+                        encoded_octet = line_coding_data_rd_p[octet]
+                    else:
+                        encoded_octet = line_coding_data_rd_m[octet]
                 change_table = (disparity(encoded_octet, 10) != 0)
                 new_frame.append(encoded_octet)
 
@@ -236,7 +236,14 @@ def decode_lanes(lanes):
                 try:
                     octet = line_coding_data_rd_m_inverse[encoded_octet]
                 except:
-                    octet = line_coding_data_rd_p_inverse[encoded_octet]
+                    try:
+                        octet = line_coding_data_rd_p_inverse[encoded_octet]
+                    except:
+                        try:
+                            octet = Control(line_coding_control_rd_p_inverse[encoded_octet])
+                        except:
+                            octet = Control(line_coding_control_rd_m_inverse[encoded_octet])
+
                 new_frame.append(octet)
 
             decoded_lane.append(new_frame)

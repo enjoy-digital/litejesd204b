@@ -179,5 +179,3 @@ class TestModel(unittest.TestCase):
         rx_samples = transport.decode(rx_lanes)
 
         self.assertEqual(tx_samples, rx_samples)
-
-

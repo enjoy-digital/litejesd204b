@@ -1,3 +1,6 @@
+from collections import namedtuple
+
+Control = namedtuple("Control", "value")
 
 def seed_to_data(seed, random=True):
     if random:

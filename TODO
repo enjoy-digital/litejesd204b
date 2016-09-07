@@ -1,4 +1,3 @@
-- implement control characters correctly in model
 - find best data with/frequency compromise for our design (but try to be generic)
 - finish phy
 - test phy with model and on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31)

@@ -6,9 +6,7 @@ from litex.gen import *
 
 from litejesd204b.core import line_coding
 
-from test.model.line_coding import encode_lanes
-
-Control = namedtuple("Control", "value")
+from test.model.line_coding import Control, encode_lanes
 
 
 def encode_sequence(seq):
