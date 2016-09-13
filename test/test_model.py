@@ -15,6 +15,7 @@ from test.model.link import LinkLayer
 
 from test.model.line_coding import encode_lanes, decode_lanes
 
+
 class TestModel(unittest.TestCase):
     def test_transport_mapping(self):
         nlanes = 4
@@ -132,7 +133,6 @@ class TestModel(unittest.TestCase):
         output_lanes = descramble_lanes(lanes)
         self.assertEqual(input_lanes, output_lanes)
 
-
     def test_line_coding(self):
         input_lanes = [
             [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
@@ -149,8 +149,8 @@ class TestModel(unittest.TestCase):
         nlanes = 4
         nconverters = 4
 
-        physical_settings = LiteJESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16, sc=1*1e9)
-        transport_settings = LiteJESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        physical_settings = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16, sc=1*1e9)
+        transport_settings = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         
         transport = TransportLayer(transport_settings, physical_settings)
         link = LinkLayer(16, True)

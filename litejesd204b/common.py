@@ -44,7 +44,7 @@
 
 # Transport layer
 
-class LiteJESD204BTransportSettings:
+class JESD204BTransportSettings:
     def __init__(self, f, s, k, cs):
         self.f = f
         self.s = s
@@ -54,7 +54,7 @@ class LiteJESD204BTransportSettings:
 
 # Link layer
 control_characters = {
-    "R": 0b00011100, # K28.0, start of multi-frame
+    "R": 0b00011100, # K28.0, Start of multi-frame
     "A": 0b01111100, # K28.3, Lane alignment
     "Q": 0b10011100, # K28.4, Start of configuration data
     "K": 0b10111100, # K28.5, Group synchronization
@@ -119,7 +119,7 @@ configuration_data_fields = {
 }
 
 
-class LiteJESD204BConfigurationData:
+class JESD204BConfigurationData:
     def __init__(self):
         for k in configuration_data_fields.keys():
             setattr(self, k, 0)
@@ -139,7 +139,7 @@ class LiteJESD204BConfigurationData:
 
 # Physical layer
 
-class LiteJESD204BPhysicalSettings:
+class JESD204BPhysicalSettings:
     def __init__(self, l, m, n, np, sc):
         self.l = l
         self.m = m
@@ -159,7 +159,7 @@ class LiteJESD204BPhysicalSettings:
 
 # Global
 
-class LiteJESD204BSettings:
+class JESD204BSettings:
     def __init__(self,
         phy_settings,
         transport_settings,
@@ -170,7 +170,7 @@ class LiteJESD204BSettings:
         self.bid = bid
 
     def get_configuration_data(self):
-        cd = LiteJESD204BConfigurationData()
+        cd = JESD204BConfigurationData()
         for k in configuration_data_fields.keys():
             for settings in [self.phy_settings,
                              self.transport_settings]:

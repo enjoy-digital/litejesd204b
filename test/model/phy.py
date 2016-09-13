@@ -1,7 +1,7 @@
 from litejesd204b.common import *
 
 # pseudo random binary sequence
-class PRBS:
+class PRBSGenerator:
     def __init__(self, n_state=23, taps=[17, 22]):
         self.n_state = n_state
         self.taps = taps
@@ -22,16 +22,16 @@ class PRBS:
         return v
 
 
-class PRBS7(PRBS):
+class PRBS7Generator(PRBSGenerator):
     def __init__(self):
-        PRBS.__init__(self, n_state=7,  taps=[5, 6])
+        PRBSGenerator.__init__(self, n_state=7,  taps=[5, 6])
 
 
-class PRBS15(PRBS):
+class PRBS15Generator(PRBSGenerator):
     def __init__(self):
-        PRBS.__init__(self, n_state=15,  taps=[13, 14])
+        PRBSGenerator.__init__(self, n_state=15,  taps=[13, 14])
 
 
-class PRBS31(PRBS):
+class PRBS31Generator(PRBSGenerator):
     def __init__(self):
-        PRBS.__init__(self, n_state=31,  taps=[27, 30])
+        PRBSGenerator.__init__(self, n_state=31,  taps=[27, 30])

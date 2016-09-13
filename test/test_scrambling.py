@@ -2,15 +2,15 @@ import unittest
 
 from litex.gen import *
 
-from litejesd204b.core.link import LiteJESD204BScrambler
+from litejesd204b.core.link import Scrambler
 
 from test.model.common import seed_to_data
-from test.model.link import Scrambler
+from test.model.link import Scrambler as ScramblerModel
 
 
 def scrambler_test():
-    model = Scrambler()
-    dut = LiteJESD204BScrambler(32)
+    model = ScramblerModel()
+    dut = Scrambler(32)
     dut.errors = 0
     def generator(dut):
         for i in range(512):

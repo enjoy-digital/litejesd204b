@@ -3,8 +3,8 @@ from litex.gen import *
 from litejesd204b.common import *
 
 
-class LiteJESD204BScrambler(Module):
-    """JESD204 Scrambler
+class Scrambler(Module):
+    """Scrambler
     """
     def __init__(self, dw):
         self.enable = Signal()
@@ -30,8 +30,8 @@ class LiteJESD204BScrambler(Module):
         ]
 
 
-class LiteJESD204BAlignmentCharacterInserter(Module):
-    """JESD204 Alignment Character Inserter
+class AlignmentCharacterInserter(Module):
+    """Alignment Character Inserter
     """
     def __init__(self, dw):
         # XXX refactor to operate on // datas
@@ -80,8 +80,8 @@ class LiteJESD204BAlignmentCharacterInserter(Module):
             )
 
 
-class LiteJESD204BILASGenerator(Module):
-    """JESD204 Initial Lane Alignment Sequence Generator
+class ILASGenerator(Module):
+    """Initial Lane Alignment Sequence Generator
     """
     def __init__(self):
         # TODO
@@ -94,8 +94,8 @@ class LiteJESD204BILASGenerator(Module):
         pass
 
 
-class LiteJESD204BDLinkTx(Module):
-    """JESD204 Data Tx layer
+class LinkTx(Module):
+    """Link Tx layer
     """
     def __init__(self, dw):
         self.reset = Signal()

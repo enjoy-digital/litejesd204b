@@ -8,7 +8,9 @@ from litejesd204b.phy.prbs import PRBS7Generator
 from litejesd204b.phy.prbs import PRBS15Generator
 from litejesd204b.phy.prbs import PRBS31Generator
 
-from test.model.phy import PRBS7, PRBS15, PRBS31
+from test.model.phy import PRBS7Generator as PRBS7GeneratorModel
+from test.model.phy import PRBS15Generator as PRBS15GeneratorModel
+from test.model.phy import PRBS31Generator as PRBS31GeneratorModel
 
 
 def prbs_test():
@@ -18,9 +20,9 @@ def prbs_test():
         "prbs31": PRBS31Generator(32)
     }
     models = {
-        "prbs7":  PRBS7(),
-        "prbs15": PRBS15(),
-        "prbs31": PRBS31()
+        "prbs7":  PRBS7GeneratorModel(),
+        "prbs15": PRBS15GeneratorModel(),
+        "prbs31": PRBS31GeneratorModel()
     }
     errors = 0
     for test in ["prbs7", "prbs15", "prbs31"]:
