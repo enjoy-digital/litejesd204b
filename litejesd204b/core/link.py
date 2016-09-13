@@ -94,8 +94,8 @@ class ILASGenerator(Module):
         pass
 
 
-class LinkTx(Module):
-    """Link Tx layer
+class LinkTX(Module):
+    """Link TX layer
     """
     def __init__(self, dw):
         self.reset = Signal()

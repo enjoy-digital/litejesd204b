@@ -42,6 +42,8 @@
 
 # XXX memo
 
+from litex.soc.interconnect.stream import EndpointDescription
+
 # Transport layer
 
 class JESD204BTransportSettings:
@@ -50,6 +52,11 @@ class JESD204BTransportSettings:
         self.s = s
         self.k = k
         self.cs = cs
+
+
+def transport_layout(dw, n):
+    layout = [("data"+str(i), dw) for i in range(n)]
+    return EndpointDescription(layout)
 
 
 # Link layer
@@ -70,6 +77,7 @@ def link_layout(dw):
         ("scrambled", 1)
     ]
     return EndpointDescription(layout)
+
 
 class Field:
     def __init__(self, octet, offset, width):
