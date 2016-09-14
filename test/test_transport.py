@@ -18,7 +18,6 @@ class TestTransport(unittest.TestCase):
 
         transport = TransportTX(transport_settings, physical_settings, 64, 64)
 
-
         input_samples = [[j+i*256 for j in range(16)] for i in range(nconverters)]
         lanes = samples_to_lanes(samples_per_frame=1,
                                  nlanes=nlanes,
@@ -26,47 +25,28 @@ class TestTransport(unittest.TestCase):
                                  nbits=16,
                                  samples=input_samples)
 
-        for i, converter in enumerate(input_samples):
-            print("c"+str(i) + ":", end="")
-            print(converter)
-
-        for i, lane in enumerate(lanes):
-            print("l"+str(i) + ":", end="")
-            print(lane)
+        dut_lanes = [[] for i in range(4)]
 
         def generator(dut):
             yield dut.sink.valid.eq(1)
             yield dut.source.ready.eq(1)
-            for i in range(4):
-                yield dut.sink.data0.eq((input_samples[0][4*i]   << 0)  |
-                                        (input_samples[0][4*i+1] << 16)  |
-                                        (input_samples[0][4*i+2] << 32) |
-                                        (input_samples[0][4*i+3] << 48))
-                yield dut.sink.data1.eq((input_samples[1][4*i]   << 0)  |
-                                        (input_samples[1][4*i+1] << 16)  |
-                                        (input_samples[1][4*i+2] << 32) |
-                                        (input_samples[1][4*i+3] << 48))
-                yield dut.sink.data2.eq((input_samples[2][4*i]   << 0)  |
-                                        (input_samples[2][4*i+1] << 16)  |
-                                        (input_samples[2][4*i+2] << 32) |
-                                        (input_samples[2][4*i+3] << 48))
-                yield dut.sink.data3.eq((input_samples[3][4*i]   << 0)  |
-                                        (input_samples[3][4*i+1] << 16)  |
-                                        (input_samples[3][4*i+2] << 32) |
-                                        (input_samples[3][4*i+3] << 48))
+            for i in range(5):
+                if i < 4:
+                    for c in range(nconverters):
+                        converter_data = getattr(dut.sink, "data"+str(c))
+                        yield converter_data.eq((input_samples[c][4*i]   << 0)  |
+                                                (input_samples[c][4*i+1] << 16) |
+                                                (input_samples[c][4*i+2] << 32) |
+                                                (input_samples[c][4*i+3] << 48))
                 if i > 0:
-                    print("----")
-                    print("c0: %016x" %(yield dut.sink.data0))
-                    print("c1: %016x" %(yield dut.sink.data1))
-                    print("c2: %016x" %(yield dut.sink.data2))
-                    print("c3: %016x" %(yield dut.sink.data3))
-                    print("")
-                    print("l0: %016x" %(yield dut.source.data0))
-                    print("l1: %016x" %(yield dut.source.data1))
-                    print("l2: %016x" %(yield dut.source.data2))
-                    print("l3: %016x" %(yield dut.source.data3))            
+                    for l in range(nlanes):
+                        lane_data = (yield getattr(dut.source, "data"+str(l)))
+                        for f in range(4):
+                            frame = [(lane_data >> f*16)     & 0xff, 
+                                     (lane_data >> (f*16+8)) & 0xff]
+                            dut_lanes[l].append(frame)         
                 yield
 
         run_simulation(transport, generator(transport))
 
-        #print(verilog.convert(transport))
+        self.assertEqual(lanes, dut_lanes)
