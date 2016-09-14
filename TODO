@@ -2,7 +2,6 @@
 - test phy with model and on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31)
 - find SPI configuration for our design (map lanes correctly for KC705)
 - implement link layer (try to be generic on supported data width: 16,32,64, 128?)
-- implement transport layer (try to be generic on supported data width: 16,32,64, 128?)
 - test transport/link/phy with model
 - test link establishment with ADI device and ILAS (reponse to SYNC)
 - test samples mapping to lanes with short test pattern and specific registers on ADI chip
