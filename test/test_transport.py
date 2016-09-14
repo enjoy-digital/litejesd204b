@@ -16,7 +16,7 @@ class TestTransport(unittest.TestCase):
         transport_settings = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         physical_settings = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16, sc=1*1e9)
 
-        transport = TransportTX(transport_settings, physical_settings, 64, 64)
+        transport = TransportTX(transport_settings, physical_settings, 64)
 
         input_samples = [[j+i*256 for j in range(16)] for i in range(nconverters)]
         lanes = samples_to_lanes(samples_per_frame=1,
