@@ -5,13 +5,14 @@ from litex.soc.interconnect.csr import *
 from litejesd204b.common import *
 
 
+@ResetInserter()
 class Scrambler(Module):
     """Scrambler
+    cf section 5.2.3
     """
     def __init__(self, data_width):
-        self.enable = Signal()
-        self.data_in = Signal(data_width)
-        self.data_out = Signal(data_width)
+        self.sink = sink = stream.Endpoint([("data", data_width)])
+        self.source = source = stream.Endpoint([("data", data_width)])
 
         # # #
 
@@ -21,65 +22,93 @@ class Scrambler(Module):
 
         self.comb += [
             full.eq(Cat(feedback, state)),
-            feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ self.data_in)
+            feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ sink.data)
         ]
 
         self.sync += [
-            If(self.enable,
-                self.data_out.eq(feedback),
+            If(sink.valid & source.ready,
+                source.valid.eq(1),
+                source.data.eq(feedback),
                 state.eq(full)
+            ).Elif(self.source.ready,
+                source.valid.eq(0)
             )
         ]
 
 
-class AlignmentCharacterInserter(Module):
-    """Alignment Character Inserter
+@ResetInserter()
+class Framer(Module):
+    """Framer
     """
-    def __init__(self, data_width):
-        # XXX refactor to operate on // datas
+    def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
+        self.sink = sink = stream.Endpoint([("data", data_width)])
+        self.source = source = stream.Endpoint(link_layout(data_width))
+
+        # # #
+
+        frame_width = octets_per_frame*8
+        frames_per_clock = data_width/frame_width
+
+        if data_width < frame_width:
+            raise NotImplementedError
+        if data_width%frame_width:
+            raise NotImplementedError
+        if frames_per_multiframe%frames_per_clock:
+            raise NotImplementedError
+        
+        frame_last = 0
+        for i in range(data_width//8):
+            if (i+1)%octets_per_frame == 0:
+                frame_last |= (1<<(8*i))
+
+        frame_counter = Signal(8)
+        self.sync += [
+            If(sink.valid & source.ready,
+                If(source.multiframe_last != 0,
+                    frame_counter.eq(0)
+                ).Else(
+                    frame_counter.eq(frame_counter+1)
+                )
+            )
+        ]
+
+        self.comb += [
+            sink.connect(source),
+            source.frame_last.eq(frame_last),
+            If(frame_counter == (frames_per_multiframe-1),
+                source.multiframe_last.eq(1<<(data_width//8)-1)
+            )
+        ]
+
+
+class AlignInserter(Module):
+    """Alignment Character Inserter
+    cf section 5.3.3.4
+    """
+    def __init__(self, data_width, scrambled=True):
+        if scrambled == False:
+            raise NotImplementedError
+
         self.sink = sink = stream.Endpoint(link_layout(data_width))
         self.source = source = stream.Endpoint(link_layout(data_width))
 
         # # #
 
-        last_dn = Signal(8)
-        dn = Signal(8)
-        new_dn = Signal(8)
-
-        self.comb += [
-            sink.connect(source),
-            dn.eq(sink.data[:8]),
-            If(sink.valid & sink.ready,
-                If(~sink.scrambled,
-                    If(dn == last_dn,
-                        If(sink.multiframe_last,
-                            new_dn.eq(control_characters["A"])
-                        ).Elif(sink.frame_last,
-                            new_dn.eq(control_characters["F"])
-                        )
+        for i in range(data_width//8):
+            self.comb += [
+                sink.connect(source),
+                If(sink.data[8*i:8*(i+1)] == 0x7c,
+                    If(sink.multiframe_last[i],
+                        source.data[8*i:8*(i+1)].eq(control_characters["A"]),
+                        source.ctrl[i].eq(1)
                     )
-                ).Else(
-                    If(dn == 0x7c,
-                        If(sink.multiframe_last,
-                            new_dn.eq(control_characters["A"])
-                        )
-                    ).Elif(dn == 0xfc,
-                        If(sink.frame_last,
-                            new_dn.eq(control_characters["F"])
-                        )
+                ).Elif(sink.data[8*i:8*(i+1)] == 0xfc,
+                    If(sink.frame_last,
+                        source.data[8*i:8*(i+1)].eq(control_characters["F"]),
+                        source.ctrl[i].eq(1)
                     )
                 )
-            ),
-            If(new_dn,
-                source.data.eq(Cat(new_dn, sink.data[8:])),
-                source.ctrl.eq(1)
-            )
-        ]
-
-        self.sync += \
-            If(sink.valid & sink.ready & sink.frame_last,
-                last_dn.eq(dn)
-            )
+            ]
 
 
 class ILASGenerator(Module):
@@ -106,14 +135,29 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         self.ext_sync = Signal()
 
-        self.sink = stream.Endpoint(link_layout(data_width))
-        self.source = stream.Endpoint(link_layout(data_width))
+        self.sink = sink = stream.Endpoint([("data", data_width)])
+        self.source = source = stream.Endpoint(link_layout(data_width))
 
         # # #
 
-        #                                       ILAS generator +
-        #                                                      + mux --> 8b/10b --> source
-        # sink --> scrambler --> alignement_character_inserter +
+        #  Ctrl(CGS, ILAS)--+
+        #                   + mux --> source
+        #  Datapath --------+
+
+
+        # Datapath
+
+        # sink --> scrambler --> framer --> align_inserter
+        self.submodules.scrambler = Scrambler(data_width)
+        self.submodules.framer = Framer(data_width, 2, 16) # FIXME
+        self.submodules.inserter = AlignInserter(data_width)
+        self.comb += [
+            self.sink.connect(self.scrambler.sink),
+            self.scrambler.source.connect(self.framer.sink),
+            self.framer.source.connect(self.inserter.sink)
+        ]
+
+        # Ctrl
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET"))
         self.submodules += fsm
@@ -126,7 +170,7 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
             )
         )
 
-        # Code Group Syncronization
+        # Code Group Synchronization
         cgs_data = Signal(data_width)
         cgs_ctrl = Signal(data_width//8)
         for i in range(data_width//8):
@@ -134,12 +178,11 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
                 cgs_data[8*i:8*(i+1)].eq(control_characters["K"]),
                 cgs_ctrl[i].eq(1)
             ]
-
         fsm.act("CGS",
-            self.source.valid.eq(1),
-            self.source.data.eq(cgs_data),
-            self.source.ctrl.eq(cgs_ctrl),
-            If(~self.ext_sync,
+            source.valid.eq(1),
+            source.data.eq(cgs_data),
+            source.ctrl.eq(cgs_ctrl),
+            If(~self.ext_sync, # FIXME when doing det-lat
                 NextState("ILAS")
             )
         )
@@ -153,5 +196,5 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
         # User Data
         fsm.act("USER_DATA",
             self.ready.status.eq(1),
-            self.sink.connect(self.source)
+            self.inserter.source.connect(source)
         )

@@ -83,8 +83,8 @@ def link_layout(data_width):
         ("data", data_width),
         ("ctrl", data_width//8),
 
-        ("frame_last", 1),
-        ("multiframe_last", 1)
+        ("frame_last", data_width//8),
+        ("multiframe_last", data_width//8)
     ]
     return EndpointDescription(layout)
 

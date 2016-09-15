@@ -14,12 +14,13 @@ def scrambler_test():
     dut.errors = 0
     def generator(dut):
         for i in range(512):
-            yield dut.enable.eq(1)
-            yield dut.data_in.eq(seed_to_data(i, True))
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.data.eq(seed_to_data(i, True))
+            yield dut.source.ready.eq(1)
             yield
             if i >= 1:
                 reference = model.scramble(seed_to_data(i-1, True), 32)
-                if (yield dut.data_out) != reference:
+                if (yield dut.source.data) != reference:
                     dut.errors += 1
     run_simulation(dut, generator(dut))
 
