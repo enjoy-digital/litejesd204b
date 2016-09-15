@@ -1,8 +1,8 @@
-- finish phy
-- test phy with model and on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31)
-- find SPI configuration for our design (map lanes correctly for KC705)
+- fix phy clocking/compare GTX parameters with reference design from Xilinx.
 - implement link layer (try to be generic on supported data width: 16,32,64, 128?)
-- test transport/link/phy with model
+- test transport/link with model
+- find SPI configuration for our design (map lanes correctly for KC705)
+- test phy on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31), lower speed first, then up to 12.5Gbps.
 - test link establishment with ADI device and ILAS (reponse to SYNC)
 - test samples mapping to lanes with short test pattern and specific registers on ADI chip
 - implement real example design (with artiq phaser) and test it on board
