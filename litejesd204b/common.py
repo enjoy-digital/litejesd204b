@@ -81,10 +81,10 @@ control_characters = {
 def link_layout(data_width):
     layout = [
         ("data", data_width),
-        ("charisk", data_width//8),
+        ("ctrl", data_width//8),
+
         ("frame_last", 1),
-        ("multiframe_last", 1),
-        ("scrambled", 1)
+        ("multiframe_last", 1)
     ]
     return EndpointDescription(layout)
 

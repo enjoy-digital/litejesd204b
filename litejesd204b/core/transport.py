@@ -6,7 +6,7 @@ from litex.soc.interconnect import stream
 from litejesd204b.common import *
 
 
-class TransportTX(Module):
+class LiteJESD204BTransportTX(Module):
     """Transport Tx layer
     inputs:
     - transport_settings:   JESD204B transport layer settings

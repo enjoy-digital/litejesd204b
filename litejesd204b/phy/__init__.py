@@ -9,7 +9,7 @@ from litejesd204b.phy.prbs import PRBS7Generator, PRBS15Generator, PRBS31Generat
 # TODO:
 # fix clocking
 
-class PhyTX(Module, AutoCSR):
+class LiteJESD204BPhyTX(Module, AutoCSR):
     def __init__(self, clock_pads, tx_pads, sys_clk_freq, nlanes):
         self.sink = sink = stream.Endpoint(phy_layout(32, nlanes))
         

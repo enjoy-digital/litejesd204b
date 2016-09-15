@@ -1,4 +1,6 @@
 from litex.gen import *
+from litex.soc.interconnect import stream
+from litex.soc.interconnect.csr import *
 
 from litejesd204b.common import *
 
@@ -6,20 +8,20 @@ from litejesd204b.common import *
 class Scrambler(Module):
     """Scrambler
     """
-    def __init__(self, dw):
+    def __init__(self, data_width):
         self.enable = Signal()
-        self.data_in = Signal(dw)
-        self.data_out = Signal(dw)
+        self.data_in = Signal(data_width)
+        self.data_out = Signal(data_width)
 
         # # #
 
         state = Signal(15, reset=0x7fff)
-        feedback = Signal(dw)
-        full = Signal(dw+15)
+        feedback = Signal(data_width)
+        full = Signal(data_width+15)
 
         self.comb += [
             full.eq(Cat(feedback, state)),
-            feedback.eq(full[15:15+dw] ^ full[14:14+dw] ^ self.data_in)
+            feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ self.data_in)
         ]
 
         self.sync += [
@@ -33,10 +35,10 @@ class Scrambler(Module):
 class AlignmentCharacterInserter(Module):
     """Alignment Character Inserter
     """
-    def __init__(self, dw):
+    def __init__(self, data_width):
         # XXX refactor to operate on // datas
-        self.sink = sink = stream.Endpoint(link_layout(dw))
-        self.source = source = stream.Endpoint(link_layout(dw))
+        self.sink = sink = stream.Endpoint(link_layout(data_width))
+        self.source = source = stream.Endpoint(link_layout(data_width))
 
         # # #
 
@@ -70,7 +72,7 @@ class AlignmentCharacterInserter(Module):
             ),
             If(new_dn,
                 source.data.eq(Cat(new_dn, sink.data[8:])),
-                source.charisk.eq(1)
+                source.ctrl.eq(1)
             )
         ]
 
@@ -94,17 +96,18 @@ class ILASGenerator(Module):
         pass
 
 
-class LinkTX(Module):
+class LiteJESD204BLinkTX(Module, AutoCSR):
     """Link TX layer
     """
-    def __init__(self, dw):
-        self.reset = Signal()
-        self.start = Signal()
-        self.ready = Signal()
-        self.sync = Signal()
+    def __init__(self, data_width):
+        self.reset = CSR()
+        self.start = CSR()
+        self.ready = CSRStatus()
 
-        self.sink = stream.Endpoint(link_layout(dw))
-        self.source = stream.Endpoint(link_layout(dw))
+        self.ext_sync = Signal()
+
+        self.sink = stream.Endpoint(link_layout(data_width))
+        self.source = stream.Endpoint(link_layout(data_width))
 
         # # #
 
@@ -114,31 +117,41 @@ class LinkTX(Module):
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET"))
         self.submodules += fsm
-        self.comb += fsm.reset.eq(self.reset)
+        self.comb += fsm.reset.eq(self.reset.re)
 
         # Init
         fsm.act("RESET",
-            If(self.start,
+            If(self.start.re,
                 NextState("CGS")
             )
         )
 
         # Code Group Syncronization
+        cgs_data = Signal(data_width)
+        cgs_ctrl = Signal(data_width//8)
+        for i in range(data_width//8):
+            self.comb += [
+                cgs_data[8*i:8*(i+1)].eq(control_characters["K"]),
+                cgs_ctrl[i].eq(1)
+            ]
+
         fsm.act("CGS",
             self.source.valid.eq(1),
-            self.source.data.eq(control_characters["K"]),
-            self.source.charisk.eq(2**dw-1),
-            If(~self.sync,
+            self.source.data.eq(cgs_data),
+            self.source.ctrl.eq(cgs_ctrl),
+            If(~self.ext_sync,
                 NextState("ILAS")
             )
         )
+
         # Initial Lane Alignment Sequence
         fsm.act("ILAS",
             # TODO: add ILAS generator
             NextState("USER_DATA")
         )
+
         # User Data
         fsm.act("USER_DATA",
-            self.ready.eq(1),
+            self.ready.status.eq(1),
             self.sink.connect(self.source)
         )
