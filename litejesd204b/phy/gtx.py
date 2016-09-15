@@ -1,19 +1,22 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
-from gtx_init import GTXInit
-from line_coding import Encoder
+from litejesd204b.phy.gtx_init import GTXInit
+from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXTransmitter(Module):
-    def __init__(self, clock_pads, tx_pads, sys_clk_freq):
-        refclk_div2 = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
-            i_I=clock_pads.p,
-            i_IB=clock_pads.n,
-            o_ODIV2=refclk_div2
-        )
+    def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq):
+        if isinstance(clock_pads_or_refclk_div2, Signal):
+            self.refclk_div2 = clock_pads_or_refclk_div2
+        else:
+            self.refclk_div2 = Signal()
+            self.specials += Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=clock_pads_or_refclk_div2.refclk_p,
+                i_IB=clock_pads_or_refclk_div2.refclk_n,
+                o_ODIV2=self.refclk_div2
+            )
 
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
 
@@ -48,7 +51,7 @@ class GTXTransmitter(Module):
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
                 i_TSTIN=2**20-1,
-                i_GTREFCLK0=refclk_div2,
+                i_GTREFCLK0=self.refclk_div2,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",
@@ -82,8 +85,8 @@ class GTXTransmitter(Module):
                 i_TXDIFFCTRL=0b1000,
 
                 # Pads
-                o_GTXTXP=tx_pads.p,
-                o_GTXTXN=tx_pads.n,
+                o_GTXTXP=tx_pads.txp,
+                o_GTXTXN=tx_pads.txn,
             )
 
         self.clock_domains.cd_tx = ClockDomain()

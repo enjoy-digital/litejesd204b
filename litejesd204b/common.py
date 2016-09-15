@@ -64,8 +64,8 @@ class JESD204BTransportSettings:
         self.cs = cs
 
 
-def transport_layout(dw, n):
-    layout = [("data"+str(i), dw) for i in range(n)]
+def transport_layout(data_width, n):
+    layout = [("data"+str(i), data_width) for i in range(n)]
     return EndpointDescription(layout)
 
 
@@ -78,10 +78,10 @@ control_characters = {
     "F": 0b11111100, # K28.7, Frame alignment
 }
 
-def link_layout(dw):
+def link_layout(data_width):
     layout = [
-        ("data", dw),
-        ("charisk", dw//8),
+        ("data", data_width),
+        ("charisk", data_width//8),
         ("frame_last", 1),
         ("multiframe_last", 1),
         ("scrambled", 1)
@@ -156,6 +156,12 @@ class JESD204BConfigurationData:
         return checksum
 
 # Physical layer
+
+def phy_layout(data_width, n):
+    layout = [("data"+str(i), data_width) for i in range(n)]
+    layout += [("ctrl"+str(i), data_width//8) for i in range(n)]
+    return EndpointDescription(layout)
+
 
 class JESD204BPhysicalSettings:
     def __init__(self, l, m, n, np, sc):
