@@ -5,7 +5,7 @@ from litex.gen import *
 from litex.gen.fhdl import verilog
 
 from litejesd204b.common import *
-from litejesd204b.core.transport import TransportTX
+from litejesd204b.core.transport import LiteJESD204BTransportTX
 from test.model.transport import samples_to_lanes
 
 
@@ -14,7 +14,7 @@ class TestTransport(unittest.TestCase):
         transport_settings = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         physical_settings = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16, sc=1*1e9)
 
-        transport = TransportTX(transport_settings, physical_settings, converter_data_width)
+        transport = LiteJESD204BTransportTX(transport_settings, physical_settings, converter_data_width)
 
         input_samples = [[j+i*256 for j in range(16)] for i in range(nconverters)]
         reference_lanes = samples_to_lanes(samples_per_frame=1,

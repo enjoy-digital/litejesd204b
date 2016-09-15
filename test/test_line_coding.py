@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from litex.gen import *
 
-from litejesd204b.core import line_coding
+from litejesd204b.phy import line_coding
 
 from test.model.line_coding import Control, encode_lanes
 
