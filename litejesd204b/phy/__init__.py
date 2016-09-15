@@ -7,12 +7,11 @@ from litejesd204b.phy.gtx import GTXTransmitter
 from litejesd204b.phy.prbs import PRBS7Generator, PRBS15Generator, PRBS31Generator
 
 # TODO:
-# use external tx clock domain?
-# use 32/40 bits datapath
+# fix clocking
 
 class PhyTX(Module, AutoCSR):
     def __init__(self, clock_pads, tx_pads, sys_clk_freq, nlanes):
-        self.sink = sink = stream.Endpoint(phy_layout(16, nlanes))
+        self.sink = sink = stream.Endpoint(phy_layout(32, nlanes))
         
         self.enable = CSRStorage()
         self.config = CSRStorage(2)
@@ -20,13 +19,13 @@ class PhyTX(Module, AutoCSR):
         # # #
 
         # prbs generators
-        prbs7 = PRBS7Generator(16)
-        prbs15 = PRBS15Generator(16)
-        prbs31 = PRBS31Generator(16)
+        prbs7 = PRBS7Generator(32)
+        prbs15 = PRBS15Generator(32)
+        prbs31 = PRBS31Generator(32)
         self.submodules += prbs7, prbs15, prbs31
 
         # data / prbs generators muxing
-        muxed_stream = stream.Endpoint(phy_layout(16, nlanes))
+        muxed_stream = stream.Endpoint(phy_layout(32, nlanes))
         cases = {}
         cases[0] = self.sink.connect(muxed_stream)
         for i, prbs in enumerate([prbs7, prbs15, prbs31]):
@@ -52,9 +51,8 @@ class PhyTX(Module, AutoCSR):
                 sys_clk_freq=sys_clk_freq)
             setattr(self.submodules, "gtx"+str(l), gtx)
             refclk_div2 = gtx.refclk_div2
-            self.comb += [
-                gtx.encoder.d[0].eq(getattr(muxed_stream, "data"+str(l))[0:8]),
-                gtx.encoder.k[0].eq(getattr(muxed_stream, "ctrl"+str(l))[0]),
-                gtx.encoder.d[1].eq(getattr(muxed_stream, "data"+str(l))[8:16]),
-                gtx.encoder.k[1].eq(getattr(muxed_stream, "ctrl"+str(l))[1]),              
-            ]
+            for i in range(32//8):
+                self.comb += [
+                    gtx.encoder.d[i].eq(getattr(muxed_stream, "data"+str(l))[8*i:8*(i+1)]),
+                    gtx.encoder.k[i].eq(getattr(muxed_stream, "ctrl"+str(l))[i])
+                ]

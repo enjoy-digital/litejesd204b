@@ -21,7 +21,7 @@ class GTXTransmitter(Module):
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
 
         txoutclk = Signal()
-        txdata = Signal(20)
+        txdata = Signal(40)
         self.specials += \
             Instance("GTXE2_CHANNEL",
                 # PMA Attributes
@@ -50,7 +50,7 @@ class GTXTransmitter(Module):
                 o_CPLLLOCK=self.gtx_init.cplllock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
-                i_TSTIN=2**20-1,
+                i_TSTIN=2**40-1,
                 i_GTREFCLK0=self.refclk_div2,
 
                 # TX clock
@@ -72,11 +72,11 @@ class GTXTransmitter(Module):
                 i_TXUSERRDY=self.gtx_init.Xxuserrdy,
 
                 # TX data
-                p_TX_DATA_WIDTH=20,
-                p_TX_INT_DATAWIDTH=0,
-                i_TXCHARDISPMODE=Cat(txdata[9], txdata[19]),
-                i_TXCHARDISPVAL=Cat(txdata[8], txdata[18]),
-                i_TXDATA=Cat(txdata[:8], txdata[10:18]),
+                p_TX_DATA_WIDTH=40,
+                p_TX_INT_DATAWIDTH=1,
+                i_TXCHARDISPMODE=Cat(txdata[9], txdata[19], txdata[29], txdata[39]),
+                i_TXCHARDISPVAL=Cat(txdata[8], txdata[18], txdata[28], txdata[38]),
+                i_TXDATA=Cat(txdata[0:8], txdata[10:18], txdata[20:28], txdata[30:38]),
                 i_TXUSRCLK=ClockSignal("tx"),
                 i_TXUSRCLK2=ClockSignal("tx"),
 
@@ -95,5 +95,8 @@ class GTXTransmitter(Module):
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.gtx_init.done)
 
-        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(2, True))
-        self.comb += txdata.eq(Cat(self.encoder.output[0], self.encoder.output[1]))
+        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(4, True))
+        self.comb += txdata.eq(Cat(self.encoder.output[0],
+                                   self.encoder.output[1],
+                                   self.encoder.output[2],
+                                   self.encoder.output[3]))
