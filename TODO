@@ -1,7 +1,8 @@
 - fix phy clocking/compare GTX parameters with reference design from Xilinx.
-- fix Align Inserter Model
+- fix Align Inserter model (or implementation?)
+- test implementation, optimize ressources (?), optimize timings (? core should run @312.5MHz
 - find SPI configuration for our design (map lanes correctly for KC705)
-- test phy on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31), lower speed first, then up to 12.5Gbps.
-- test link establishment with ADI device and ILAS (reponse to SYNC)
+- test phy on board with ADI prbs checker up to 12.5Gbps.
+- test link establishment with ADI device and ILAS (reponse to SYNC and specific registers for ILAS)
 - test samples mapping to lanes with short test pattern and specific registers on ADI chip
-- implement real example design (with artiq phaser) and test it on board
+- integrate with ARTIQ's phaser and test it
