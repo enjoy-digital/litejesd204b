@@ -94,17 +94,16 @@ class AlignInserter(Module):
 
         # # #
 
+        self.comb += sink.connect(source)
+        
         for i in range(data_width//8):
             self.comb += [
-                sink.connect(source),
-                If(sink.data[8*i:8*(i+1)] == 0x7c,
+                If(sink.data[8*i:8*(i+1)] == control_characters["A"],
                     If(sink.multiframe_last[i],
-                        source.data[8*i:8*(i+1)].eq(control_characters["A"]),
                         source.ctrl[i].eq(1)
                     )
-                ).Elif(sink.data[8*i:8*(i+1)] == 0xfc,
-                    If(sink.frame_last,
-                        source.data[8*i:8*(i+1)].eq(control_characters["F"]),
+                ).Elif(sink.data[8*i:8*(i+1)] == control_characters["F"],
+                    If(sink.frame_last[i],
                         source.ctrl[i].eq(1)
                     )
                 )

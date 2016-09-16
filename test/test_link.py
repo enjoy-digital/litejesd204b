@@ -1,5 +1,6 @@
 import unittest
 from math import ceil
+import random
 
 from litex.gen import *
 from litex.gen.fhdl import verilog
@@ -8,6 +9,7 @@ from litex.soc.interconnect import stream
 from litejesd204b.common import *
 from litejesd204b.core.link import Scrambler, Framer, AlignInserter
 
+from test.model.common import Control
 from test.model.link import scramble_lanes
 from test.model.link import insert_alignment_characters
 
@@ -30,11 +32,8 @@ class LinkTXDatapath(Module):
 
 class TestLink(unittest.TestCase):
     def test_link_tx(self, nlanes=4, data_width=32):
-        # FIXME use random data
-        input_lane = [[0, 1], [0, 1], [0, 1], [0, 1], 
-                      [0, 2], [0, 2], [0, 2], [0, 2],
-                      [0, 3], [0, 3], [0, 3], [0, 3],
-                      [0, 4], [0, 4], [0, 4], [0, 4]]
+        prng = random.Random(6)
+        input_lane = [[prng.randrange(256), prng.randrange(256)] for _ in range(500)]
         output_lanes = scramble_lanes([input_lane])
         output_lanes = insert_alignment_characters(frames_per_multiframe=4, 
                                                    scrambled=True,
@@ -57,7 +56,7 @@ class TestLink(unittest.TestCase):
          
         def generator(dut):
             yield dut.source.ready.eq(1)         
-            for i in range(32):
+            for i in range(500):
                 # set sink data
                 sink_data = get_lane_data(input_lane, i)
                 if sink_data is not None:
@@ -68,8 +67,12 @@ class TestLink(unittest.TestCase):
                 # get source data
                 if (yield dut.source.valid):
                     source_data = (yield dut.source.data)
-                    dut.output_lane += list(source_data.to_bytes(octets_per_cycle, byteorder='big'))
-                
+                    source_ctrl = (yield dut.source.ctrl)
+                    data = list(source_data.to_bytes(octets_per_cycle, byteorder='big'))
+                    for i in range(octets_per_cycle):
+                        if source_ctrl & (1<<(octets_per_cycle-i-1)):
+                            data[i] = Control(data[i])
+                    dut.output_lane += data
                 yield
 
         run_simulation(link, generator(link), vcd_name="sim.vcd")

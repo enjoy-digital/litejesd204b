@@ -88,7 +88,7 @@ def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
         new_lane = []
         last_dn = -1
         for n, frame in enumerate(lane):
-            dn = frame[-1]
+            dn = frame[0]
             last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
 
             if scrambled:
@@ -103,7 +103,7 @@ def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
                     else:
                         dn = Control(control_characters["F"])
 
-            frame[-1] = dn
+            frame[0] = dn
             last_dn = dn
 
             new_lane.append(frame)
@@ -125,7 +125,7 @@ def remove_alignment_characters(frames_per_multiframe, scrambled, lanes):
         new_lane = []
         last_dn = -1
         for n, frame in enumerate(lane):
-            dn = frame[-1]
+            dn = frame[0]
             last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
 
             if isinstance(dn, Control):
@@ -140,7 +140,7 @@ def remove_alignment_characters(frames_per_multiframe, scrambled, lanes):
                     elif dn == control_characters["F"]:
                         dn = last_dn
 
-            frame[-1] = dn
+            frame[0] = dn
             last_dn = dn
 
             new_lane.append(frame)

@@ -1,6 +1,6 @@
 - fix phy clocking/compare GTX parameters with reference design from Xilinx.
 - implement ILAS in link layer (pre-compute a lookup table from parameters?)
-- test link with model
+- fix Align Inserter Model
 - find SPI configuration for our design (map lanes correctly for KC705)
 - test phy on board with ADI prbs checker(PRBS7, PRBS15 or PRBS31), lower speed first, then up to 12.5Gbps.
 - test link establishment with ADI device and ILAS (reponse to SYNC)
