@@ -103,9 +103,13 @@ class JESD204BConfigurationData:
 
 # Physical layer
 
-def phy_layout(data_width, n):
-    layout = [("data"+str(i), data_width) for i in range(n)]
-    layout += [("ctrl"+str(i), data_width//8) for i in range(n)]
+def phy_layout(data_width, n=1):
+    if n == 1:
+        layout = [("data", data_width)]
+        layout += [("ctrl", data_width//8)]
+    else:
+        layout = [("data"+str(i), data_width) for i in range(n)]
+        layout += [("ctrl"+str(i), data_width//8) for i in range(n)]
     return EndpointDescription(layout)
 
 

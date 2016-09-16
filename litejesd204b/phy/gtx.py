@@ -6,15 +6,15 @@ from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXTransmitter(Module):
-    def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq):
-        if isinstance(clock_pads_or_refclk_div2, Signal):
-            self.refclk_div2 = clock_pads_or_refclk_div2
+    def __init__(self, clock_pads_or_refclk, tx_pads, sys_clk_freq):
+        if isinstance(clock_pads_or_refclk, Signal):
+            self.refclk_div2 = clock_pads_or_refclk
         else:
             self.refclk_div2 = Signal()
             self.specials += Instance("IBUFDS_GTE2",
                 i_CEB=0,
-                i_I=clock_pads_or_refclk_div2.refclk_p,
-                i_IB=clock_pads_or_refclk_div2.refclk_n,
+                i_I=clock_pads_or_refclk.refclk_p,
+                i_IB=clock_pads_or_refclk.refclk_n,
                 o_ODIV2=self.refclk_div2
             )
 
