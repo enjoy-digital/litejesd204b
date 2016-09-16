@@ -54,12 +54,9 @@ class Framer(Module):
         frame_width = octets_per_frame*8
         frames_per_clock = data_width/frame_width
 
-        if data_width < frame_width:
-            raise NotImplementedError
-        if data_width%frame_width:
-            raise NotImplementedError
-        if frames_per_multiframe%frames_per_clock:
-            raise NotImplementedError
+        assert frame_width <= data_width # at least a frame per clock 
+        assert data_width%frame_width == 0 # multiple number of frame per clock
+        assert frames_per_multiframe%frames_per_clock == 0 # multiframes aligned on clock
         
         frame_last = 0
         for i in range(data_width//8):
@@ -91,8 +88,7 @@ class AlignInserter(Module):
     cf section 5.3.3.4
     """
     def __init__(self, data_width, scrambled=True):
-        if scrambled == False:
-            raise NotImplementedError
+        assert scrambled == True  # only supporting scrambled mode for now
 
         self.sink = sink = stream.Endpoint(link_layout(data_width))
         self.source = source = stream.Endpoint(link_layout(data_width))
@@ -115,6 +111,7 @@ class AlignInserter(Module):
             ]
 
 
+@ResetInserter()
 class ILASGenerator(Module):
     """Initial Lane Alignment Sequence Generator
     cf section 5.3.3.5
@@ -126,33 +123,17 @@ class ILASGenerator(Module):
 
         # compute ilas's octets
 
-        ilas_octets = []
-
         octets_per_multiframe = octets_per_frame*frames_per_multiframe
 
-        # multiframe 0
-        ilas_octets += [Control(control_characters["R"])]
-        ilas_octets += [0 for _ in range(octets_per_multiframe-2)]
-        ilas_octets += [Control(control_characters["A"])]
-
-        # multiframe 1
-        ilas_octets += [Control(control_characters["R"])]
-        ilas_octets += [Control(control_characters["Q"])]
-        config_octets = configuration_data
-        config_length = len(configuration_data)
-        ilas_octets += configuration_data
-        ilas_octets += [0 for _ in range(octets_per_multiframe-config_length-3)]
-        ilas_octets += [Control(control_characters["A"])]
-
-        # multiframe 2
-        ilas_octets += [Control(control_characters["R"])]
-        ilas_octets += [0 for _ in range(octets_per_multiframe-2)]
-        ilas_octets += [Control(control_characters["A"])]
-
-        # multiframe 3
-        ilas_octets += [Control(control_characters["R"])]
-        ilas_octets += [0 for _ in range(octets_per_multiframe-2)]
-        ilas_octets += [Control(control_characters["A"])]
+        ilas_octets = []
+        for i in range(4):
+            multiframe = [0]*octets_per_multiframe
+            multiframe[0]  = Control(control_characters["R"])
+            multiframe[-1] = Control(control_characters["A"])
+            if i == 1:
+                multiframe[1] = Control(control_characters["Q"])
+                multiframe[2:2+len(configuration_data)] = configuration_data
+            ilas_octets += multiframe
 
         # pack ilas's octets in a lookup table
 
@@ -185,7 +166,7 @@ class ILASGenerator(Module):
         ctrl_port = ctrl_lut.get_port()
         self.specials += ctrl_lut, ctrl_port
 
-        # logic
+        # stream data/ctrl from lookup tables
         counter = Signal(max=len(ilas_data_words))
         self.comb += [
             source.valid.eq(counter != len(ilas_data_words)),
@@ -195,19 +176,18 @@ class ILASGenerator(Module):
             source.data.eq(data_port.dat_r),
             source.ctrl.eq(ctrl_port.dat_r)
         ]
-        self.sync += [
+        self.sync += \
             If(source.valid & source.ready,
                 If(counter != len(ilas_data_words),
                     counter.eq(counter + 1)
                 )
             )
-        ]
 
 
 class LiteJESD204BLinkTX(Module, AutoCSR):
     """Link TX layer
     """
-    def __init__(self, data_width, configuration_data):
+    def __init__(self, data_width, jesd_settings):
         self.reset = CSR()
         self.start = CSR()
         self.ready = CSRStatus()
@@ -228,7 +208,9 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         # sink --> scrambler --> framer --> align_inserter
         self.submodules.scrambler = Scrambler(data_width)
-        self.submodules.framer = Framer(data_width, 2, 16) # FIXME
+        self.submodules.framer = Framer(data_width,
+                                        2, # FIXME octets_per_frame
+                                        jesd_settings.transport.k)
         self.submodules.inserter = AlignInserter(data_width)
         self.comb += [
             self.sink.connect(self.scrambler.sink),
@@ -243,10 +225,16 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
         self.comb += fsm.reset.eq(self.reset.re)
 
 
-        self.submodules.ilas = ILASGenerator(data_width, 2, 16, configuration_data) # FIXME 
+        self.submodules.ilas = ILASGenerator(data_width,
+                                             2, # FIXME octets_per_frame
+                                             jesd_settings.transport.k,
+                                             jesd_settings.get_configuration_data())
 
         # Init
         fsm.act("RESET",
+            self.ilas.reset.eq(1),
+            self.scrambler.reset.eq(1),
+            self.framer.reset.eq(1),
             If(self.start.re,
                 NextState("CGS")
             )

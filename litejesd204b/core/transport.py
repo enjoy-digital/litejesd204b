@@ -26,6 +26,9 @@ class LiteJESD204BTransportTX(Module):
         octets_per_lane = samples_per_frame*nibbles_per_word//2
 
         lane_data_width = samples_per_clock*physical_settings.np*nconverters//nlanes
+
+        self.converter_data_width = converter_data_width
+        self.lane_data_width = lane_data_width
             
         # endpoints
         self.sink = stream.Endpoint(transport_layout(converter_data_width, nconverters))

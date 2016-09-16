@@ -1,21 +1,7 @@
 from litex.soc.interconnect.stream import EndpointDescription
 
-# Transport layer
+# control characters
 
-class JESD204BTransportSettings:
-    def __init__(self, f, s, k, cs):
-        self.f = f
-        self.s = s
-        self.k = k
-        self.cs = cs
-
-
-def transport_layout(data_width, n):
-    layout = [("data"+str(i), data_width) for i in range(n)]
-    return EndpointDescription(layout)
-
-
-# Link layer
 control_characters = {
     "R": 0b00011100, # K28.0, Start of multi-frame
     "A": 0b01111100, # K28.3, Lane alignment
@@ -24,16 +10,8 @@ control_characters = {
     "F": 0b11111100, # K28.7, Frame alignment
 }
 
-def link_layout(data_width):
-    layout = [
-        ("data", data_width),
-        ("ctrl", data_width//8),
 
-        ("frame_last", data_width//8),
-        ("multiframe_last", data_width//8)
-    ]
-    return EndpointDescription(layout)
-
+# configuration data
 
 class Field:
     def __init__(self, octet, offset, width):
@@ -101,16 +79,15 @@ class JESD204BConfigurationData:
                 checksum = (checksum + octet) % 256
         return checksum
 
-# Physical layer
 
-def phy_layout(data_width, n=1):
-    if n == 1:
-        layout = [("data", data_width)]
-        layout += [("ctrl", data_width//8)]
-    else:
-        layout = [("data"+str(i), data_width) for i in range(n)]
-        layout += [("ctrl"+str(i), data_width//8) for i in range(n)]
-    return EndpointDescription(layout)
+# settings
+
+class JESD204BTransportSettings:
+    def __init__(self, f, s, k, cs):
+        self.f = f
+        self.s = s
+        self.k = k
+        self.cs = cs
 
 
 class JESD204BPhysicalSettings:
@@ -131,23 +108,21 @@ class JESD204BPhysicalSettings:
         self.jsedv = 0b001
 
 
-# Global
-
 class JESD204BSettings:
     def __init__(self,
         phy_settings,
         transport_settings,
         did, bid):
-        self.phy_settings = phy_settings
-        self.transport_settings = transport_settings
+        self.phy = phy_settings
+        self.transport = transport_settings
         self.did = did
         self.bid = bid
 
     def get_configuration_data(self):
         cd = JESD204BConfigurationData()
         for k in configuration_data_fields.keys():
-            for settings in [self.phy_settings,
-                             self.transport_settings]:
+            for settings in [self.phy,
+                             self.transport]:
                 try:
                     setattr(cd, k, getattr(settings, k))
                 except:
@@ -160,8 +135,8 @@ class JESD204BSettings:
         return octets[:-1] + [chksum]
 
     def get_clocks(self):
-        ps = self.phy_settings
-        ts = self.transport_settings
+        ps = self.phy
+        ts = self.transport
 
         fc = ps.sc/ts.s
         lmfc = fc/ts.k
@@ -170,38 +145,30 @@ class JESD204BSettings:
 
         return ps.sc, fc, lmfc, lr
 
-    def __repr__(self):
-        ps = self.phy_settings
-        ts = self.transport_settings
 
-        r = ""
-        r += "phy settings\n"
-        r += "-"*20 + "\n"
-        r += "lanes (l): {:d}\n".format(ps.l)
-        r += "converters (m): {:d}\n".format(ps.m)
-        r += "bits per sample (n): {:d}\n".format(ps.n)
-        r += "transmitted bits per sample (np): {:d}\n".format(ps.np)
-        r += "\n"
+# layouts
 
-        r += "transport settings\n"
-        r += "-"*20 + "\n"
-        r += "octets per frame (f): {:d}\n".format(ts.f)
-        r += "samples per converter per frame (s): {:d}\n".format(ts.s)
-        r += "frames per multiframe (k): {:d}\n".format(ts.k)
-        r += "control bits per conversion sample (cs): {:d}\n".format(ts.cs)
-        r += "\n"
+def transport_layout(data_width, n):
+    layout = [("data"+str(i), data_width) for i in range(n)]
+    return EndpointDescription(layout)
 
-        sc, fc, lmfc, lr = self.get_clocks()
-        r += "clocks\n"
-        r += "-"*20 + "\n"
-        r += "sample clock: {:f} gsps\n".format(sc/1e9)
-        r += "frame clock: {:f} mhz\n".format(fc/1e6)
-        r += "local multiframe clock: {:f} mhz\n".format(lmfc/1e6)
-        r += "line rate: {:f} gbps\n".format(lr/1e9)
-        r += "\n"
 
-        r += "configuration data\n"
-        r += "-"*20 + "\n"
-        r += str(self.get_configuration_data())
+def link_layout(data_width):
+    layout = [
+        ("data", data_width),
+        ("ctrl", data_width//8),
 
-        return r
+        ("frame_last", data_width//8),
+        ("multiframe_last", data_width//8)
+    ]
+    return EndpointDescription(layout)
+
+
+def phy_layout(data_width, n=1):
+    if n == 1:
+        layout = [("data", data_width)]
+        layout += [("ctrl", data_width//8)]
+    else:
+        layout = [("data"+str(i), data_width) for i in range(n)]
+        layout += [("ctrl"+str(i), data_width//8) for i in range(n)]
+    return EndpointDescription(layout)

@@ -10,8 +10,10 @@ from litejesd204b.phy.prbs import PRBS7Generator, PRBS15Generator, PRBS31Generat
 # fix clocking
 
 class LiteJESD204BPhyTX(Module, AutoCSR):
-    def __init__(self, clock_pads_or_refclk, tx_pads, sys_clk_freq):
-        self.sink = sink = stream.Endpoint(phy_layout(32))
+    def __init__(self, clock_pads_or_refclk, tx_pads, sys_clk_freq, data_width=32):
+        assert data_width == 32 # only supporting 32 bits datapath for now
+        self.data_width = data_width
+        self.sink = sink = stream.Endpoint(phy_layout(data_width))
         
         self.enable = CSRStorage()
         self.config = CSRStorage(2)
@@ -19,13 +21,13 @@ class LiteJESD204BPhyTX(Module, AutoCSR):
         # # #
 
         # prbs generators
-        prbs7 = PRBS7Generator(32)
-        prbs15 = PRBS15Generator(32)
-        prbs31 = PRBS31Generator(32)
+        prbs7 = PRBS7Generator(data_width)
+        prbs15 = PRBS15Generator(data_width)
+        prbs31 = PRBS31Generator(data_width)
         self.submodules += prbs7, prbs15, prbs31
 
         # data / prbs generators muxing
-        muxed_stream = stream.Endpoint(phy_layout(32))
+        muxed_stream = stream.Endpoint(phy_layout(data_width))
         cases = {}
         cases[0] = self.sink.connect(muxed_stream)
         for i, prbs in enumerate([prbs7, prbs15, prbs31]):
@@ -49,7 +51,7 @@ class LiteJESD204BPhyTX(Module, AutoCSR):
                 tx_pads=tx_pads,
                 sys_clk_freq=sys_clk_freq)
 
-        for i in range(32//8):
+        for i in range(data_width//8):
             self.comb += [
                 self.gtx.encoder.d[i].eq(muxed_stream.data[8*i:8*(i+1)]),
                 self.gtx.encoder.k[i].eq(muxed_stream.ctrl[i])
