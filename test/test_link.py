@@ -28,32 +28,49 @@ class LinkTXDatapath(Module):
         ]
 
 
-class TestTransport(unittest.TestCase):
-    def test_link_tx(self, nlanes=4, lane_data_width=32):
-        input_lane = [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]]
-        lanes = scramble_lanes([input_lane])
-        lanes = insert_alignment_characters(frames_per_multiframe=4, 
-                                            scrambled=True,
-                                            lanes=lanes)
+class TestLink(unittest.TestCase):
+    def test_link_tx(self, nlanes=4, data_width=32):
+        # FIXME use random data
+        input_lane = [[0, 1], [0, 1], [0, 1], [0, 1], 
+                      [0, 2], [0, 2], [0, 2], [0, 2],
+                      [0, 3], [0, 3], [0, 3], [0, 3],
+                      [0, 4], [0, 4], [0, 4], [0, 4]]
+        output_lanes = scramble_lanes([input_lane])
+        output_lanes = insert_alignment_characters(frames_per_multiframe=4, 
+                                                   scrambled=True,
+                                                   lanes=output_lanes) 
+        link = LinkTXDatapath(data_width)
+        link.output_lane = []
 
-        link = LinkTXDatapath(32)
+        octets_per_cycle = data_width//8
 
-        print(lanes)
+        def flatten_lane(lane):
+            flat_lane = []
+            for frame in lane:
+                flat_lane += frame
+            return flat_lane
 
+        def get_lane_data(lane, cycle):
+            flat_lane = flatten_lane(lane)
+            data = flat_lane[octets_per_cycle*cycle:octets_per_cycle*(cycle+1)]
+            return int.from_bytes(data, byteorder='big') if data != [] else None
+         
         def generator(dut):
-            yield dut.sink.valid.eq(1)
-            yield dut.source.ready.eq(1)
-            yield dut.sink.data.eq(0x00010001)
-            yield
-            yield dut.source.ready.eq(1)
-            yield dut.sink.data.eq(0x00010001)
-            yield
-            yield dut.source.ready.eq(1)
-            yield dut.sink.data.eq(0x00020002)
-            yield
-            yield dut.source.ready.eq(1)
-            yield dut.sink.data.eq(0x00020002)
-            for i in range(16):
+            yield dut.source.ready.eq(1)         
+            for i in range(32):
+                # set sink data
+                sink_data = get_lane_data(input_lane, i)
+                if sink_data is not None:
+                    yield dut.sink.valid.eq(1)
+                    yield dut.sink.data.eq(sink_data)
+                else:
+                    yield dut.sink.valid.eq(0)
+                # get source data
+                if (yield dut.source.valid):
+                    source_data = (yield dut.source.data)
+                    dut.output_lane += list(source_data.to_bytes(octets_per_cycle, byteorder='big'))
+                
                 yield
 
         run_simulation(link, generator(link), vcd_name="sim.vcd")
+        self.assertEqual(link.output_lane, flatten_lane(output_lanes[0]))

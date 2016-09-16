@@ -59,7 +59,7 @@ class Framer(Module):
         frame_last = 0
         for i in range(data_width//8):
             if (i+1)%octets_per_frame == 0:
-                frame_last |= (1<<(8*i))
+                frame_last |= (1<<i)
 
         frame_counter = Signal(8)
         self.sync += [
