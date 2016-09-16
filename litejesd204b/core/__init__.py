@@ -8,16 +8,16 @@ from litejesd204b.core.link import LiteJESD204BLinkTX
 
 
 class LiteJESD204BCoreTX(Module, AutoCSR):
-	def __init__(self, transport_settings, physical_settings, converter_data_width):
+	def __init__(self, jesd_settings, converter_data_width):
 		# compute parameters
-		nlanes = physical_settings.l
+		nlanes = jesd_settings.phy_settings.l
 
 		# transport
-		self.submodules.transport = LiteJESD204BTransportTX(transport_settings,
-			                                                physical_settings,
+		self.submodules.transport = LiteJESD204BTransportTX(jesd_settings.transport_settings,
+			                                                jesd_settings.phy_settings,
 			                                                converter_data_width)
 
 		# link
 		for l in range(nlanes):
-			link = LiteJESD204BLinkTX(32, JESD204BConfigurationData())
+			link = LiteJESD204BLinkTX(32, jesd_settings.get_configuration_data())
 			setattr(self.submodules, "link"+str(l), link)

@@ -138,9 +138,9 @@ class ILASGenerator(Module):
         # multiframe 1
         ilas_octets += [Control(control_characters["R"])]
         ilas_octets += [Control(control_characters["Q"])]
-        ilas_octets += configuration_data.get_octets()
-        config_octets = configuration_data.get_octets()
-        config_length = len(config_octets)
+        config_octets = configuration_data
+        config_length = len(configuration_data)
+        ilas_octets += configuration_data
         ilas_octets += [0 for _ in range(octets_per_multiframe-config_length-3)]
         ilas_octets += [Control(control_characters["A"])]
 
