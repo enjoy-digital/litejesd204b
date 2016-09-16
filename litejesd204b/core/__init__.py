@@ -19,5 +19,5 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
 
 		# link
 		for l in range(nlanes):
-			link = LiteJESD204BLinkTX(32)
+			link = LiteJESD204BLinkTX(32, JESD204BConfigurationData())
 			setattr(self.submodules, "link"+str(l), link)

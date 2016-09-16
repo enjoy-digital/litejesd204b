@@ -1,8 +1,13 @@
+from collections import namedtuple
+
 from litex.gen import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
 from litejesd204b.common import *
+
+
+Control = namedtuple("Control", "value")
 
 
 @ResetInserter()
@@ -112,22 +117,97 @@ class AlignInserter(Module):
 
 class ILASGenerator(Module):
     """Initial Lane Alignment Sequence Generator
+    cf section 5.3.3.5
     """
-    def __init__(self):
-        # TODO
-        # 4 or more multiframes
-        # last character of each multiframe = A
-        # first, third and fourth multiframes first data = R
-        # for ADI DACs, data in between is a ramp
-        # second multiframe = R, Q, followed by link parameters
-        # after the last A character of the last ILAS multiframe, user data starts
-        pass
+    def __init__(self, data_width, octets_per_frame, frames_per_multiframe, configuration_data):
+        self.source = source = stream.Endpoint(link_layout(data_width))
+
+        # # #
+
+        # compute ilas's octets
+
+        ilas_octets = []
+
+        octets_per_multiframe = octets_per_frame*frames_per_multiframe
+
+        # multiframe 0
+        ilas_octets += [Control(control_characters["R"])]
+        ilas_octets += [0 for _ in range(octets_per_multiframe-2)]
+        ilas_octets += [Control(control_characters["A"])]
+
+        # multiframe 1
+        ilas_octets += [Control(control_characters["R"])]
+        ilas_octets += [Control(control_characters["Q"])]
+        ilas_octets += configuration_data.get_octets()
+        config_octets = configuration_data.get_octets()
+        config_length = len(config_octets)
+        ilas_octets += [0 for _ in range(octets_per_multiframe-config_length-3)]
+        ilas_octets += [Control(control_characters["A"])]
+
+        # multiframe 2
+        ilas_octets += [Control(control_characters["R"])]
+        ilas_octets += [0 for _ in range(octets_per_multiframe-2)]
+        ilas_octets += [Control(control_characters["A"])]
+
+        # multiframe 3
+        ilas_octets += [Control(control_characters["R"])]
+        ilas_octets += [0 for _ in range(octets_per_multiframe-2)]
+        ilas_octets += [Control(control_characters["A"])]
+
+        # pack ilas's octets in a lookup table
+
+        octets_per_clock = data_width//8
+
+        ilas_data_words = []
+        ilas_ctrl_words = []
+        for i in range(len(ilas_octets)//octets_per_clock):
+            data_word = 0
+            ctrl_word = 0
+            for j in range(octets_per_clock):
+                data_word = data_word << 8
+                ctrl_word = ctrl_word << 1
+                octet = ilas_octets[i*octets_per_clock+j]
+                if isinstance(octet, Control):
+                    data_word |= octet.value
+                    ctrl_word |= 1
+                else:
+                    data_word |= octet
+            ilas_data_words.append(data_word)
+            ilas_ctrl_words.append(ctrl_word)
+
+        assert len(ilas_data_words) == octets_per_frame*frames_per_multiframe*4//octets_per_clock
+
+        data_lut = Memory(data_width, len(ilas_data_words), init=ilas_data_words)
+        data_port = data_lut.get_port()
+        self.specials += data_lut, data_port
+
+        ctrl_lut = Memory(data_width//8, len(ilas_ctrl_words), init=ilas_ctrl_words)
+        ctrl_port = ctrl_lut.get_port()
+        self.specials += ctrl_lut, ctrl_port
+
+        # logic
+        counter = Signal(max=len(ilas_data_words))
+        self.comb += [
+            source.valid.eq(counter != len(ilas_data_words)),
+            source.last.eq(counter == (len(ilas_data_words)-1)),
+            data_port.adr.eq(counter),
+            ctrl_port.adr.eq(counter),
+            source.data.eq(data_port.dat_r),
+            source.ctrl.eq(ctrl_port.dat_r)
+        ]
+        self.sync += [
+            If(source.valid & source.ready,
+                If(counter != len(ilas_data_words),
+                    counter.eq(counter + 1)
+                )
+            )
+        ]
 
 
 class LiteJESD204BLinkTX(Module, AutoCSR):
     """Link TX layer
     """
-    def __init__(self, data_width):
+    def __init__(self, data_width, configuration_data):
         self.reset = CSR()
         self.start = CSR()
         self.ready = CSRStatus()
@@ -162,6 +242,9 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
         self.submodules += fsm
         self.comb += fsm.reset.eq(self.reset.re)
 
+
+        self.submodules.ilas = ILASGenerator(data_width, 2, 16, configuration_data) # FIXME 
+
         # Init
         fsm.act("RESET",
             If(self.start.re,
@@ -188,8 +271,12 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         # Initial Lane Alignment Sequence
         fsm.act("ILAS",
-            # TODO: add ILAS generator
-            NextState("USER_DATA")
+            source.valid.eq(self.ilas.source.valid),
+            source.data.eq(self.ilas.source.data),
+            source.ctrl.eq(self.ilas.source.ctrl),
+            If(source.valid & source.ready & self.ilas.source.last,
+                NextState("USER_DATA")
+            )
         )
 
         # User Data
