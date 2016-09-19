@@ -1,4 +1,6 @@
-- fix phy clocking/compare GTX parameters with reference design from Xilinx.
+- cleanup clock domains names on TX, find best place to do CDC on Data
+- fix CSR CDC on phy (on enable and mux)
+- compare GTX parameters with reference design from Xilinx.
 - fix Align Inserter model (or implementation?)
 - test implementation, optimize ressources (?), optimize timings (? core should run @312.5MHz
 - find SPI configuration for our design (map lanes correctly for KC705)

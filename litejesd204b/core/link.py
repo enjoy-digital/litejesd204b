@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 from litex.gen import *
+from litex.gen.genlib.cdc import PulseSynchronizer, MultiReg
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
@@ -8,6 +9,15 @@ from litejesd204b.common import *
 
 
 Control = namedtuple("Control", "value")
+
+
+class _PulseSynchronizer(PulseSynchronizer):
+    def __init__(self, i, idomain, o, odomain):
+        PulseSynchronizer.__init__(self, idomain, odomain)
+        self.comb += [
+            self.i.eq(i),
+            o.eq(self.o)
+        ]
 
 
 @ResetInserter()
@@ -54,10 +64,10 @@ class Framer(Module):
         frame_width = octets_per_frame*8
         frames_per_clock = data_width/frame_width
 
-        assert frame_width <= data_width # at least a frame per clock 
+        assert frame_width <= data_width # at least a frame per clock
         assert data_width%frame_width == 0 # multiple number of frame per clock
         assert frames_per_multiframe%frames_per_clock == 0 # multiframes aligned on clock
-        
+
         frame_last = 0
         for i in range(data_width//8):
             if (i+1)%octets_per_frame == 0:
@@ -96,7 +106,7 @@ class AlignInserter(Module):
         # # #
 
         self.comb += sink.connect(source)
-        
+
         for i in range(data_width//8):
             self.comb += [
                 If(sink.data[8*i:8*(i+1)] == control_characters["A"],
@@ -199,6 +209,17 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         # # #
 
+        # CSRs
+        reset = Signal()
+        start = Signal()
+        ready = Signal()
+
+        self.submodules += [
+            _PulseSynchronizer(self.reset.re, "sys", reset, "link_tx"),
+            _PulseSynchronizer(self.start.re, "sys", start, "link_tx")
+        ]
+        self.specials += MultiReg(ready, self.ready.status, "sys")
+
         #  Ctrl(CGS, ILAS)--+
         #                   + mux --> source
         #  Datapath --------+
@@ -222,7 +243,7 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET"))
         self.submodules += fsm
-        self.comb += fsm.reset.eq(self.reset.re)
+        self.comb += fsm.reset.eq(reset)
 
 
         self.submodules.ilas = ILASGenerator(data_width,
@@ -235,7 +256,7 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
             self.ilas.reset.eq(1),
             self.scrambler.reset.eq(1),
             self.framer.reset.eq(1),
-            If(self.start.re,
+            If(start,
                 NextState("CGS")
             )
         )
@@ -269,6 +290,6 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         # User Data
         fsm.act("USER_DATA",
-            self.ready.status.eq(1),
+            ready.eq(1),
             self.inserter.source.connect(source)
         )
