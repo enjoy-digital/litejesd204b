@@ -13,35 +13,9 @@ class LiteJESD204BPhyTX(Module, AutoCSR):
         self.data_width = data_width
         self.sink = sink = stream.Endpoint(phy_layout(data_width))
 
-        self.enable = CSRStorage() # FIX CDC
-        self.config = CSRStorage(2) # FIX CDC
-
         # # #
 
-        # prbs generators
-        prbs7 = PRBS7Generator(data_width)
-        prbs15 = PRBS15Generator(data_width)
-        prbs31 = PRBS31Generator(data_width)
-        self.submodules += prbs7, prbs15, prbs31
-
-        # data / prbs generators muxing
-        muxed_stream = stream.Endpoint(phy_layout(data_width))
-        cases = {}
-        cases[0] = self.sink.connect(muxed_stream)
-        for i, prbs in enumerate([prbs7, prbs15, prbs31]):
-            cases[i+1] = [
-                muxed_stream.valid.eq(1),
-                muxed_stream.data.eq(prbs.o)
-            ]
-        self.comb += \
-            If(self.enable.storage,
-                muxed_stream.ready.eq(1),
-                Case(self.config.storage, cases)
-            ).Else(
-                prbs7.reset.eq(1),
-                prbs15.reset.eq(1),
-                prbs31.reset.eq(1)
-            )
+        self.comb += sink.ready.eq(1)
 
         # transceiver
         self.submodules.gtx = GTXTransmitter(
@@ -51,6 +25,6 @@ class LiteJESD204BPhyTX(Module, AutoCSR):
 
         for i in range(data_width//8):
             self.comb += [
-                self.gtx.encoder.d[i].eq(muxed_stream.data[8*i:8*(i+1)]),
-                self.gtx.encoder.k[i].eq(muxed_stream.ctrl[i])
+                self.gtx.encoder.d[i].eq(sink.data[8*i:8*(i+1)]),
+                self.gtx.encoder.k[i].eq(sink.ctrl[i])
             ]
