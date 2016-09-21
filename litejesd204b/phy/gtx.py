@@ -17,6 +17,8 @@ class GTXTransmitter(Module):
                 i_IB=clock_pads_or_refclk.refclk_n,
                 o_ODIV2=self.refclk_div2
             )
+        self.clock_domains.cd_refclk = ClockDomain(reset_less=True)
+        self.comb += self.cd_refclk.clk.eq(self.refclk_div2)
 
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
 
