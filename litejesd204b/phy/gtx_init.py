@@ -1,7 +1,7 @@
 from math import ceil
 
 from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
+from litex.gen.genlib.cdc import MultiReg
 from litex.gen.genlib.misc import WaitTimer
 from litex.gen.genlib.fsm import FSM
 
@@ -52,8 +52,15 @@ class GTXInit(Module):
 
         self.debug = Signal(32)
 
-        startup_fsm = FSM(reset_state="INITIAL")
+        startup_fsm = ResetInserter()(FSM(reset_state="INITIAL"))
         self.submodules += startup_fsm
+
+        ready_timer = WaitTimer(1*sys_clk_freq//1000)
+        self.submodules += ready_timer
+        self.comb += [
+            ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
+            startup_fsm.reset.eq(self.restart | ready_timer.done),
+        ]
 
         if rx:
             cdr_stable_timer = WaitTimer(1024)
@@ -81,7 +88,7 @@ class GTXInit(Module):
         )
         # Release GTX reset and wait for GTX resetdone
         # (from UG476, GTX is reset on falling edge
-        # of gttxreset)
+        # of gtXxreset)
         if rx:
             startup_fsm.act("RELEASE_RESET",
                 self.debug.eq(3),
@@ -106,6 +113,7 @@ class GTXInit(Module):
         startup_fsm.act("WAIT_ALIGN",
             self.debug.eq(5),
             Xxuserrdy.eq(1),
+			Xxdlysreset.eq(1),
             If(Xxdlysresetdone, NextState("WAIT_FIRST_ALIGN_DONE"))
         )
         # Wait 2 rising edges of Xxphaligndone
@@ -116,13 +124,12 @@ class GTXInit(Module):
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
         )
         startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
-            self.debug.eq(6),
+            self.debug.eq(7),
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("READY"))
         )
         startup_fsm.act("READY",
-            self.debug.eq(7),
+            self.debug.eq(8),
             Xxuserrdy.eq(1),
-            self.done.eq(1),
-            If(self.restart, NextState("RESET_GTX"))
+            self.done.eq(1)
         )
