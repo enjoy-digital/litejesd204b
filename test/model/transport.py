@@ -78,7 +78,9 @@ def samples_to_lanes(samples_per_frame, nlanes, nconverters, nbits, samples):
     assert nconverters == len(samples)
 
     nibbles_per_word = ceil(nbits//4)
-    octets_per_lane = samples_per_frame*nibbles_per_word//2
+    octets_per_frame = samples_per_frame*nibbles_per_word//2
+    octets_per_lane = octets_per_frame*nconverters//nlanes
+    assert octets_per_lane > 0
 
     lanes = [[]]*nlanes
     n = 0
@@ -133,7 +135,9 @@ def lanes_to_samples(samples_per_frame, nlanes, nconverters, nbits, lanes):
     assert nlanes == len(lanes)
 
     nibbles_per_word = ceil(nbits//4)
-    octets_per_lane = samples_per_frame*nibbles_per_word//2
+    octets_per_frame = samples_per_frame*nibbles_per_word//2
+    octets_per_lane = octets_per_frame*nconverters//nlanes
+    assert octets_per_lane > 0
 
     samples = [[]]*nconverters
     n = 0

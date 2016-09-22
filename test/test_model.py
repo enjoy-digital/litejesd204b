@@ -18,7 +18,7 @@ from test.model.line_coding import encode_lanes, decode_lanes
 
 class TestModel(unittest.TestCase):
     def test_transport_mapping(self):
-        nlanes = 4
+        nlanes = 8
         nconverters = 4
 
         # simple samples (for manual debug)
