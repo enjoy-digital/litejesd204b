@@ -6,15 +6,15 @@ from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXTransmitter(Module):
-    def __init__(self, clock_pads_or_refclk, tx_pads, sys_clk_freq):
-        if isinstance(clock_pads_or_refclk, Signal):
-            self.refclk_div2 = clock_pads_or_refclk
+    def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq, cd):
+        if isinstance(clock_pads_or_refclk_div2, Signal):
+            self.refclk_div2 = clock_pads_or_refclk_div2
         else:
             self.refclk_div2 = Signal()
             self.specials += Instance("IBUFDS_GTE2",
                 i_CEB=0,
-                i_I=clock_pads_or_refclk.refclk_p,
-                i_IB=clock_pads_or_refclk.refclk_n,
+                i_I=clock_pads_or_refclk_div2.refclk_p,
+                i_IB=clock_pads_or_refclk_div2.refclk_n,
                 o_ODIV2=self.refclk_div2
             )
 
@@ -77,8 +77,8 @@ class GTXTransmitter(Module):
                 i_TXCHARDISPMODE=Cat(txdata[9], txdata[19], txdata[29], txdata[39]),
                 i_TXCHARDISPVAL=Cat(txdata[8], txdata[18], txdata[28], txdata[38]),
                 i_TXDATA=Cat(txdata[0:8], txdata[10:18], txdata[20:28], txdata[30:38]),
-                i_TXUSRCLK=ClockSignal("tx"),
-                i_TXUSRCLK2=ClockSignal("tx"),
+                i_TXUSRCLK=ClockSignal(cd),
+                i_TXUSRCLK2=ClockSignal(cd),
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
@@ -89,13 +89,13 @@ class GTXTransmitter(Module):
                 o_GTXTXN=tx_pads.txn,
             )
 
-        self.clock_domains.cd_tx = ClockDomain()
+        self.clock_domains.cd_tx = ClockDomain(cd)
         self.specials += Instance("BUFG",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.gtx_init.done)
 
-        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(4, True))
+        self.submodules.encoder = ClockDomainsRenamer(cd)(Encoder(4, True))
         self.comb += txdata.eq(Cat(self.encoder.output[0],
                                    self.encoder.output[1],
                                    self.encoder.output[2],
