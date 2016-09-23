@@ -3,7 +3,6 @@ from math import ceil
 import random
 
 from litex.gen import *
-from litex.gen.fhdl import verilog
 from litex.soc.interconnect import stream
 
 from litejesd204b.common import *
