@@ -23,7 +23,9 @@ class LiteJESD204BTransportTX(Module):
         samples_per_frame = transport_settings.s
         
         nibbles_per_word = ceil(physical_settings.np//4)
-        octets_per_lane = samples_per_frame*nibbles_per_word//2
+        octets_per_frame = samples_per_frame*nibbles_per_word//2
+        octets_per_lane = octets_per_frame*nconverters//nlanes
+        assert octets_per_lane > 0
 
         lane_data_width = samples_per_clock*physical_settings.np*nconverters//nlanes
 
