@@ -35,15 +35,24 @@ class Scrambler(Module):
         feedback = Signal(data_width)
         full = Signal(data_width+15)
 
+        swizzle_in = Signal(data_width)
+        swizzle_out = Signal(data_width)
+        self.comb += [
+            swizzle_in.eq(Cat(*[sink.data[data_width-8*(i+1):data_width-8*i] 
+                for i in range(data_width//8)])),
+            source.data.eq(Cat(*[swizzle_out[data_width-8*(i+1):data_width-8*i] 
+                for i in range(data_width//8)]))
+        ]
+
         self.comb += [
             full.eq(Cat(feedback, state)),
-            feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ sink.data)
+            feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ swizzle_in)
         ]
 
         self.sync += [
             If(sink.valid & source.ready,
                 source.valid.eq(1),
-                source.data.eq(feedback),
+                swizzle_out.eq(feedback),
                 state.eq(full)
             ).Elif(self.source.ready,
                 source.valid.eq(0)
@@ -62,7 +71,8 @@ class Framer(Module):
         # # #
 
         frame_width = octets_per_frame*8
-        frames_per_clock = data_width/frame_width
+        frames_per_clock = data_width//frame_width
+        clocks_per_multiframe = frames_per_multiframe//frames_per_clock
 
         assert frame_width <= data_width # at least a frame per clock
         assert data_width%frame_width == 0 # multiple number of frame per clock
@@ -73,21 +83,22 @@ class Framer(Module):
             if (i+1)%octets_per_frame == 0:
                 frame_last |= (1<<i)
 
-        frame_counter = Signal(8)
+        counter = Signal(8)
         self.sync += [
             If(sink.valid & source.ready,
                 If(source.multiframe_last != 0,
-                    frame_counter.eq(0)
+                    counter.eq(0)
                 ).Else(
-                    frame_counter.eq(frame_counter+1)
+                    counter.eq(counter+1)
                 )
             )
         ]
 
+
         self.comb += [
             sink.connect(source),
             source.frame_last.eq(frame_last),
-            If(frame_counter == (frames_per_multiframe-1),
+            If(counter == (clocks_per_multiframe-1),
                 source.multiframe_last.eq(1<<(data_width//8)-1)
             )
         ]

@@ -32,7 +32,7 @@ class LinkTXDatapath(Module):
 class TestLink(unittest.TestCase):
     def test_link_tx(self, nlanes=4, data_width=32):
         prng = random.Random(6)
-        input_lane = [[prng.randrange(256), prng.randrange(256)] for _ in range(500)]
+        input_lane = [[prng.randrange(256), prng.randrange(256)] for _ in range(2048)]
         output_lanes = scramble_lanes([input_lane])
         output_lanes = insert_alignment_characters(frames_per_multiframe=4, 
                                                    scrambled=True,
@@ -51,11 +51,11 @@ class TestLink(unittest.TestCase):
         def get_lane_data(lane, cycle):
             flat_lane = flatten_lane(lane)
             data = flat_lane[octets_per_cycle*cycle:octets_per_cycle*(cycle+1)]
-            return int.from_bytes(data, byteorder='big') if data != [] else None
+            return int.from_bytes(data, byteorder='little') if data != [] else None
          
         def generator(dut):
-            yield dut.source.ready.eq(1)         
-            for i in range(500):
+            yield dut.source.ready.eq(1)   
+            for i in range(2048):
                 # set sink data
                 sink_data = get_lane_data(input_lane, i)
                 if sink_data is not None:
@@ -67,12 +67,12 @@ class TestLink(unittest.TestCase):
                 if (yield dut.source.valid):
                     source_data = (yield dut.source.data)
                     source_ctrl = (yield dut.source.ctrl)
-                    data = list(source_data.to_bytes(octets_per_cycle, byteorder='big'))
+                    data = list(source_data.to_bytes(octets_per_cycle, byteorder='little'))
                     for i in range(octets_per_cycle):
-                        if source_ctrl & (1<<(octets_per_cycle-i-1)):
+                        if source_ctrl & (1<<i):
                             data[i] = Control(data[i])
                     dut.output_lane += data
                 yield
 
-        run_simulation(link, generator(link), vcd_name="sim.vcd")
+        run_simulation(link, generator(link))
         self.assertEqual(link.output_lane, flatten_lane(output_lanes[0]))

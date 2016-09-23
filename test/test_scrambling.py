@@ -7,6 +7,8 @@ from litejesd204b.core.link import Scrambler
 from test.model.common import seed_to_data
 from test.model.link import Scrambler as ScramblerModel
 
+def swap_bytes(data, n):
+    return int.from_bytes(data.to_bytes(n, byteorder="little"), byteorder="big")
 
 def scrambler_test():
     model = ScramblerModel()
@@ -15,11 +17,11 @@ def scrambler_test():
     def generator(dut):
         for i in range(512):
             yield dut.sink.valid.eq(1)
-            yield dut.sink.data.eq(seed_to_data(i, True))
+            yield dut.sink.data.eq(swap_bytes(seed_to_data(i, True), 4))
             yield dut.source.ready.eq(1)
             yield
             if i >= 1:
-                reference = model.scramble(seed_to_data(i-1, True), 32)
+                reference = swap_bytes(model.scramble(seed_to_data(i-1, True), 32), 4)
                 if (yield dut.source.data) != reference:
                     dut.errors += 1
     run_simulation(dut, generator(dut))

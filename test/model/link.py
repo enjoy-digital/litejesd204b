@@ -86,27 +86,22 @@ def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
     new_lanes = []
     for lane in lanes:
         new_lane = []
-        last_dn = -1
         for n, frame in enumerate(lane):
-            dn = frame[0]
+            new_frame = [frame[i] for i in range(len(frame))]
+            dn = new_frame[-1]
             last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
 
             if scrambled:
-                if (dn == 0x7c) & last_frame_of_multiframe:
-                    dn = Control(control_characters["A"])
-                if dn == 0xfc:
-                    dn = Control(control_characters["F"])
+                if (dn == control_characters["A"]) & last_frame_of_multiframe:
+                    dn = Control(dn)
+                if dn == control_characters["F"]:
+                    dn = Control(dn)
             else:
-                if dn == last_dn:
-                    if last_frame_of_multiframe:
-                        dn = Control(control_characters["A"])
-                    else:
-                        dn = Control(control_characters["F"])
+                raise NotImplementedError
 
-            frame[0] = dn
-            last_dn = dn
+            new_frame[-1] = dn
 
-            new_lane.append(frame)
+            new_lane.append(new_frame)
 
         new_lanes.append(new_lane)
 
@@ -123,25 +118,17 @@ def remove_alignment_characters(frames_per_multiframe, scrambled, lanes):
     new_lanes = []
     for lane in lanes:
         new_lane = []
-        last_dn = -1
         for n, frame in enumerate(lane):
-            dn = frame[0]
+            dn = frame[-1]
             last_frame_of_multiframe = ((n+1)%frames_per_multiframe == 0)
 
             if isinstance(dn, Control):
                 if scrambled:
-                    if dn == control_characters["A"]:
-                        dn = 0x7c
-                    elif control_characters["F"]:
-                        dn = 0xfc
+                    dn = dn.value
                 else:
-                    if dn == control_characters["A"]:
-                        dn = last_dn
-                    elif dn == control_characters["F"]:
-                        dn = last_dn
+                    raise NotImplementedError
 
-            frame[0] = dn
-            last_dn = dn
+            frame[-1] = dn
 
             new_lane.append(frame)
 

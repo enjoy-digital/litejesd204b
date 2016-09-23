@@ -53,3 +53,19 @@ Validation:
 -----------
 Need to define a test plan to validate the core with the AD9154, can probably be based on:
 # http://www.xilinx.com/publications/prod_mktg/JESD204B_Interop_Report_AD9250.pdf
+
+Character Insertion:
+----------------------
+if not scrambled:
+  if dn = dn-1:
+    if end of multiframe:
+      dn = A
+    if end of frame:
+      dn = F
+if scrambled:
+  if dn = 0x7c:
+    if end of multiframe:
+      dn = A
+  if dn = 0xfc:
+    if end of frame:
+      dn = F
