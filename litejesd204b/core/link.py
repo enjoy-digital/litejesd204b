@@ -6,6 +6,7 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
 from litejesd204b.common import *
+from litejesd204b.phy.prbs import PRBS15Generator
 
 
 Control = namedtuple("Control", "value")
@@ -211,6 +212,7 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
     def __init__(self, data_width, jesd_settings):
         self.reset = CSR()
         self.start = CSR()
+        self.prbs = CSRStorage()
         self.ready = CSRStatus()
 
         self.ext_sync = Signal()
@@ -223,17 +225,26 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
         # CSRs
         reset = Signal()
         start = Signal()
+        prbs = Signal()
         ready = Signal()
 
         self.submodules += [
             _PulseSynchronizer(self.reset.re, "sys", reset, "link_tx"),
             _PulseSynchronizer(self.start.re, "sys", start, "link_tx")
         ]
-        self.specials += MultiReg(ready, self.ready.status, "sys")
+        self.specials += [
+            MultiReg(self.prbs.storage, prbs, "link_tx"),
+            MultiReg(ready, self.ready.status, "sys"),
+        ]
 
-        #  Ctrl(CGS, ILAS)--+
-        #                   + mux --> source
-        #  Datapath --------+
+        #  PRBS(optional)---+ 
+        #                   +
+        #  Ctrl(CGS, ILAS)--+ mux --> source
+        #                   +
+        #  Datapath---------+
+
+        # PRBS
+        self.submodules.prbs_gen = PRBS15Generator(data_width)
 
 
         # Datapath
@@ -267,8 +278,21 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
             self.ilas.reset.eq(1),
             self.scrambler.reset.eq(1),
             self.framer.reset.eq(1),
-            If(start,
+            self.prbs_gen.reset.eq(1),
+            If(prbs,
+                NextState("PRBS")
+            ).Elif(start,
                 NextState("CGS")
+            )
+        )
+
+        # PRBS
+        fsm.act("PRBS",
+            source.valid.eq(1),
+            source.data.eq(self.prbs_gen.o),
+            source.ctrl.eq(0),
+            If(~prbs,
+                NextState("RESET")
             )
         )
 
