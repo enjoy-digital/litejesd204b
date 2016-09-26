@@ -20,6 +20,8 @@ class GTXTransmitter(Module):
 
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
 
+        nwords = data_width//10
+
         txoutclk = Signal()
         txdata = Signal(40)
         self.specials += \
@@ -74,9 +76,9 @@ class GTXTransmitter(Module):
                 # TX data
                 p_TX_DATA_WIDTH=data_width,
                 p_TX_INT_DATAWIDTH=data_width==40,
-                i_TXCHARDISPMODE=Cat(txdata[9], txdata[19], txdata[29], txdata[39]),
-                i_TXCHARDISPVAL=Cat(txdata[8], txdata[18], txdata[28], txdata[38]),
-                i_TXDATA=Cat(txdata[0:8], txdata[10:18], txdata[20:28], txdata[30:38]),
+                i_TXCHARDISPMODE=Cat(*[txdata[10*i+9] for i in range(nwords)]),
+                i_TXCHARDISPVAL=Cat(*[txdata[10*i+8] for i in range(nwords)]),
+                i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
                 i_TXUSRCLK=ClockSignal(cd),
                 i_TXUSRCLK2=ClockSignal(cd),
 
@@ -95,5 +97,5 @@ class GTXTransmitter(Module):
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.gtx_init.done)
 
-        self.submodules.encoder = ClockDomainsRenamer(cd)(Encoder(data_width//10, True))
-        self.comb += txdata.eq(Cat(*[self.encoder.output[i] for i in range(data_width//10)]))
+        self.submodules.encoder = ClockDomainsRenamer(cd)(Encoder(nwords, True))
+        self.comb += txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
