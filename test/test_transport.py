@@ -10,12 +10,18 @@ from test.model.transport import samples_to_lanes
 
 class TestTransport(unittest.TestCase):
     def transport_tx_test(self, nlanes, nconverters, converter_data_width):
+        physical_settings = JESD204BPhysicalSettings(l=nlanes,
+                                                     m=nconverters,
+                                                     n=16, np=16, sc=1*1e9)
         transport_settings = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
-        physical_settings = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16, sc=1*1e9)
 
-        transport = LiteJESD204BTransportTX(transport_settings, physical_settings, converter_data_width)
 
-        input_samples = [[j+i*256 for j in range(16)] for i in range(nconverters)]
+        transport = LiteJESD204BTransportTX(transport_settings,
+                                            physical_settings,
+                                            converter_data_width)
+
+        input_samples = [[j+i*256 for j in range(16)]
+            for i in range(nconverters)]
         reference_lanes = samples_to_lanes(samples_per_frame=1,
                                            nlanes=nlanes,
                                            nconverters=nconverters,
@@ -25,7 +31,7 @@ class TestTransport(unittest.TestCase):
         output_lanes = [[] for i in range(nlanes)]
 
 
-        samples_per_frame = transport_settings.s        
+        samples_per_frame = transport_settings.s
         nibbles_per_word = ceil(physical_settings.np//4)
         octets_per_frame = samples_per_frame*nibbles_per_word//2
         octets_per_lane = octets_per_frame*nconverters//nlanes
@@ -44,7 +50,8 @@ class TestTransport(unittest.TestCase):
                     for l in range(nlanes):
                         lane_data = (yield getattr(dut.source, "data"+str(l)))
                         for f in range(lane_data_width//(octets_per_lane*8)):
-                            frame = [(lane_data >> (f*8*octets_per_lane)+8*i) & 0xff for i in range(octets_per_lane)]
+                            frame = [(lane_data >> (f*8*octets_per_lane)+8*i) & 0xff
+                                for i in range(octets_per_lane)]
                             output_lanes[l].append(frame)
                 yield
 

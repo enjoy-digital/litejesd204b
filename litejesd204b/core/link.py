@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 from litex.gen import *
-from litex.gen.genlib.cdc import PulseSynchronizer, MultiReg
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
@@ -12,23 +11,13 @@ from litejesd204b.phy.prbs import PRBS15Generator
 Control = namedtuple("Control", "value")
 
 
-class _PulseSynchronizer(PulseSynchronizer):
-    def __init__(self, i, idomain, o, odomain):
-        PulseSynchronizer.__init__(self, idomain, odomain)
-        self.comb += [
-            self.i.eq(i),
-            o.eq(self.o)
-        ]
-
-
-@ResetInserter()
 class Scrambler(Module):
     """Scrambler
     cf section 5.2.3
     """
     def __init__(self, data_width):
-        self.sink = sink = stream.Endpoint([("data", data_width)])
-        self.source = source = stream.Endpoint([("data", data_width)])
+        self.sink = sink = stream.Endpoint(data_layout(data_width))
+        self.source = source = stream.Endpoint(data_layout(data_width))
 
         # # #
 
@@ -39,9 +28,9 @@ class Scrambler(Module):
         swizzle_in = Signal(data_width)
         swizzle_out = Signal(data_width)
         self.comb += [
-            swizzle_in.eq(Cat(*[sink.data[data_width-8*(i+1):data_width-8*i] 
+            swizzle_in.eq(Cat(*[sink.data[data_width-8*(i+1):data_width-8*i]
                 for i in range(data_width//8)])),
-            source.data.eq(Cat(*[swizzle_out[data_width-8*(i+1):data_width-8*i] 
+            source.data.eq(Cat(*[swizzle_out[data_width-8*(i+1):data_width-8*i]
                 for i in range(data_width//8)]))
         ]
 
@@ -50,7 +39,7 @@ class Scrambler(Module):
             feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ swizzle_in)
         ]
 
-        self.sync += [
+        self.sync += \
             If(sink.valid & source.ready,
                 source.valid.eq(1),
                 swizzle_out.eq(feedback),
@@ -58,15 +47,13 @@ class Scrambler(Module):
             ).Elif(self.source.ready,
                 source.valid.eq(0)
             )
-        ]
 
 
-@ResetInserter()
 class Framer(Module):
     """Framer
     """
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
-        self.sink = sink = stream.Endpoint([("data", data_width)])
+        self.sink = sink = stream.Endpoint(data_layout(data_width))
         self.source = source = stream.Endpoint(link_layout(data_width))
 
         # # #
@@ -85,7 +72,7 @@ class Framer(Module):
                 frame_last |= (1<<i)
 
         counter = Signal(8)
-        self.sync += [
+        self.sync += \
             If(sink.valid & source.ready,
                 If(source.multiframe_last != 0,
                     counter.eq(0)
@@ -93,8 +80,6 @@ class Framer(Module):
                     counter.eq(counter+1)
                 )
             )
-        ]
-
 
         self.comb += [
             sink.connect(source),
@@ -120,7 +105,7 @@ class AlignInserter(Module):
         self.comb += sink.connect(source)
 
         for i in range(data_width//8):
-            self.comb += [
+            self.comb += \
                 If(sink.data[8*i:8*(i+1)] == control_characters["A"],
                     If(sink.multiframe_last[i],
                         source.ctrl[i].eq(1)
@@ -130,10 +115,31 @@ class AlignInserter(Module):
                         source.ctrl[i].eq(1)
                     )
                 )
+
+
+class CGSGenerator(Module):
+    """Code Group Synchronization
+    """
+    def __init__(self, data_width):
+        self.source = source = stream.Endpoint(link_layout(data_width))
+
+        # # #
+
+        data = Signal(data_width)
+        ctrl = Signal(data_width//8)
+        for i in range(data_width//8):
+            self.comb += [
+                data[8*i:8*(i+1)].eq(control_characters["K"]),
+                ctrl[i].eq(1)
             ]
 
+        self.comb += [
+            source.valid.eq(1),
+            source.data.eq(data),
+            source.ctrl.eq(ctrl)
+        ]
 
-@ResetInserter()
+
 class ILASGenerator(Module):
     """Initial Lane Alignment Sequence Generator
     cf section 5.3.3.5
@@ -206,40 +212,23 @@ class ILASGenerator(Module):
             )
 
 
-class LiteJESD204BLinkTX(Module, AutoCSR):
+class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """
     def __init__(self, data_width, jesd_settings):
-        self.reset = CSR()
-        self.start = CSR()
-        self.prbs = CSRStorage()
-        self.ready = CSRStatus()
-
+        self.start = Signal(reset=1)
+        self.prbs = Signal()
+        self.ready = Signal()
         self.ext_sync = Signal()
 
-        self.sink = sink = stream.Endpoint([("data", data_width)])
+        self.sink = sink = stream.Endpoint(data_layout(data_width))
         self.source = source = stream.Endpoint(link_layout(data_width))
 
         # # #
 
-        # CSRs
-        reset = Signal()
-        start = Signal()
-        prbs = Signal()
-        ready = Signal()
-
-        self.submodules += [
-            _PulseSynchronizer(self.reset.re, "sys", reset, "link_tx"),
-            _PulseSynchronizer(self.start.re, "sys", start, "link_tx")
-        ]
-        self.specials += [
-            MultiReg(self.prbs.storage, prbs, "link_tx"),
-            MultiReg(ready, self.ready.status, "sys"),
-        ]
-
-        #  PRBS(optional)---+ 
+        #  PRBS(optional)---+
         #                   +
-        #  Ctrl(CGS, ILAS)--+ mux --> source
+        #  Init(CGS, ILAS)--+ mux --> source
         #                   +
         #  Datapath---------+
 
@@ -247,41 +236,39 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
         self.submodules.prbs_gen = PRBS15Generator(data_width)
 
 
+        # Init
+
+        cgs = CGSGenerator(data_width)
+        ilas = ILASGenerator(data_width,
+                             2, # FIXME octets_per_frame
+                             jesd_settings.transport.k,
+                             jesd_settings.get_configuration_data())
+        self.submodules += cgs, ilas
+
+
         # Datapath
 
-        # sink --> scrambler --> framer --> align_inserter
-        self.submodules.scrambler = Scrambler(data_width)
-        self.submodules.framer = Framer(data_width,
-                                        2, # FIXME octets_per_frame
-                                        jesd_settings.transport.k)
-        self.submodules.inserter = AlignInserter(data_width)
+        scrambler = Scrambler(data_width)
+        framer = Framer(data_width,
+                        2, # FIXME octets_per_frame
+                        jesd_settings.transport.k)
+        inserter = AlignInserter(data_width)
+        self.submodules += scrambler, framer, inserter
         self.comb += [
-            self.sink.connect(self.scrambler.sink),
-            self.scrambler.source.connect(self.framer.sink),
-            self.framer.source.connect(self.inserter.sink)
+            sink.connect(scrambler.sink),
+            scrambler.source.connect(framer.sink),
+            framer.source.connect(inserter.sink)
         ]
 
-        # Ctrl
+        # FSM
 
-        self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET"))
-        self.submodules += fsm
-        self.comb += fsm.reset.eq(reset)
-
-
-        self.submodules.ilas = ILASGenerator(data_width,
-                                             2, # FIXME octets_per_frame
-                                             jesd_settings.transport.k,
-                                             jesd_settings.get_configuration_data())
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
         # Init
-        fsm.act("RESET",
-            self.ilas.reset.eq(1),
-            self.scrambler.reset.eq(1),
-            self.framer.reset.eq(1),
-            self.prbs_gen.reset.eq(1),
-            If(prbs,
+        fsm.act("IDLE",
+            If(self.prbs,
                 NextState("PRBS")
-            ).Elif(start,
+            ).Elif(self.start,
                 NextState("CGS")
             )
         )
@@ -290,24 +277,15 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
         fsm.act("PRBS",
             source.valid.eq(1),
             source.data.eq(self.prbs_gen.o),
-            source.ctrl.eq(0),
-            If(~prbs,
-                NextState("RESET")
-            )
+            source.ctrl.eq(0)
         )
 
         # Code Group Synchronization
-        cgs_data = Signal(data_width)
-        cgs_ctrl = Signal(data_width//8)
-        for i in range(data_width//8):
-            self.comb += [
-                cgs_data[8*i:8*(i+1)].eq(control_characters["K"]),
-                cgs_ctrl[i].eq(1)
-            ]
         fsm.act("CGS",
-            source.valid.eq(1),
-            source.data.eq(cgs_data),
-            source.ctrl.eq(cgs_ctrl),
+            source.valid.eq(cgs.source.valid),
+            source.data.eq(cgs.source.data),
+            source.ctrl.eq(cgs.source.ctrl),
+            cgs.source.ready.eq(source.ready),
             If(~self.ext_sync, # FIXME when doing det-lat
                 NextState("ILAS")
             )
@@ -315,16 +293,17 @@ class LiteJESD204BLinkTX(Module, AutoCSR):
 
         # Initial Lane Alignment Sequence
         fsm.act("ILAS",
-            source.valid.eq(self.ilas.source.valid),
-            source.data.eq(self.ilas.source.data),
-            source.ctrl.eq(self.ilas.source.ctrl),
-            If(source.valid & source.ready & self.ilas.source.last,
+            source.valid.eq(ilas.source.valid),
+            source.data.eq(ilas.source.data),
+            source.ctrl.eq(ilas.source.ctrl),
+            ilas.source.ready.eq(source.ready),
+            If(source.valid & source.ready & ilas.source.last,
                 NextState("USER_DATA")
             )
         )
 
         # User Data
         fsm.act("USER_DATA",
-            ready.eq(1),
-            self.inserter.source.connect(source)
+            self.ready.eq(1),
+            inserter.source.connect(source)
         )

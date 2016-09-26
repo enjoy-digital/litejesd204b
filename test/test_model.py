@@ -34,13 +34,19 @@ class TestModel(unittest.TestCase):
 
     def test_transport_mapping(self):
         nconverters = 4
-        input_samples = [[j+i*256 for j in range(8)] for i in range(nconverters)]
+        input_samples = [[j+i*256 for j in range(8)]
+            for i in range(nconverters)]
         for nlanes in [1, 2, 4, 8]:
-            output_samples = self.transport_mapping_test(nlanes, nconverters, input_samples)
+            output_samples = self.transport_mapping_test(nlanes,
+                                                         nconverters,
+                                                         input_samples)
             self.assertEqual(input_samples, output_samples)
-        input_samples = [[seed_to_data(j+i)%(2**16) for j in range(1024)] for i in range(nconverters)]
+        input_samples = [[seed_to_data(j+i)%(2**16) for j in range(1024)]
+            for i in range(nconverters)]
         for nlanes in [1, 2, 4, 8]:
-            output_samples = self.transport_mapping_test(nlanes, nconverters, input_samples)
+            output_samples = self.transport_mapping_test(nlanes,
+                                                         nconverters,
+                                                         input_samples)
             self.assertEqual(input_samples, output_samples)
 
     def test_transport_short_test_pattern(self):
@@ -65,8 +71,8 @@ class TestModel(unittest.TestCase):
         # cf section 5.1.6.3
         reference_samples = [
             [1, 1, 1, 2, 1<<15, 1<<15, 1<<15, 1<<15],
-            [2, 2, 1, 2, 1<<15, 1<<15, 1<<15, 1<<15], 
-            [3, 3, 1, 2, 1<<15, 1<<15, 1<<15, 1<<15], 
+            [2, 2, 1, 2, 1<<15, 1<<15, 1<<15, 1<<15],
+            [3, 3, 1, 2, 1<<15, 1<<15, 1<<15, 1<<15],
             [4, 4, 1, 2, 1<<15, 1<<15, 1<<15, 1<<15]
         ]
         self.assertEqual(samples, reference_samples)
@@ -89,7 +95,7 @@ class TestModel(unittest.TestCase):
             [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
             [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
             [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
-            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
+            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]]
         ]
         output_lanes = descramble_lanes(scramble_lanes(input_lanes))
         self.assertEqual(input_lanes, output_lanes)
@@ -99,10 +105,10 @@ class TestModel(unittest.TestCase):
             [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
             [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
             [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
-            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
+            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]]
         ]
         lanes = scramble_lanes(input_lanes)
-        lanes = insert_alignment_characters(frames_per_multiframe=4, 
+        lanes = insert_alignment_characters(frames_per_multiframe=4,
                                             scrambled=True,
                                             lanes=lanes)
         output_lanes = remove_alignment_characters(frames_per_multiframe=4,
@@ -116,22 +122,25 @@ class TestModel(unittest.TestCase):
             [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
             [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
             [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
-            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]],
+            [[3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7]]
         ]
         encoded_lanes = encode_lanes(input_lanes)
         output_lanes = decode_lanes(encoded_lanes)
         self.assertEqual(input_lanes, output_lanes)
 
     def test_roundtrip(self, nlanes=4, nconverters=4):
-        physical_settings = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16, sc=1*1e9)
+        physical_settings = JESD204BPhysicalSettings(l=nlanes,
+                                                     m=nconverters,
+                                                     n=16, np=16, sc=1*1e9)
         transport_settings = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
-        
+
         transport = TransportLayer(transport_settings, physical_settings)
         link = LinkLayer(16, True)
 
         # tx >>
         # # #
-        tx_samples = [[seed_to_data(j)%(2**16) for j in range(4096)] for i in range(nconverters)]
+        tx_samples = [[seed_to_data(j)%(2**16) for j in range(4096)]
+            for i in range(nconverters)]
         # transport
         tx_lanes = transport.encode(tx_samples)
         # link

@@ -10,7 +10,6 @@ control_characters = {
     "F": 0b11111100, # K28.7, Frame alignment
 }
 
-
 # configuration data
 
 class Field:
@@ -76,9 +75,8 @@ class JESD204BConfigurationData:
     def get_checksum(self):
         checksum = 0
         for octet in self.get_octets()[:-1]:
-                checksum = (checksum + octet) % 256
+                checksum = (checksum + octet)%256
         return checksum
-
 
 # settings
 
@@ -109,10 +107,7 @@ class JESD204BPhysicalSettings:
 
 
 class JESD204BSettings:
-    def __init__(self,
-        phy_settings,
-        transport_settings,
-        did, bid):
+    def __init__(self, phy_settings, transport_settings, did, bid):
         self.phy = phy_settings
         self.transport = transport_settings
         self.did = did
@@ -138,15 +133,19 @@ class JESD204BSettings:
         ps = self.phy
         ts = self.transport
 
-        fc = ps.sc/ts.s
-        lmfc = fc/ts.k
+        frame_clock = ps.sc/ts.s
+        local_multiframe_clock = frame_clock/ts.k
 
-        lr = (ps.m*ts.s*ps.np*10/8*fc)/ps.l
+        line_rate = (ps.m*ts.s*ps.np*10/8*frame_clock)/ps.l
 
-        return ps.sc, fc, lmfc, lr
-
+        return ps.sc, frame_clock, local_multiframe_clock, line_rate
 
 # layouts
+
+def data_layout(data_width):
+    layout = [("data", data_width)]
+    return EndpointDescription(layout)
+
 
 def transport_layout(data_width, n):
     layout = [("data"+str(i), data_width) for i in range(n)]
@@ -164,11 +163,9 @@ def link_layout(data_width):
     return EndpointDescription(layout)
 
 
-def phy_layout(data_width, n=1):
-    if n == 1:
-        layout = [("data", data_width)]
-        layout += [("ctrl", data_width//8)]
-    else:
-        layout = [("data"+str(i), data_width) for i in range(n)]
-        layout += [("ctrl"+str(i), data_width//8) for i in range(n)]
+def phy_layout(data_width):
+    layout = [
+        ("data", data_width),
+        ("ctrl", data_width//8)
+    ]
     return EndpointDescription(layout)

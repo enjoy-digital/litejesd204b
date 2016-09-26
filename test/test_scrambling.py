@@ -21,7 +21,8 @@ def scrambler_test():
             yield dut.source.ready.eq(1)
             yield
             if i >= 1:
-                reference = swap_bytes(model.scramble(seed_to_data(i-1, True), 32), 4)
+                reference = model.scramble(seed_to_data(i-1, True), 32)
+                reference = swap_bytes(reference, 4)
                 if (yield dut.source.data) != reference:
                     dut.errors += 1
     run_simulation(dut, generator(dut))
