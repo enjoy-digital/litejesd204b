@@ -10,7 +10,7 @@ from litejesd204b.phy.prbs import PRBS7Generator, PRBS15Generator, PRBS31Generat
 class LiteJESD204BPhyTX(Module):
     def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq, n, data_width=32):
         self.cd = "jesd_tx_"+str(n)
-        assert data_width == 32 # only supporting 32 bits datapath for now
+        assert data_width in [16, 32]
         self.data_width = data_width
         self.sink = sink = stream.Endpoint(phy_layout(data_width))
 
@@ -23,7 +23,8 @@ class LiteJESD204BPhyTX(Module):
                 clock_pads_or_refclk_div2=clock_pads_or_refclk_div2,
                 tx_pads=tx_pads,
                 sys_clk_freq=sys_clk_freq,
-                cd=self.cd)
+                cd=self.cd,
+                data_width=(data_width*10)//8)
 
         for i in range(data_width//8):
             self.comb += [
