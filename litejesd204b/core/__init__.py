@@ -27,10 +27,10 @@ class LiteJESD204BCoreTX(Module):
                                             jesd_settings.phy,
                                             converter_data_width)
         transport = ClockDomainsRenamer("tx")(transport)
-        self.submodules += transport
+        self.submodules.transport = transport
 
         # cdc
-        cdcs = []
+        self.cdcs = cdcs = []
         for i, phy in enumerate(phys):
             cdc = stream.AsyncFIFO(data_layout(phy.data_width), 8)
             cdc = ClockDomainsRenamer({"write": "tx", "read": phy.cd})(cdc)
@@ -38,7 +38,7 @@ class LiteJESD204BCoreTX(Module):
             self.submodules += cdc
 
         # link layer
-        links = []
+        self.links = links = []
         for i, phy in enumerate(phys):
             jesd_settings.phy.lid = i
             link = LiteJESD204BLinkTX(phy.data_width, jesd_settings)
@@ -53,6 +53,6 @@ class LiteJESD204BCoreTX(Module):
                 cdc.sink.valid.eq(transport.source.valid),
                 cdc.sink.data.eq(getattr(transport.source, "data"+str(i))),
                 cdc.source.connect(link.sink),
-                link.source.connect(phy.sink, omit=["frame_last",
-                                                    "multiframe_last"])
+                link.source.connect(phys[i].sink, omit=["frame_last",
+                                                        "multiframe_last"])
             ]
