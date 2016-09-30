@@ -1,10 +1,5 @@
-- cleanup clock domains names on TX, find best place to do CDC on Data
-- fix CSR CDC on phy (on enable and mux)
-- compare GTX parameters with reference design from Xilinx.
-- fix Align Inserter model (or implementation?)
-- test implementation, optimize ressources (?), optimize timings (? core should run @312.5MHz
-- find SPI configuration for our design (map lanes correctly for KC705)
-- test phy on board with ADI prbs checker up to 12.5Gbps.
+- add CSRs wrapper to control the core.
 - test link establishment with ADI device and ILAS (reponse to SYNC and specific registers for ILAS)
+- test phy on board with ADI prbs checker up to 12.5Gbps.
 - test samples mapping to lanes with short test pattern and specific registers on ADI chip
 - integrate with ARTIQ's phaser and test it
