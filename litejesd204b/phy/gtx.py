@@ -52,7 +52,7 @@ class GTXTransmitter(Module):
                 o_CPLLLOCK=self.gtx_init.cplllock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
-                i_TSTIN=2**data_width-1,
+                i_TSTIN=2**20-1,
                 i_GTREFCLK0=self.refclk_div2,
 
                 # TX clock
