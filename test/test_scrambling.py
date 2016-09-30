@@ -4,11 +4,8 @@ from litex.gen import *
 
 from litejesd204b.core.link import Scrambler
 
-from test.model.common import seed_to_data
+from test.model.common import swap_bytes,seed_to_data
 from test.model.link import Scrambler as ScramblerModel
-
-def swap_bytes(data, n):
-    return int.from_bytes(data.to_bytes(n, byteorder="little"), byteorder="big")
 
 def scrambler_test():
     model = ScramblerModel()

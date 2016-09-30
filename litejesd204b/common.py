@@ -36,14 +36,14 @@ configuration_data_fields = {
     #----------- octet 4 --------------
     "f":         Field(4,  0, 8),
     #----------- octet 5 --------------
-    "k":         Field(5,  0, 4),
+    "k":         Field(5,  0, 5),
     #----------- octet 6 --------------
     "m":         Field(6,  0, 8),
     #----------- octet 7 --------------
     "n":         Field(7,  0, 5),
     "cs":        Field(7,  6, 8),
     #----------- octet 8 --------------
-    "n":         Field(8,  0, 5),
+    "np":        Field(8,  0, 5),
     "subclassv": Field(8,  5, 8), # device subclass version
     #----------- octet 9 --------------
     "s":         Field(9,  0, 5),
@@ -68,8 +68,8 @@ class JESD204BConfigurationData:
     def get_octets(self):
         octets = [0]*configuration_data_length
         for name, field in configuration_data_fields.items():
-            octets[field.octet] |= ((getattr(self, name) << field.offset) &
-                                    2**(field.width-field.offset)-1)
+            field_value = getattr(self, name) & (2**field.width-1)
+            octets[field.octet] |= (field_value << field.offset)
         return octets
 
     def get_checksum(self):
@@ -103,7 +103,7 @@ class JESD204BPhysicalSettings:
         self.phadj = 0
 
         # jsed204b revision
-        self.jsedv = 0b001
+        self.jesdv = 0b001
 
 
 class JESD204BSettings:
@@ -124,6 +124,13 @@ class JESD204BSettings:
                     pass
         cd.did = self.did
         cd.bid = self.bid
+        cd.cf = 1
+        cd.res1 = 0x5a
+        cd.res2 = 0xa5
+        # field_value = value - 1 for these parameters
+        for name in ["l", "f", "k", "m", "n", "np", "s"]:
+            p = getattr(cd, name)
+            setattr(cd, name, p-1)
 
         octets = cd.get_octets()
         chksum = cd.get_checksum()

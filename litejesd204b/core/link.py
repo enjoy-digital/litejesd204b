@@ -144,7 +144,11 @@ class ILASGenerator(Module):
     """Initial Lane Alignment Sequence Generator
     cf section 5.3.3.5
     """
-    def __init__(self, data_width, octets_per_frame, frames_per_multiframe, configuration_data):
+    def __init__(self, data_width,
+                 octets_per_frame,
+                 frames_per_multiframe,
+                 configuration_data,
+                 with_counter=True):
         self.source = source = stream.Endpoint(link_layout(data_width))
 
         # # #
@@ -155,7 +159,10 @@ class ILASGenerator(Module):
 
         ilas_octets = []
         for i in range(4):
-            multiframe = [0]*octets_per_multiframe
+            if with_counter:
+                multiframe = [i*octets_per_multiframe + j for j in range(octets_per_multiframe)]
+            else:
+                multiframe = [0]*octets_per_multiframe
             multiframe[0]  = Control(control_characters["R"])
             multiframe[-1] = Control(control_characters["A"])
             if i == 1:
@@ -187,25 +194,26 @@ class ILASGenerator(Module):
         assert len(ilas_data_words) == octets_per_frame*frames_per_multiframe*4//octets_per_clock
 
         data_lut = Memory(data_width, len(ilas_data_words), init=ilas_data_words)
-        data_port = data_lut.get_port()
+        data_port = data_lut.get_port(async_read=True)
         self.specials += data_lut, data_port
 
         ctrl_lut = Memory(data_width//8, len(ilas_ctrl_words), init=ilas_ctrl_words)
-        ctrl_port = ctrl_lut.get_port()
+        ctrl_port = ctrl_lut.get_port(async_read=True)
         self.specials += ctrl_lut, ctrl_port
 
         # stream data/ctrl from lookup tables
         counter = Signal(max=len(ilas_data_words))
         self.comb += [
-            source.valid.eq(counter != len(ilas_data_words)),
             source.last.eq(counter == (len(ilas_data_words)-1)),
             data_port.adr.eq(counter),
             ctrl_port.adr.eq(counter),
             source.data.eq(data_port.dat_r),
             source.ctrl.eq(ctrl_port.dat_r)
         ]
+        source.valid.reset = 1
         self.sync += \
             If(source.valid & source.ready,
+                source.valid.eq(~source.last),
                 If(counter != len(ilas_data_words),
                     counter.eq(counter + 1)
                 )
