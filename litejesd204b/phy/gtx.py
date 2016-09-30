@@ -13,8 +13,8 @@ class GTXTransmitter(Module):
             self.refclk_div2 = Signal()
             self.specials += Instance("IBUFDS_GTE2",
                 i_CEB=0,
-                i_I=clock_pads_or_refclk_div2.refclk_p,
-                i_IB=clock_pads_or_refclk_div2.refclk_n,
+                i_I=clock_pads_or_refclk_div2.p,
+                i_IB=clock_pads_or_refclk_div2.n,
                 o_ODIV2=self.refclk_div2
             )
 
