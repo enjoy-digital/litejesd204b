@@ -227,7 +227,7 @@ class LiteJESD204BLinkTX(Module):
         self.start = Signal(reset=1)
         self.prbs = Signal()
         self.ready = Signal()
-        self.ext_sync = Signal()
+        self.cgs_done = Signal()
 
         self.sink = sink = stream.Endpoint(data_layout(data_width))
         self.source = source = stream.Endpoint(link_layout(data_width))
@@ -294,7 +294,7 @@ class LiteJESD204BLinkTX(Module):
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
             cgs.source.ready.eq(source.ready),
-            If(~self.ext_sync, # FIXME when doing det-lat
+            If(self.cgs_done,
                 NextState("ILAS")
             )
         )
