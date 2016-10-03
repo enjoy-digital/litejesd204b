@@ -4,6 +4,11 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litejesd204b.phy.gtx_init import GTXInit
 from litejesd204b.phy.line_coding import Encoder
 
+# 250Mhz refclk / 5 Gbps linerate
+
+# TODO:
+# -compute CPLL_FBDIV, CPLL_FBDIV_45, TXOUT_DIV, CPLL_REFCLK_DIV from refclk frequency and linerate
+
 
 class GTXTransmitter(Module):
     def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq, cd, data_width):
@@ -47,8 +52,8 @@ class GTXTransmitter(Module):
                 p_CPLL_FBDIV=4,
                 p_CPLL_FBDIV_45=5,
                 p_CPLL_REFCLK_DIV=1,
-                p_RXOUT_DIV=2,
-                p_TXOUT_DIV=2,
+                p_RXOUT_DIV=1,
+                p_TXOUT_DIV=1,
                 o_CPLLLOCK=self.gtx_init.cplllock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
