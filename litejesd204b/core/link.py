@@ -180,14 +180,12 @@ class ILASGenerator(Module):
             data_word = 0
             ctrl_word = 0
             for j in range(octets_per_clock):
-                data_word = data_word << 8
-                ctrl_word = ctrl_word << 1
                 octet = ilas_octets[i*octets_per_clock+j]
                 if isinstance(octet, Control):
-                    data_word |= octet.value
-                    ctrl_word |= 1
+                    data_word |= (octet.value << 8*j)
+                    ctrl_word |= (1 << j)
                 else:
-                    data_word |= octet
+                    data_word |= (octet << 8*j)
             ilas_data_words.append(data_word)
             ilas_ctrl_words.append(ctrl_word)
 
