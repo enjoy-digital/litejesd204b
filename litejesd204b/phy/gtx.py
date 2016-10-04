@@ -11,15 +11,16 @@ from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXTransmitter(Module):
-    def __init__(self, clock_pads_or_signal, tx_pads, sys_clk_freq, cd):
-        if isinstance(clock_pads_or_signal, Signal):
-            self.refclk_div2 = clock_pads_or_signal
+    def __init__(self, refclk_pads_or_signal, refclk_freq, tx_pads,
+            sys_clk_freq, linerate, cd_name):
+        if isinstance(refclk_pads_or_signal, Signal):
+            self.refclk_div2 = refclk_pads_or_signal
         else:
             self.refclk_div2 = Signal()
             self.specials += Instance("IBUFDS_GTE2",
                 i_CEB=0,
-                i_I=clock_pads_or_signal.p,
-                i_IB=clock_pads_or_signal.n,
+                i_I=refclk_pads_or_signal.p,
+                i_IB=refclk_pads_or_signal.n,
                 o_ODIV2=self.refclk_div2
             )
 
@@ -84,8 +85,8 @@ class GTXTransmitter(Module):
                 i_TXCHARDISPMODE=Cat(*[txdata[10*i+9] for i in range(nwords)]),
                 i_TXCHARDISPVAL=Cat(*[txdata[10*i+8] for i in range(nwords)]),
                 i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
-                i_TXUSRCLK=ClockSignal(cd),
-                i_TXUSRCLK2=ClockSignal(cd),
+                i_TXUSRCLK=ClockSignal(cd_name),
+                i_TXUSRCLK2=ClockSignal(cd_name),
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
@@ -96,11 +97,11 @@ class GTXTransmitter(Module):
                 o_GTXTXN=tx_pads.txn
             )
 
-        self.clock_domains.cd_tx = ClockDomain(cd)
+        self.clock_domains.cd_tx = ClockDomain(cd_name)
         self.specials += Instance("BUFG",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.gtx_init.done)
 
-        self.submodules.encoder = ClockDomainsRenamer(cd)(Encoder(nwords, True))
+        self.submodules.encoder = ClockDomainsRenamer(cd_name)(Encoder(nwords, True))
         self.comb += txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))

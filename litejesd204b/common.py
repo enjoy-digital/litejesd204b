@@ -112,6 +112,7 @@ class JESD204BSettings:
         self.transport = transport_settings
         self.did = did
         self.bid = bid
+        self.lid = 0
 
     def get_configuration_data(self):
         cd = JESD204BConfigurationData()
@@ -124,6 +125,7 @@ class JESD204BSettings:
                     pass
         cd.did = self.did & 0xff
         cd.bid = self.bid & 0xf
+        cd.lid = self.lid & 0x1f
         cd.cf = 1
         cd.res1 = 0x5a
         cd.res2 = 0xa5
@@ -139,16 +141,19 @@ class JESD204BSettings:
     def get_configuration_checksum(self):
         return self.get_configuration_data()[-1]
 
-    def get_clocks(self):
+    def get_sample_clock(self):
+        return self.phy.sc
+
+    def get_frame_clock(self):
+        return self.get_sample_clock()/self.transport.s
+
+    def get_local_multiframe_clock(self):
+        return self.get_frame_clock()/self.transport.k
+
+    def get_linerate(self):
         ps = self.phy
         ts = self.transport
-
-        frame_clock = ps.sc/ts.s
-        local_multiframe_clock = frame_clock/ts.k
-
-        line_rate = (ps.m*ts.s*ps.np*10/8*frame_clock)/ps.l
-
-        return ps.sc, frame_clock, local_multiframe_clock, line_rate
+        return (ps.m*ts.s*ps.np*10/8*self.get_frame_clock())/ps.l
 
 # layouts
 
