@@ -2,7 +2,7 @@ from collections import namedtuple
 
 from litex.gen import *
 
-from litejesd204b.common import *
+from litejesd204b.common import control_characters
 
 
 Control = namedtuple("Control", "value")
@@ -239,10 +239,9 @@ class LiteJESD204BLinkTX(Module):
 
         # # #
 
-        #  Init(CGS, ILAS)--+
-        #                   + mux --> source
-        #  Datapath---------+
-
+        #   CGS-----+
+        #   ILAS----+-mux(fsm) --> source
+        #  Datapath-+
 
         # Init
 

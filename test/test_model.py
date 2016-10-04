@@ -15,8 +15,6 @@ from test.model.link import LinkLayer
 
 from test.model.line_coding import encode_lanes, decode_lanes
 
-from litejesd204b.common import *
-
 
 class TestModel(unittest.TestCase):
     def transport_mapping_test(self, nlanes, nconverters, input_samples):

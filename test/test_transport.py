@@ -4,7 +4,8 @@ from math import ceil
 from litex.gen import *
 
 from litejesd204b.common import *
-from litejesd204b.core.transport import LiteJESD204BTransportTX
+from litejesd204b.transport import LiteJESD204BTransportTX
+
 from test.model.transport import samples_to_lanes
 
 

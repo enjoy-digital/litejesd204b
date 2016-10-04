@@ -1,12 +1,10 @@
 import unittest
-from math import ceil
 import random
 
 from litex.gen import *
 
-from litejesd204b.common import *
-from litejesd204b.core.link import link_layout
-from litejesd204b.core.link import Scrambler, Framer, AlignInserter
+from litejesd204b.link import link_layout
+from litejesd204b.link import Scrambler, Framer, AlignInserter
 
 from test.model.common import Control
 from test.model.link import scramble_lanes

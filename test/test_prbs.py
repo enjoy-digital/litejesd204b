@@ -2,8 +2,6 @@ import unittest
 
 from litex.gen import *
 
-from litejesd204b.common import *
-
 from litejesd204b.phy.prbs import PRBS7Generator
 from litejesd204b.phy.prbs import PRBS15Generator
 from litejesd204b.phy.prbs import PRBS31Generator

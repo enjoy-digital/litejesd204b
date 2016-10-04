@@ -2,8 +2,6 @@ from math import ceil
 
 from litex.gen import *
 
-from litejesd204b.common import *
-
 
 class LiteJESD204BTransportTX(Module):
     """Transport Tx layer

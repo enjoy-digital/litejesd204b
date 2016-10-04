@@ -5,7 +5,7 @@ from litex.gen import *
 from test.model.common import swap_bytes
 
 from litejesd204b.common import *
-from litejesd204b.core.link import ILASGenerator
+from litejesd204b.link import ILASGenerator
 
 # ilas reference sequence from a validated core
 ilas_reference = [

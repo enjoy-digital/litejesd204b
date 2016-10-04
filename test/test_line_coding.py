@@ -1,6 +1,5 @@
 import unittest
 import random
-from collections import namedtuple
 
 from litex.gen import *
 

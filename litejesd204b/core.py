@@ -1,11 +1,10 @@
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import stream
+from litex.soc.interconnect.stream import AsyncFIFO
 
-from litejesd204b.common import *
-from litejesd204b.core.transport import LiteJESD204BTransportTX
-from litejesd204b.core.link import LiteJESD204BLinkTX
+from litejesd204b.transport import LiteJESD204BTransportTX
+from litejesd204b.link import LiteJESD204BLinkTX
 
 #TODO:
 # - expose controls signals or connect to CSRs?
@@ -37,7 +36,7 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
         # cdc
         self.cdcs = cdcs = []
         for i, phy in enumerate(phys):
-            cdc = stream.AsyncFIFO([("data", len(phy.data))], 8)
+            cdc = AsyncFIFO([("data", len(phy.data))], 8)
             cdc = ClockDomainsRenamer({"write": "tx", "read": phy.gtx.cd_tx.name})(cdc)
             cdcs.append(cdc)
             self.submodules += cdc
