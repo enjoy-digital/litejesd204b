@@ -52,6 +52,9 @@ def cpll_get_config(refclk_freq, linerate):
 class GTXTransmitter(Module):
     def __init__(self, refclk_pads_or_signal, refclk_freq, tx_pads,
             sys_clk_freq, linerate, cd_name):
+        self.prbs_config = Signal(4)
+
+        # # #
 
         cpll_config = cpll_get_config(refclk_freq/2, linerate) # ODIV2 --> /2
 
@@ -120,6 +123,10 @@ class GTXTransmitter(Module):
                 o_TXDLYSRESETDONE=self.gtx_init.Xxdlysresetdone,
                 o_TXPHALIGNDONE=self.gtx_init.Xxphaligndone,
                 i_TXUSERRDY=self.gtx_init.Xxuserrdy,
+
+                # PRBS
+                i_TXPRBSSEL=self.prbs_config[0:3],
+                i_TXPRBSFORCEERR=self.prbs_config[3],
 
                 # TX data
                 p_TX_DATA_WIDTH=40,

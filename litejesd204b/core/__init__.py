@@ -14,6 +14,7 @@ from litejesd204b.core.link import LiteJESD204BLinkTX
 class LiteJESD204BCoreTX(Module, AutoCSR):
     def __init__(self, phys, jesd_sync, jesd_settings, converter_data_width):
         self.phy_enable = CSRStorage(len(phys))
+        self.phy_prbs_config = CSRStorage(4)
 
         # # #
 
@@ -62,6 +63,9 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
                 phys[i].ctrl.eq(link.source.ctrl)
             ]
 
-        # registers
+        # registers FIXME CDC
         for i, phy in enumerate(phys):
-            self.comb += phy.gtx.gtx_init.restart.eq(~self.phy_enable.storage[i])
+            self.comb += [
+                phy.gtx.gtx_init.restart.eq(~self.phy_enable.storage[i]),
+                phy.gtx.prbs_config.eq(self.phy_prbs_config.storage)
+            ]
