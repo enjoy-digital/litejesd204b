@@ -13,7 +13,7 @@ from litejesd204b.core.link import LiteJESD204BLinkTX
 # - remove flow control (at least when uneeded)
 
 class LiteJESD204BCoreTX(Module, AutoCSR):
-    def __init__(self, phys, jesd_settings, converter_data_width):
+    def __init__(self, phys, jesd_sync, jesd_settings, converter_data_width):
         self.phy_enable = CSRStorage(len(phys))
 
         # # #
@@ -49,6 +49,7 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings)
             link = ClockDomainsRenamer(phy.gtx.cd_tx.name)(link)
             links.append(link)
+            self.comb += link.cgs_done.eq(jesd_sync) # FIXME det-lat
             self.submodules += link
 
         # connect modules together
