@@ -12,8 +12,12 @@ from litejesd204b.core.link import LiteJESD204BLinkTX
 # - use elastic buffers between transport and links instead of async fifos
 # - remove flow control (at least when uneeded)
 
-class LiteJESD204BCoreTX(Module):
+class LiteJESD204BCoreTX(Module, AutoCSR):
     def __init__(self, phys, jesd_settings, converter_data_width):
+        self.phy_enable = CSRStorage(len(phys))
+
+        # # #
+
         # clocking
         self.clock_domains.cd_tx = ClockDomain()
         self.comb += [
@@ -58,3 +62,7 @@ class LiteJESD204BCoreTX(Module):
                 phys[i].ctrl.eq(link.source.ctrl),
                 link.source.ready.eq(1)
             ]
+
+        # registers
+        for i, phy in enumerate(phys):
+            self.comb += phy.gtx.gtx_init.restart.eq(~self.phy_enable.storage[i])
