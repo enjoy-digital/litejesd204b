@@ -35,20 +35,18 @@ class TestTransport(unittest.TestCase):
         nibbles_per_word = ceil(physical_settings.np//4)
         octets_per_frame = samples_per_frame*nibbles_per_word//2
         octets_per_lane = octets_per_frame*nconverters//nlanes
-        lane_data_width = len(transport.source.data0)
+        lane_data_width = len(transport.source.lane0)
 
         def generator(dut):
-            yield dut.sink.valid.eq(1)
-            yield dut.source.ready.eq(1)
             for i in range(5):
                 if i < 4:
                     for c in range(nconverters):
-                        converter_data = getattr(dut.sink, "data"+str(c))
+                        converter_data = getattr(dut.sink, "converter"+str(c))
                         for j in range(nconverters):
                             yield converter_data[16*j:16*(j+1)].eq(input_samples[c][4*i+j])
                 if i > 0:
                     for l in range(nlanes):
-                        lane_data = (yield getattr(dut.source, "data"+str(l)))
+                        lane_data = (yield getattr(dut.source, "lane"+str(l)))
                         for f in range(lane_data_width//(octets_per_lane*8)):
                             frame = [(lane_data >> (f*8*octets_per_lane)+8*i) & 0xff
                                 for i in range(octets_per_lane)]

@@ -12,16 +12,18 @@ def scrambler_test():
     dut = Scrambler(32)
     dut.errors = 0
     def generator(dut):
+        yield dut.reset.eq(1)
+        yield
+        yield dut.reset.eq(0)
         for i in range(512):
-            yield dut.sink.valid.eq(1)
             yield dut.sink.data.eq(swap_bytes(seed_to_data(i, True), 4))
-            yield dut.source.ready.eq(1)
             yield
-            if i >= 1:
-                reference = model.scramble(seed_to_data(i-1, True), 32)
+            if i >= dut.latency:
+                reference = model.scramble(seed_to_data(i-dut.latency, True), 32)
                 reference = swap_bytes(reference, 4)
                 if (yield dut.source.data) != reference:
                     dut.errors += 1
+
     run_simulation(dut, generator(dut))
 
     return dut.errors

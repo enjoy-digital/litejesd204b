@@ -3,9 +3,9 @@ from math import ceil
 import random
 
 from litex.gen import *
-from litex.soc.interconnect import stream
 
 from litejesd204b.common import *
+from litejesd204b.core.link import link_layout
 from litejesd204b.core.link import Scrambler, Framer, AlignInserter
 
 from test.model.common import Control
@@ -15,8 +15,8 @@ from test.model.link import insert_alignment_characters
 
 class LinkTXDatapath(Module):
     def __init__(self, data_width, octets_per_frame=2, frames_per_multiframe=4):
-        self.sink = sink = stream.Endpoint(data_layout(data_width))
-        self.source = source = stream.Endpoint(link_layout(data_width))
+        self.sink = sink = Record([("data", data_width)])
+        self.source = source = Record(link_layout(data_width))
 
         scrambler = Scrambler(data_width)
         framer = Framer(data_width,
@@ -25,11 +25,13 @@ class LinkTXDatapath(Module):
         inserter = AlignInserter(data_width)
         self.submodules += scrambler, framer, inserter
         self.comb += [
-            sink.connect(scrambler.sink),
-            scrambler.source.connect(framer.sink),
-            framer.source.connect(inserter.sink),
-            inserter.source.connect(source)
+            scrambler.sink.eq(sink),
+            framer.reset.eq(~scrambler.valid),
+            framer.sink.eq(scrambler.source),
+            inserter.sink.eq(framer.source),
+            source.eq(inserter.source)
         ]
+        self.latency = scrambler.latency + framer.latency + inserter.latency
 
 class TestLink(unittest.TestCase):
     def test_link_tx(self, nlanes=4, data_width=32):
@@ -40,7 +42,7 @@ class TestLink(unittest.TestCase):
         output_lanes = insert_alignment_characters(frames_per_multiframe=4,
                                                    scrambled=True,
                                                    lanes=output_lanes)
-        link = LinkTXDatapath(data_width)
+        link = ResetInserter()(LinkTXDatapath(data_width))
         link.output_lane = []
 
         octets_per_cycle = data_width//8
@@ -55,19 +57,18 @@ class TestLink(unittest.TestCase):
             flat_lane = flatten_lane(lane)
             data = flat_lane[octets_per_cycle*cycle:octets_per_cycle*(cycle+1)]
             return int.from_bytes(data, byteorder='little') if data != [] else None
-         
+
         def generator(dut):
-            yield dut.source.ready.eq(1)
+            yield dut.reset.eq(1)
+            yield
+            yield dut.reset.eq(0)
             for i in range(2048):
                 # set sink data
                 sink_data = get_lane_data(input_lane, i)
                 if sink_data is not None:
-                    yield dut.sink.valid.eq(1)
                     yield dut.sink.data.eq(sink_data)
-                else:
-                    yield dut.sink.valid.eq(0)
-                # get source data
-                if (yield dut.source.valid):
+                if i > dut.latency:
+                    # get source data
                     source_data = (yield dut.source.data)
                     source_ctrl = (yield dut.source.ctrl)
                     data = list(source_data.to_bytes(octets_per_cycle,
@@ -79,4 +80,5 @@ class TestLink(unittest.TestCase):
                 yield
 
         run_simulation(link, generator(link))
-        self.assertEqual(link.output_lane, flatten_lane(output_lanes[0]))
+        reference = flatten_lane(output_lanes[0])
+        self.assertEqual(link.output_lane[:len(reference)], reference)

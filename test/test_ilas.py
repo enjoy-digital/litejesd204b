@@ -14,7 +14,7 @@ ilas_reference = [
     0x23222120, 0x27262524, 0x2b2a2928, 0x2f2e2d2c,
     0x33323130, 0x37363534, 0x3b3a3938, 0x7c3e3d3c,
 
-    0x0a559c1c, 0x1f010300, 0x202f8d03, 0x61a55a01,
+    0x0a559c1c, 0x1f010300, 0x202f8d03, 0xa5a55a01,
     0x53525150, 0x57565554, 0x5b5a5958, 0x5f5e5d5c,
     0x63626160, 0x67666564, 0x6b6a6968, 0x6f6e6d6c,
     0x73727170, 0x77767574, 0x7b7a7978, 0x7c7e7d7c,
@@ -40,11 +40,12 @@ class TestILAS(unittest.TestCase):
         ilas_output = []
 
         def generator(dut):
-            yield dut.source.ready.eq(1)
-            for i in range(128):
-                if (yield dut.source.valid) and (yield dut.source.ready):
-                    ilas_output.append((yield dut.source.data))
+            yield dut.reset.eq(1)
+            yield
+            yield dut.reset.eq(0)
+            while (yield dut.source.last) == 0:
                 yield
+                ilas_output.append((yield dut.source.data))
 
-        run_simulation(ilas, generator(ilas), vcd_name="sim.vcd")
+        run_simulation(ilas, generator(ilas))
         self.assertEqual(ilas_reference, ilas_output)

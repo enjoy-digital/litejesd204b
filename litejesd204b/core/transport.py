@@ -1,7 +1,6 @@
 from math import ceil
 
 from litex.gen import *
-from litex.soc.interconnect import stream
 
 from litejesd204b.common import *
 
@@ -21,7 +20,7 @@ class LiteJESD204BTransportTX(Module):
 
         samples_per_clock = converter_data_width//physical_settings.n
         samples_per_frame = transport_settings.s
-        
+
         nibbles_per_word = ceil(physical_settings.np//4)
         octets_per_frame = samples_per_frame*nibbles_per_word//2
         octets_per_lane = octets_per_frame*nconverters//nlanes
@@ -31,20 +30,13 @@ class LiteJESD204BTransportTX(Module):
 
         self.converter_data_width = converter_data_width
         self.lane_data_width = lane_data_width
-            
+
         # endpoints
-        self.sink = stream.Endpoint(transport_layout(converter_data_width, nconverters))
-        self.source = stream.Endpoint(transport_layout(lane_data_width, nlanes))
+        self.sink = Record([("converter"+str(i), converter_data_width) for i in range(nconverters)])
+        self.source = Record([("lane"+str(i), lane_data_width) for i in range(nlanes)])
 
         # # #
 
-        # ctrl
-        self.comb += [
-            self.source.valid.eq(self.sink.valid),
-            self.sink.ready.eq(self.source.ready)
-        ]
-
-        # data (mapping)
         current_sample = 0
         current_octet = 0
         while current_sample < samples_per_clock:
@@ -52,7 +44,7 @@ class LiteJESD204BTransportTX(Module):
             frame_samples = []
             for i in range(samples_per_frame):
                 for j in range(nconverters):
-                    converter_data = getattr(self.sink, "data"+str(j))
+                    converter_data = getattr(self.sink, "converter"+str(j))
                     sample = Signal(physical_settings.n)
                     self.comb += sample.eq(converter_data[(current_sample+i)*physical_settings.n:])
                     frame_samples.append(sample)
@@ -80,7 +72,7 @@ class LiteJESD204BTransportTX(Module):
             for i in range(nlanes):
                 frame_lane_octets = frame_octets[i*octets_per_lane:
                                                 (i+1)*octets_per_lane]
-                lane_data = getattr(self.source, "data"+str(i))
+                lane_data = getattr(self.source, "lane"+str(i))
                 for j, octet in enumerate(frame_lane_octets):
                     self.comb += lane_data[8*(current_octet+j):8*(current_octet+j+1)].eq(octet)
 

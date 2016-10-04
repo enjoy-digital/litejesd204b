@@ -1,5 +1,3 @@
-from litex.soc.interconnect.stream import EndpointDescription
-
 # control characters
 
 control_characters = {
@@ -154,25 +152,3 @@ class JESD204BSettings:
         ps = self.phy
         ts = self.transport
         return (ps.m*ts.s*ps.np*10/8*self.get_frame_clock())/ps.l
-
-# layouts
-
-def data_layout(data_width):
-    layout = [("data", data_width)]
-    return EndpointDescription(layout)
-
-
-def transport_layout(data_width, n):
-    layout = [("data"+str(i), data_width) for i in range(n)]
-    return EndpointDescription(layout)
-
-
-def link_layout(data_width):
-    layout = [
-        ("data", data_width),
-        ("ctrl", data_width//8),
-
-        ("frame_last", data_width//8),
-        ("multiframe_last", data_width//8)
-    ]
-    return EndpointDescription(layout)

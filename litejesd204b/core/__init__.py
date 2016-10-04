@@ -10,7 +10,6 @@ from litejesd204b.core.link import LiteJESD204BLinkTX
 #TODO:
 # - expose controls signals or connect to CSRs?
 # - use elastic buffers between transport and links instead of async fifos
-# - remove flow control (at least when uneeded)
 
 class LiteJESD204BCoreTX(Module, AutoCSR):
     def __init__(self, phys, jesd_sync, jesd_settings, converter_data_width):
@@ -37,7 +36,7 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
         # cdc
         self.cdcs = cdcs = []
         for i, phy in enumerate(phys):
-            cdc = stream.AsyncFIFO(data_layout(len(phy.data)), 8)
+            cdc = stream.AsyncFIFO([("data", len(phy.data))], 8)
             cdc = ClockDomainsRenamer({"write": "tx", "read": phy.gtx.cd_tx.name})(cdc)
             cdcs.append(cdc)
             self.submodules += cdc
@@ -53,15 +52,14 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             self.submodules += link
 
         # connect modules together
-        self.comb += transport.source.ready.eq(1) # FIXME (remove flow control?)
         for i, (link, cdc) in enumerate(zip(links, cdcs)):
             self.comb += [
-                cdc.sink.valid.eq(transport.source.valid),
-                cdc.sink.data.eq(getattr(transport.source, "data"+str(i))),
-                cdc.source.connect(link.sink),
+                cdc.sink.valid.eq(1),
+                cdc.sink.data.eq(getattr(transport.source, "lane"+str(i))),
+                link.sink.data.eq(cdc.source.data),
+                cdc.source.ready.eq(1),
                 phys[i].data.eq(link.source.data),
-                phys[i].ctrl.eq(link.source.ctrl),
-                link.source.ready.eq(1)
+                phys[i].ctrl.eq(link.source.ctrl)
             ]
 
         # registers
