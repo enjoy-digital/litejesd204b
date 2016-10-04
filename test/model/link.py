@@ -1,4 +1,4 @@
-from litejesd204b.common import *
+from litejesd204b.common import control_characters
 
 from test.model.common import Control
 

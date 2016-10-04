@@ -1,5 +1,3 @@
-from litejesd204b.common import *
-
 # pseudo random binary sequence
 class PRBSGenerator:
     def __init__(self, n_state=23, taps=[17, 22]):

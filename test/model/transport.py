@@ -1,7 +1,5 @@
 from math import ceil
 
-from litejesd204b.common import *
-
 
 def short_test_pattern(nconverters, samples_per_frame, repeats):
     """
