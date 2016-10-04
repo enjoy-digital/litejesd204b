@@ -4,15 +4,57 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litejesd204b.phy.gtx_init import GTXInit
 from litejesd204b.phy.line_coding import Encoder
 
-# 250Mhz refclk / 5 Gbps linerate
 
-# TODO:
-# -compute CPLL_FBDIV, CPLL_FBDIV_45, TXOUT_DIV, CPLL_REFCLK_DIV from refclk frequency and linerate
+cpll_min_freq = 1.6*1e9
+cpll_max_freq = 3.3*1e9
+
+cpll_n1_values = [4, 5]
+cpll_n2_values = [1, 2, 3, 4, 5]
+cpll_m_values = [1, 2]
+cpll_d_values = [1, 2, 4, 8, 16]
+
+
+def cpll_get_pll_freq(refclk_freq, n1, n2, m):
+    return refclk_freq*(n1*n2)/m
+
+
+def cpll_get_line_rate(pll_freq, d):
+    return pll_freq*2/d
+
+
+class CPLLConfig:
+    def __init__(self, n1, n2, m, d):
+        self.n1 = n1
+        self.n2 = n2
+        self.m = m
+        self.d = d
+
+
+def cpll_get_config(refclk_freq, linerate):
+    # bruteforce config finder, returns the first valid config
+    valid_configs = []
+    for n1 in cpll_n1_values:
+        for n2 in cpll_n2_values:
+            for m in cpll_m_values:
+                for d in cpll_d_values:
+                    pll_freq = cpll_get_pll_freq(refclk_freq, n1, n2, m)
+                    if pll_freq < cpll_min_freq:
+                        break
+                    if pll_freq > cpll_max_freq:
+                        break
+                    if cpll_get_line_rate(pll_freq, d) != linerate:
+                        break
+                    return CPLLConfig(n1, n2, m, d)
+    msg = "No CPLL config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
+    raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
 
 class GTXTransmitter(Module):
     def __init__(self, refclk_pads_or_signal, refclk_freq, tx_pads,
             sys_clk_freq, linerate, cd_name):
+
+        cpll_config = cpll_get_config(refclk_freq/2, linerate) # ODIV2 --> /2
+
         if isinstance(refclk_pads_or_signal, Signal):
             self.refclk_div2 = refclk_pads_or_signal
         else:
@@ -50,11 +92,11 @@ class GTXTransmitter(Module):
 
                 # CPLL
                 p_CPLL_CFG=0xBC07DC,
-                p_CPLL_FBDIV=4,
-                p_CPLL_FBDIV_45=5,
-                p_CPLL_REFCLK_DIV=1,
-                p_RXOUT_DIV=1,
-                p_TXOUT_DIV=1,
+                p_CPLL_FBDIV=cpll_config.n2,
+                p_CPLL_FBDIV_45=cpll_config.n1,
+                p_CPLL_REFCLK_DIV=cpll_config.m,
+                p_RXOUT_DIV=cpll_config.d,
+                p_TXOUT_DIV=cpll_config.d,
                 o_CPLLLOCK=self.gtx_init.cplllock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
