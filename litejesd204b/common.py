@@ -171,11 +171,3 @@ def link_layout(data_width):
         ("multiframe_last", data_width//8)
     ]
     return EndpointDescription(layout)
-
-
-def phy_layout(data_width):
-    layout = [
-        ("data", data_width),
-        ("ctrl", data_width//8)
-    ]
-    return EndpointDescription(layout)

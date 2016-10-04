@@ -10,6 +10,7 @@ from litejesd204b.core.link import LiteJESD204BLinkTX
 #TODO:
 # - expose controls signals or connect to CSRs?
 # - use elastic buffers between transport and links instead of async fifos
+# - remove flow control (at least when uneeded)
 
 class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
@@ -32,7 +33,7 @@ class LiteJESD204BCoreTX(Module):
         # cdc
         self.cdcs = cdcs = []
         for i, phy in enumerate(phys):
-            cdc = stream.AsyncFIFO(data_layout(phy.data_width), 8)
+            cdc = stream.AsyncFIFO(data_layout(len(phy.data)), 8)
             cdc = ClockDomainsRenamer({"write": "tx", "read": phy.cd})(cdc)
             cdcs.append(cdc)
             self.submodules += cdc
@@ -41,7 +42,7 @@ class LiteJESD204BCoreTX(Module):
         self.links = links = []
         for i, phy in enumerate(phys):
             jesd_settings.phy.lid = i
-            link = LiteJESD204BLinkTX(phy.data_width, jesd_settings)
+            link = LiteJESD204BLinkTX(len(phy.data), jesd_settings)
             link = ClockDomainsRenamer(phy.cd)(link)
             links.append(link)
             self.submodules += link
@@ -53,6 +54,6 @@ class LiteJESD204BCoreTX(Module):
                 cdc.sink.valid.eq(transport.source.valid),
                 cdc.sink.data.eq(getattr(transport.source, "data"+str(i))),
                 cdc.source.connect(link.sink),
-                link.source.connect(phys[i].sink, omit=["frame_last",
-                                                        "multiframe_last"])
+                phys[i].data.eq(link.source.data),
+                phys[i].ctrl.eq(link.source.ctrl)
             ]

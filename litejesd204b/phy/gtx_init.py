@@ -31,7 +31,7 @@ class GTXInit(Module):
             MultiReg(self.cplllock, cplllock),
             MultiReg(self.Xxresetdone, Xxresetdone),
             MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
-            MultiReg(self.Xxphaligndone, Xxphaligndone),
+            MultiReg(self.Xxphaligndone, Xxphaligndone)
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
@@ -57,7 +57,7 @@ class GTXInit(Module):
         self.submodules += ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
-            startup_fsm.reset.eq(self.restart | ready_timer.done),
+            startup_fsm.reset.eq(self.restart | ready_timer.done)
         ]
 
         if rx:

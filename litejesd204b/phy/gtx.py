@@ -11,7 +11,7 @@ from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXTransmitter(Module):
-    def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq, cd, data_width):
+    def __init__(self, clock_pads_or_refclk_div2, tx_pads, sys_clk_freq, cd):
         if isinstance(clock_pads_or_refclk_div2, Signal):
             self.refclk_div2 = clock_pads_or_refclk_div2
         else:
@@ -25,7 +25,7 @@ class GTXTransmitter(Module):
 
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
 
-        nwords = data_width//10
+        nwords = 40//10
 
         txoutclk = Signal()
         txdata = Signal(40)
@@ -79,8 +79,8 @@ class GTXTransmitter(Module):
                 i_TXUSERRDY=self.gtx_init.Xxuserrdy,
 
                 # TX data
-                p_TX_DATA_WIDTH=data_width,
-                p_TX_INT_DATAWIDTH=data_width==40,
+                p_TX_DATA_WIDTH=40,
+                p_TX_INT_DATAWIDTH=1,
                 i_TXCHARDISPMODE=Cat(*[txdata[10*i+9] for i in range(nwords)]),
                 i_TXCHARDISPVAL=Cat(*[txdata[10*i+8] for i in range(nwords)]),
                 i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
@@ -93,7 +93,7 @@ class GTXTransmitter(Module):
 
                 # Pads
                 o_GTXTXP=tx_pads.txp,
-                o_GTXTXN=tx_pads.txn,
+                o_GTXTXN=tx_pads.txn
             )
 
         self.clock_domains.cd_tx = ClockDomain(cd)
