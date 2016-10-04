@@ -1,5 +1,4 @@
-- add CSRs wrapper to control the core.
-- test link establishment with ADI device and ILAS (reponse to SYNC and specific registers for ILAS)
-- test phy on board with ADI prbs checker up to 12.5Gbps.
-- test samples mapping to lanes with short test pattern and specific registers on ADI chip
-- integrate with ARTIQ's phaser and test it
+- test PRBS.
+- add QPLL support on transceiver for linerate > 6.6Gbps.
+- test transport layer.
+- add deterministic latency.
