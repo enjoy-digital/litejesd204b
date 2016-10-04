@@ -175,20 +175,19 @@ def lanes_to_samples(samples_per_frame, nlanes, nconverters, nbits, lanes):
 
 
 class TransportLayer:
-    def __init__(self, settings, phy_settings=None):
-        self.settings = settings
-        self.phy_settings = phy_settings
+    def __init__(self, jesd_settings):
+        self.jesd_settings = jesd_settings
 
     def encode(self, samples):
-        return samples_to_lanes(self.settings.s,
-                                self.phy_settings.l,
-                                self.phy_settings.m,
-                                self.phy_settings.n,
+        return samples_to_lanes(self.jesd_settings.transport.s,
+                                self.jesd_settings.phy.l,
+                                self.jesd_settings.phy.m,
+                                self.jesd_settings.phy.n,
                                 samples)
 
     def decode(self, lanes):
-        return lanes_to_samples(self.settings.s,
-                                self.phy_settings.l,
-                                self.phy_settings.m,
-                                self.phy_settings.n,
+        return lanes_to_samples(self.jesd_settings.transport.s,
+                                self.jesd_settings.phy.l,
+                                self.jesd_settings.phy.m,
+                                self.jesd_settings.phy.n,
                                 lanes)

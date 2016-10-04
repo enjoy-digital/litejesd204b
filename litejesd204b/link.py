@@ -247,7 +247,7 @@ class LiteJESD204BLinkTX(Module):
 
         cgs = CGSGenerator(data_width)
         ilas = ILASGenerator(data_width,
-                             2, # FIXME octets_per_frame
+                             jesd_settings.octets_per_frame,
                              jesd_settings.transport.k,
                              jesd_settings.get_configuration_data())
         self.submodules += cgs, ilas
@@ -257,7 +257,7 @@ class LiteJESD204BLinkTX(Module):
 
         scrambler = Scrambler(data_width)
         framer = Framer(data_width,
-                        2, # FIXME octets_per_frame
+                        jesd_settings.octets_per_frame,
                         jesd_settings.transport.k)
         inserter = AlignInserter(data_width)
         self.submodules += scrambler, framer, inserter

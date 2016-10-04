@@ -27,8 +27,7 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
         ]
 
         # transport layer
-        transport = LiteJESD204BTransportTX(jesd_settings.transport,
-                                            jesd_settings.phy,
+        transport = LiteJESD204BTransportTX(jesd_settings,
                                             converter_data_width)
         transport = ClockDomainsRenamer("tx")(transport)
         self.submodules.transport = transport

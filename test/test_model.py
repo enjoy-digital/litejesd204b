@@ -4,9 +4,9 @@ from litejesd204b.common import *
 
 from test.model.common import seed_to_data
 
-from test.model.transport import TransportLayer
 from test.model.transport import short_test_pattern, long_test_pattern
 from test.model.transport import samples_to_lanes, lanes_to_samples
+from test.model.transport import TransportLayer
 
 from test.model.link import Scrambler, Descrambler
 from test.model.link import scramble_lanes, descramble_lanes
@@ -88,7 +88,6 @@ class TestModel(unittest.TestCase):
         self.assertEqual(errors, 0)
 
     def test_link_lane_scrambling(self):
-        # FIXME use random data
         input_lanes = [
             [[0, 1], [0, 1], [0, 1], [0, 1], [0, 2], [0, 2], [0, 2], [0, 2]],
             [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]],
@@ -127,12 +126,12 @@ class TestModel(unittest.TestCase):
         self.assertEqual(input_lanes, output_lanes)
 
     def test_roundtrip(self, nlanes=4, nconverters=4):
-        physical_settings = JESD204BPhysicalSettings(l=nlanes,
-                                                     m=nconverters,
-                                                     n=16, np=16, sc=1*1e9)
-        transport_settings = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        ps = JESD204BPhysicalSettings(l=nlanes, m=nconverters,
+                                      n=16, np=16, sc=1*1e9)
+        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
 
-        transport = TransportLayer(transport_settings, physical_settings)
+        transport = TransportLayer(jesd_settings)
         link = LinkLayer(16, True)
 
         # tx >>

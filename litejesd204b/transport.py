@@ -6,25 +6,24 @@ from litex.gen import *
 class LiteJESD204BTransportTX(Module):
     """Transport Tx layer
     inputs:
-    - transport_settings:   JESD204B transport layer settings
-    - physical_settings:    JESD204B physical layer settings
+    - jesd_settings:        JESD204B settings
     - converter_data_width: Converters' data width
     cf section 5.1.3
     """
-    def __init__(self, transport_settings, physical_settings, converter_data_width):
+    def __init__(self, jesd_settings, converter_data_width):
         # compute parameters
-        nconverters = physical_settings.m
-        nlanes = physical_settings.l
+        nconverters = jesd_settings.phy.m
+        nlanes = jesd_settings.phy.l
 
-        samples_per_clock = converter_data_width//physical_settings.n
-        samples_per_frame = transport_settings.s
+        samples_per_clock = converter_data_width//jesd_settings.phy.n
+        samples_per_frame = jesd_settings.transport.s
 
-        nibbles_per_word = ceil(physical_settings.np//4)
+        nibbles_per_word = ceil(jesd_settings.phy.np//4)
         octets_per_frame = samples_per_frame*nibbles_per_word//2
         octets_per_lane = octets_per_frame*nconverters//nlanes
         assert octets_per_lane > 0
 
-        lane_data_width = samples_per_clock*physical_settings.np*nconverters//nlanes
+        lane_data_width = samples_per_clock*jesd_settings.phy.np*nconverters//nlanes
 
         self.converter_data_width = converter_data_width
         self.lane_data_width = lane_data_width
@@ -43,8 +42,8 @@ class LiteJESD204BTransportTX(Module):
             for i in range(samples_per_frame):
                 for j in range(nconverters):
                     converter_data = getattr(self.sink, "converter"+str(j))
-                    sample = Signal(physical_settings.n)
-                    self.comb += sample.eq(converter_data[(current_sample+i)*physical_settings.n:])
+                    sample = Signal(jesd_settings.phy.n)
+                    self.comb += sample.eq(converter_data[(current_sample+i)*jesd_settings.phy.n:])
                     frame_samples.append(sample)
 
             # frame's words

@@ -1,3 +1,5 @@
+from math import ceil
+
 # control characters
 
 control_characters = {
@@ -111,6 +113,15 @@ class JESD204BSettings:
         self.did = did
         self.bid = bid
         self.lid = 0
+
+        # compute internal settings
+        self.nconverters = phy_settings.m
+        self.nlanes = phy_settings.l
+        self.samples_per_frame = transport_settings.s
+
+        self.nibbles_per_word = ceil(phy_settings.np//4)
+        self.octets_per_frame = self.samples_per_frame*self.nibbles_per_word//2
+        self.octets_per_lane = self.octets_per_frame*self.nconverters//self.nlanes
 
     def get_configuration_data(self):
         cd = JESD204BConfigurationData()
