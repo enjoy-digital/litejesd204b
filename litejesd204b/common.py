@@ -74,9 +74,9 @@ class JESD204BConfigurationData:
 
     def get_checksum(self):
         checksum = 0
-        for octet in self.get_octets()[:-1]:
-                checksum = (checksum + octet)%256
-        return checksum
+        for name, field in configuration_data_fields.items():
+            checksum += getattr(self, name)
+        return checksum % 256
 
 # settings
 
@@ -122,8 +122,8 @@ class JESD204BSettings:
                     setattr(cd, k, getattr(settings, k))
                 except:
                     pass
-        cd.did = self.did
-        cd.bid = self.bid
+        cd.did = self.did & 0xff
+        cd.bid = self.bid & 0xf
         cd.cf = 1
         cd.res1 = 0x5a
         cd.res2 = 0xa5
@@ -135,6 +135,9 @@ class JESD204BSettings:
         octets = cd.get_octets()
         chksum = cd.get_checksum()
         return octets[:-1] + [chksum]
+
+    def get_configuration_checksum(self):
+        return self.get_configuration_data()[-1]
 
     def get_clocks(self):
         ps = self.phy
