@@ -43,7 +43,8 @@ class LiteJESD204BTransportTX(Module):
                 for j in range(nconverters):
                     converter_data = getattr(self.sink, "converter"+str(j))
                     sample = Signal(jesd_settings.phy.n)
-                    self.comb += sample.eq(converter_data[(current_sample+i)*jesd_settings.phy.n:])
+                    self.comb += sample.eq(converter_data[(current_sample+i)*jesd_settings.phy.n:
+                                                          (current_sample+i+1)*jesd_settings.phy.n])
                     frame_samples.append(sample)
 
             # frame's words
@@ -70,7 +71,7 @@ class LiteJESD204BTransportTX(Module):
                 frame_lane_octets = frame_octets[i*octets_per_lane:
                                                 (i+1)*octets_per_lane]
                 lane_data = getattr(self.source, "lane"+str(i))
-                for j, octet in enumerate(frame_lane_octets):
+                for j, octet in enumerate(frame_lane_octets[::-1]):
                     self.comb += lane_data[8*(current_octet+j):8*(current_octet+j+1)].eq(octet)
 
             current_sample += samples_per_frame
