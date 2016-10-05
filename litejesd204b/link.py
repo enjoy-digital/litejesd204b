@@ -244,7 +244,6 @@ class LiteJESD204BLinkTX(Module):
         #  Datapath-+
 
         # Init
-
         cgs = CGSGenerator(data_width)
         ilas = ILASGenerator(data_width,
                              jesd_settings.octets_per_frame,
@@ -254,27 +253,25 @@ class LiteJESD204BLinkTX(Module):
 
 
         # Datapath
-
-        scrambler = Scrambler(data_width)
-        framer = Framer(data_width,
-                        jesd_settings.octets_per_frame,
-                        jesd_settings.transport.k)
-        inserter = AlignInserter(data_width)
+        self.scrambler = scrambler = Scrambler(data_width)
+        self.framer = framer = Framer(data_width,
+                                      jesd_settings.octets_per_frame,
+                                      jesd_settings.transport.k)
+        self.inserter = inserter = AlignInserter(data_width)
         self.submodules += scrambler, framer, inserter
         self.comb += [
             scrambler.sink.eq(sink),
-            framer.reset.eq(~scrambler.valid),
             framer.sink.eq(scrambler.source),
             inserter.sink.eq(framer.source)
         ]
 
         # FSM
-
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
         # Init
         fsm.act("IDLE",
             ilas.reset.eq(1),
+            framer.reset.eq(1),
             If(self.start,
                 NextState("CGS")
             )
@@ -283,6 +280,7 @@ class LiteJESD204BLinkTX(Module):
         # Code Group Synchronization
         fsm.act("CGS",
             ilas.reset.eq(1),
+            framer.reset.eq(1),
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
             If(self.cgs_done,
@@ -292,6 +290,7 @@ class LiteJESD204BLinkTX(Module):
 
         # Initial Lane Alignment Sequence
         fsm.act("ILAS",
+            framer.reset.eq(1),
             source.data.eq(ilas.source.data),
             source.ctrl.eq(ilas.source.ctrl),
             If(ilas.source.last,
