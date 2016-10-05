@@ -1,6 +1,5 @@
-- test scrambler.
 - test transport layer (byte ordering).
 - add elastic buffers between transport layer and links.
 - add QPLL support on transceiver for linerate > 6.6Gbps.
-- add deterministic latency.
+- (later) add deterministic latency.
 - (optional) test PRBS generators and use them (we are currently using PRBS generators from the transceivers).
