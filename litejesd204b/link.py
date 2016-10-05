@@ -273,6 +273,7 @@ class LiteJESD204BLinkTX(Module):
         # Init
         fsm.act("IDLE",
             ilas.reset.eq(1),
+            scrambler.reset.eq(1),
             framer.reset.eq(1),
             If(self.start,
                 NextState("CGS")
@@ -282,6 +283,7 @@ class LiteJESD204BLinkTX(Module):
         # Code Group Synchronization
         fsm.act("CGS",
             ilas.reset.eq(1),
+            scrambler.reset.eq(1),
             framer.reset.eq(1),
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
