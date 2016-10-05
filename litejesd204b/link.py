@@ -232,9 +232,8 @@ class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """
     def __init__(self, data_width, jesd_settings):
-        self.start = Signal(reset=1)
+        self.start = Signal()
         self.ready = Signal()
-        self.cgs_done = Signal()
 
         self.sink = sink = Record([("data", data_width)])
         self.source = source = Record(link_layout(data_width))
@@ -268,17 +267,7 @@ class LiteJESD204BLinkTX(Module):
         ]
 
         # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-
-        # Init
-        fsm.act("IDLE",
-            ilas.reset.eq(1),
-            scrambler.reset.eq(1),
-            framer.reset.eq(1),
-            If(self.start,
-                NextState("CGS")
-            )
-        )
+        self.submodules.fsm = fsm = FSM(reset_state="CGS")
 
         # Code Group Synchronization
         fsm.act("CGS",
@@ -287,7 +276,7 @@ class LiteJESD204BLinkTX(Module):
             framer.reset.eq(1),
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
-            If(self.cgs_done,
+            If(self.start,
                 NextState("ILAS")
             )
         )

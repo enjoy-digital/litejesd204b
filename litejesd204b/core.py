@@ -1,30 +1,35 @@
+from functools import reduce
+from operator import and_
+
 from litex.gen import *
+from litex.gen.genlib.cdc import MultiReg
+from litex.gen.genlib.fifo import AsyncFIFO
+from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect.stream import AsyncFIFO
 
 from litejesd204b.transport import LiteJESD204BTransportTX
 from litejesd204b.link import LiteJESD204BLinkTX
 
 #TODO:
-# - expose controls signals or connect to CSRs?
 # - use elastic buffers between transport and links instead of async fifos
 
-class LiteJESD204BCoreTX(Module, AutoCSR):
-    def __init__(self, phys, jesd_sync, jesd_settings, converter_data_width):
-        self.phy_enable = CSRStorage(len(phys))
-        self.phy_prbs_config = CSRStorage(4)
+class LiteJESD204BCoreTX(Module):
+    def __init__(self, phys, jesd_settings, converter_data_width):
+        self.enable = Signal()
+        self.start = Signal()
+        self.ready = Signal()
+
+        self.prbs_config = Signal(4)
 
         # # #
 
-        # clocking
+        ready = Signal()
+
+        # clocking (use clock from first phy for core clock)
         self.clock_domains.cd_tx = ClockDomain()
-        self.comb += [
-            # clock of first phy as core clock
-            self.cd_tx.clk.eq(phys[0].gtx.cd_tx.clk),
-            # hold core in reset until all phy are readys
-            self.cd_tx.rst.eq(phys[0].gtx.cd_tx.rst), # FIXME
-        ]
+        self.comb += self.cd_tx.clk.eq(phys[0].gtx.cd_tx.clk)
+        self.specials += AsyncResetSynchronizer(self.cd_tx, ~ready)
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings,
@@ -35,8 +40,9 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
         # cdc
         self.cdcs = cdcs = []
         for i, phy in enumerate(phys):
-            cdc = AsyncFIFO([("data", len(phy.data))], 8)
-            cdc = ClockDomainsRenamer({"write": "tx", "read": phy.gtx.cd_tx.name})(cdc)
+            cdc = AsyncFIFO(len(phy.data), 8)
+            cdc = ClockDomainsRenamer(
+                {"write": "tx", "read": phy.gtx.cd_tx.name})(cdc)
             cdcs.append(cdc)
             self.submodules += cdc
 
@@ -47,23 +53,45 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings)
             link = ClockDomainsRenamer(phy.gtx.cd_tx.name)(link)
             links.append(link)
-            self.comb += link.cgs_done.eq(jesd_sync) # FIXME det-lat
+            self.comb += [
+                link.start.eq(self.start)
+            ]
             self.submodules += link
+        self.comb += ready.eq(reduce(or_, [link.ready for link in links]))
 
         # connect modules together
         for i, (link, cdc) in enumerate(zip(links, cdcs)):
             self.comb += [
-                cdc.sink.valid.eq(1),
-                cdc.sink.data.eq(getattr(transport.source, "lane"+str(i))),
-                link.sink.data.eq(cdc.source.data),
-                cdc.source.ready.eq(1),
+                cdc.we.eq(1),
+                cdc.din.eq(getattr(transport.source, "lane"+str(i))),
+                link.sink.data.eq(cdc.dout),
+                cdc.re.eq(1),
                 phys[i].data.eq(link.source.data),
                 phys[i].ctrl.eq(link.source.ctrl)
             ]
 
-        # registers FIXME CDC
+        # control
         for i, phy in enumerate(phys):
-            self.comb += [
-                phy.gtx.gtx_init.restart.eq(~self.phy_enable.storage[i]),
-                phy.gtx.prbs_config.eq(self.phy_prbs_config.storage)
+            self.comb += phy.gtx.gtx_init.restart.eq(~self.enable)
+            self.specials += [
+                MultiReg(self.prbs_config,
+                    phy.gtx.prbs_config,
+                    phy.gtx.cd_tx.name),
             ]
+        self.specials +=  MultiReg(~self.cd_tx.rst, self.ready)
+
+
+class LiteJESD204BCoreTXControl(Module, AutoCSR):
+    def __init__(self, core):
+        self.enable = CSRStorage()
+        self.ready = CSRStatus()
+
+        self.prbs_config = CSRStorage(4)
+
+        # # #
+
+        self.comb += [
+            core.enable.eq(self.enable.storage),
+            core.prbs_config.eq(self.prbs_config.storage),
+            self.ready.status.eq(core.ready)
+        ]
