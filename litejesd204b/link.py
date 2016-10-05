@@ -26,7 +26,7 @@ class Scrambler(Module):
     """Scrambler
     cf section 5.2.3
     """
-    def __init__(self, data_width):
+    def __init__(self, data_width, seed=0x7f80):
         self.sink = sink = Record([("data", data_width)])
         self.source = source = Record([("data", data_width)])
         self.valid = Signal()
@@ -34,7 +34,7 @@ class Scrambler(Module):
 
         # # #
 
-        state = Signal(15, reset=0x7fff)
+        state = Signal(15, reset=seed)
         feedback = Signal(data_width)
         full = Signal(data_width+15)
 

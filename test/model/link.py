@@ -7,8 +7,11 @@ class Scrambler:
     """
     cf section 5.2.3
     """
-    def __init__(self):
-        self.state = [1]*15
+    def __init__(self, seed=0x7f80):
+        self.state = [0]*15
+        for i in range(15):
+            if (seed >> (14-i)) & 0x1:
+                self.state[i] = 1
 
     def shift(self, d15):
         s15 = (d15 ^ self.state[1] ^ self.state[0]) & 0x1
