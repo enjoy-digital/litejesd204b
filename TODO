@@ -1,4 +1,3 @@
-- test transport layer (byte ordering).
 - add elastic buffers between transport layer and links.
 - add QPLL support on transceiver for linerate > 6.6Gbps.
 - (later) add deterministic latency.
