@@ -19,7 +19,7 @@ class LiteJESD204BPhyTX(Module):
                 tx_pads=tx_pads,
                 linerate=linerate,
                 sys_clk_freq=sys_clk_freq,
-                cd_name="jesd_tx_"+str(n))
+                cd_name="jesd_tx_phy"+str(n))
 
         for i in range(32//8):
             self.comb += [

@@ -27,14 +27,14 @@ class LiteJESD204BCoreTX(Module):
         ready = Signal()
 
         # clocking (use clock from first phy for core clock)
-        self.clock_domains.cd_tx = ClockDomain()
+        self.clock_domains.cd_tx = ClockDomain("jesd_tx_core")
         self.comb += self.cd_tx.clk.eq(phys[0].gtx.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(self.cd_tx, ~ready)
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings,
                                             converter_data_width)
-        transport = ClockDomainsRenamer("tx")(transport)
+        transport = ClockDomainsRenamer("jesd_tx_core")(transport)
         self.submodules.transport = transport
 
         # cdc
@@ -42,7 +42,7 @@ class LiteJESD204BCoreTX(Module):
         for i, phy in enumerate(phys):
             cdc = AsyncFIFO(len(phy.data), 8)
             cdc = ClockDomainsRenamer(
-                {"write": "tx", "read": phy.gtx.cd_tx.name})(cdc)
+                {"write": "jesd_tx_core", "read": phy.gtx.cd_tx.name})(cdc)
             cdcs.append(cdc)
             self.submodules += cdc
 
