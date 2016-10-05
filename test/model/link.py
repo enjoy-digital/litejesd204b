@@ -100,7 +100,7 @@ def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
             if scrambled:
                 if (dn == control_characters["A"]) & last_frame_of_multiframe:
                     dn = Control(dn)
-                if dn == control_characters["F"]:
+                if (dn == control_characters["F"]) & ~last_frame_of_multiframe:
                     dn = Control(dn)
             else:
                 raise NotImplementedError
