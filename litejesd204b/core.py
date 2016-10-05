@@ -11,8 +11,6 @@ from litex.soc.interconnect.csr import *
 from litejesd204b.transport import LiteJESD204BTransportTX
 from litejesd204b.link import LiteJESD204BLinkTX
 
-#TODO:
-# - use elastic buffers between transport and links instead of async fifos
 
 class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
@@ -37,14 +35,14 @@ class LiteJESD204BCoreTX(Module):
         transport = ClockDomainsRenamer("jesd_tx_core")(transport)
         self.submodules.transport = transport
 
-        # cdc
-        self.cdcs = cdcs = []
+        # buffers
+        self.bufs = bufs = []
         for i, phy in enumerate(phys):
-            cdc = AsyncFIFO(len(phy.data), 8)
-            cdc = ClockDomainsRenamer(
-                {"write": "jesd_tx_core", "read": phy.gtx.cd_tx.name})(cdc)
-            cdcs.append(cdc)
-            self.submodules += cdc
+            buf = AsyncFIFO(len(phy.data), 8) # FIXME use elastic buffers
+            buf = ClockDomainsRenamer(
+                {"write": "jesd_tx_core", "read": phy.gtx.cd_tx.name})(buf)
+            bufs.append(buf)
+            self.submodules += buf
 
         # link layer
         self.links = links = []
@@ -60,12 +58,12 @@ class LiteJESD204BCoreTX(Module):
         self.comb += ready.eq(reduce(or_, [link.ready for link in links]))
 
         # connect modules together
-        for i, (link, cdc) in enumerate(zip(links, cdcs)):
+        for i, (link, buf) in enumerate(zip(links, bufs)):
             self.comb += [
-                cdc.we.eq(1),
-                cdc.din.eq(getattr(transport.source, "lane"+str(i))),
-                link.sink.data.eq(cdc.dout),
-                cdc.re.eq(1),
+                buf.we.eq(1),
+                buf.din.eq(getattr(transport.source, "lane"+str(i))),
+                link.sink.data.eq(buf.dout),
+                buf.re.eq(1),
                 phys[i].data.eq(link.source.data),
                 phys[i].ctrl.eq(link.source.ctrl)
             ]
