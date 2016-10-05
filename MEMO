@@ -37,23 +37,6 @@ if F = 1, HD must be set to 1
 S = 1
 F = 2
 
-KC705 configuration (4 lanes @ 12.5Gbps):
------------------------------------------
-phy: 40 bits @ 312.5MHz
-link: 32 bits @ 312.5MHz
-transport: 32 bits @ 312.5MHz
-
-KCU105 configuration (8 lanes @ 12.5Gbps):
-------------------------------------------
-phy: 40 bits @ 312.5MHz
-link: 32 bits @ 312.5MHz
-transport: 64 bits @ 312.5MHz
-
-Validation:
------------
-Need to define a test plan to validate the core with the AD9154, can probably be based on:
-# http://www.xilinx.com/publications/prod_mktg/JESD204B_Interop_Report_AD9250.pdf
-
 Character Insertion:
 ----------------------
 if not scrambled:
