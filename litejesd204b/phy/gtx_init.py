@@ -104,7 +104,7 @@ class GTXInit(Module):
         # Wait for delay alignment
         startup_fsm.act("WAIT_ALIGN",
             Xxuserrdy.eq(1),
-			Xxdlysreset.eq(1),
+            Xxdlysreset.eq(1),
             If(Xxdlysresetdone, NextState("WAIT_FIRST_ALIGN_DONE"))
         )
         # Wait 2 rising edges of Xxphaligndone
