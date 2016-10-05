@@ -102,9 +102,9 @@ class Framer(Module):
 
 class AlignInserter(Module):
     """Alignment Character Inserter
-    cf section 5.3.3.4
+    cf section 5.3.3.4.3
     """
-    def __init__(self, data_width, scrambled=True):
+    def __init__(self, data_width):
         self.sink = sink = Record(link_layout(data_width))
         self.source = source = Record(link_layout(data_width))
         self.latency = 0
@@ -113,19 +113,21 @@ class AlignInserter(Module):
 
         self.comb += source.eq(sink)
 
-        assert scrambled == True  # non-scrambled mode not implemented
-
         for i in range(data_width//8):
-            self.comb += \
+            self.comb += [
+                # last scrambled octet in a multiframe equals 0x7c
                 If(sink.data[8*i:8*(i+1)] == control_characters["A"],
                     If(sink.multiframe_last[i],
                         source.ctrl[i].eq(1)
                     )
+                # last scrambled octet in a frame but not at the end of a
+                # multiframe equals 0xfc
                 ).Elif(sink.data[8*i:8*(i+1)] == control_characters["F"],
-                    If(sink.frame_last[i],
+                    If(sink.frame_last[i] & ~sink.multiframe_last[i],
                         source.ctrl[i].eq(1)
                     )
                 )
+            ]
 
 
 class CGSGenerator(Module):
