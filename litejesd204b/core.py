@@ -37,7 +37,7 @@ class LiteJESD204BCoreTX(Module):
 
         # buffers
         self.bufs = bufs = []
-        for i, phy in enumerate(phys):
+        for phy in phys:
             buf = AsyncFIFO(len(phy.data), 8) # FIXME use elastic buffers
             buf = ClockDomainsRenamer(
                 {"write": "jesd_tx_core", "read": phy.gtx.cd_tx.name})(buf)
@@ -46,8 +46,8 @@ class LiteJESD204BCoreTX(Module):
 
         # link layer
         self.links = links = []
-        for i, phy in enumerate(phys):
-            link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, i)
+        for n, phy in enumerate(phys):
+            link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
             link = ClockDomainsRenamer(phy.gtx.cd_tx.name)(link)
             links.append(link)
             self.comb += [
@@ -57,18 +57,18 @@ class LiteJESD204BCoreTX(Module):
         self.comb += ready.eq(reduce(or_, [link.ready for link in links]))
 
         # connect modules together
-        for i, (link, buf) in enumerate(zip(links, bufs)):
+        for n, (link, buf) in enumerate(zip(links, bufs)):
             self.comb += [
                 buf.we.eq(1),
-                buf.din.eq(getattr(transport.source, "lane"+str(i))),
+                buf.din.eq(getattr(transport.source, "lane"+str(n))),
                 link.sink.data.eq(buf.dout),
                 buf.re.eq(1),
-                phys[i].data.eq(link.source.data),
-                phys[i].ctrl.eq(link.source.ctrl)
+                phys[n].data.eq(link.source.data),
+                phys[n].ctrl.eq(link.source.ctrl)
             ]
 
         # control
-        for i, phy in enumerate(phys):
+        for phy in phys:
             self.comb += phy.gtx.gtx_init.restart.eq(~self.enable)
             self.specials += [
                 MultiReg(self.prbs_config,
