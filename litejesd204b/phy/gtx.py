@@ -50,24 +50,13 @@ def cpll_get_config(refclk_freq, linerate):
 
 
 class GTXTransmitter(Module):
-    def __init__(self, refclk_pads_or_signal, refclk_freq, tx_pads,
+    def __init__(self, refclk, refclk_freq, tx_pads,
             sys_clk_freq, linerate, cd_name):
         self.prbs_config = Signal(4)
 
         # # #
 
-        cpll_config = cpll_get_config(refclk_freq/2, linerate) # ODIV2 --> /2
-
-        if isinstance(refclk_pads_or_signal, Signal):
-            self.refclk_div2 = refclk_pads_or_signal
-        else:
-            self.refclk_div2 = Signal()
-            self.specials += Instance("IBUFDS_GTE2",
-                i_CEB=0,
-                i_I=refclk_pads_or_signal.p,
-                i_IB=refclk_pads_or_signal.n,
-                o_ODIV2=self.refclk_div2
-            )
+        cpll_config = cpll_get_config(refclk_freq, linerate)
 
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
 
@@ -104,7 +93,7 @@ class GTXTransmitter(Module):
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
                 i_TSTIN=2**20-1,
-                i_GTREFCLK0=self.refclk_div2,
+                i_GTREFCLK0=refclk,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",
