@@ -12,7 +12,7 @@ class GTXInit(Module):
         self.restart = Signal()
 
         # GTX signals
-        self.cplllock = Signal()
+        self.plllock = Signal()
         self.gtXxreset = Signal()
         self.Xxresetdone = Signal()
         self.Xxdlysreset = Signal()
@@ -23,12 +23,12 @@ class GTXInit(Module):
         # # #
 
         # Double-latch transceiver asynch outputs
-        cplllock = Signal()
+        plllock = Signal()
         Xxresetdone = Signal()
         Xxdlysresetdone = Signal()
         Xxphaligndone = Signal()
         self.specials += [
-            MultiReg(self.cplllock, cplllock),
+            MultiReg(self.plllock, plllock),
             MultiReg(self.Xxresetdone, Xxresetdone),
             MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
             MultiReg(self.Xxphaligndone, Xxphaligndone)
@@ -79,7 +79,7 @@ class GTXInit(Module):
         )
         startup_fsm.act("WAIT_CPLL",
             gtXxreset.eq(1),
-            If(cplllock, NextState("RELEASE_RESET"))
+            If(plllock, NextState("RELEASE_RESET"))
         )
         # Release GTX reset and wait for GTX resetdone
         # (from UG476, GTX is reset on falling edge
