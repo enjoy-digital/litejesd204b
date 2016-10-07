@@ -47,8 +47,7 @@ class LiteJESD204BCoreTX(Module):
         # link layer
         self.links = links = []
         for i, phy in enumerate(phys):
-            jesd_settings.lid = i
-            link = LiteJESD204BLinkTX(len(phy.data), jesd_settings)
+            link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, i)
             link = ClockDomainsRenamer(phy.gtx.cd_tx.name)(link)
             links.append(link)
             self.comb += [

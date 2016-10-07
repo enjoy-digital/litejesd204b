@@ -231,7 +231,7 @@ class ILASGenerator(Module):
 class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """
-    def __init__(self, data_width, jesd_settings):
+    def __init__(self, data_width, jesd_settings, n=0):
         self.start = Signal()
         self.ready = Signal()
 
@@ -249,7 +249,7 @@ class LiteJESD204BLinkTX(Module):
         ilas = ILASGenerator(data_width,
                              jesd_settings.octets_per_frame,
                              jesd_settings.transport.k,
-                             jesd_settings.get_configuration_data())
+                             jesd_settings.get_configuration_data(n))
         self.submodules += cgs, ilas
 
 

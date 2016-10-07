@@ -75,7 +75,7 @@ class JESD204BConfigurationData:
     def get_checksum(self):
         checksum = 0
         for name, field in configuration_data_fields.items():
-            checksum += getattr(self, name)
+            checksum += getattr(self, name) & (2**field.width-1)
         return checksum % 256
 
 # settings
@@ -111,7 +111,6 @@ class JESD204BSettings:
         self.transport = transport_settings
         self.did = did
         self.bid = bid
-        self.lid = 0
 
         # compute internal settings
         self.nconverters = phy_settings.m
@@ -122,7 +121,7 @@ class JESD204BSettings:
         self.octets_per_frame = self.samples_per_frame*self.nibbles_per_word//2
         self.octets_per_lane = self.octets_per_frame*self.nconverters//self.nlanes
 
-    def get_configuration_data(self):
+    def get_configuration_data(self, lid=0):
         cd = JESD204BConfigurationData()
         for k in configuration_data_fields.keys():
             for settings in [self.phy,
@@ -131,20 +130,16 @@ class JESD204BSettings:
                     setattr(cd, k, getattr(settings, k))
                 except:
                     pass
-        cd.did = self.did & 0xff
-        cd.bid = self.bid & 0xf
-        cd.lid = self.lid & 0x1f
-        cd.cf = 1
-        cd.res1 = 0x5a
-        cd.res2 = 0xa5
-        # field_value = value - 1 for these parameters
+        cd.did = self.did
+        cd.bid = self.bid
+        cd.lid = lid
+        # field value = value-1 for these parameters
         for name in ["l", "f", "k", "m", "n", "np", "s"]:
             p = getattr(cd, name)
             setattr(cd, name, p-1)
-
         octets = cd.get_octets()
         chksum = cd.get_checksum()
         return octets[:-1] + [chksum]
 
-    def get_configuration_checksum(self):
-        return self.get_configuration_data()[-1]
+    def get_configuration_checksum(self, lid=0):
+        return self.get_configuration_data(lid)[-1]
