@@ -109,6 +109,7 @@ class GTXQuadPLL(Module):
 class GTXTransmitter(Module):
     def __init__(self, pll, tx_pads, sys_clk_freq, cd_name):
         self.prbs_config = Signal(4)
+        self.pattern_config = Signal(2)
 
         # # #
 
@@ -204,4 +205,10 @@ class GTXTransmitter(Module):
             self.cd_tx, ~self.gtx_init.done)
 
         self.submodules.encoder = ClockDomainsRenamer(cd_name)(Encoder(nwords, True))
-        self.comb += txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
+        self.comb += \
+            If(self.pattern_config == 0b01,
+                # square wave @ linerate/40 for scope observation
+                txdata.eq(0b1111111111111111111100000000000000000000)
+            ).Else(
+                txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
+            )
