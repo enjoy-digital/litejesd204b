@@ -11,8 +11,7 @@ from test.model.transport import samples_to_lanes
 
 class TestTransport(unittest.TestCase):
     def transport_tx_test(self, nlanes, nconverters, converter_data_width):
-        ps = JESD204BPhysicalSettings(l=nlanes, m=nconverters,
-                                      n=16, np=16, sc=1*1e9)
+        ps = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
 

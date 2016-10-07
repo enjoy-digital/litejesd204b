@@ -31,7 +31,7 @@ ilas_reference = [
 
 class TestILAS(unittest.TestCase):
     def test_ilas(self):
-        ps = JESD204BPhysicalSettings(l=4, m=4, n=14, np=16, sc=1*1e9)
+        ps = JESD204BPhysicalSettings(l=4, m=4, n=14, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=32, cs=2)
         jesd_settings = JESD204BSettings(ps, ts, did=0x55, bid=0xa)
 

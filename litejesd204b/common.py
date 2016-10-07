@@ -89,12 +89,11 @@ class JESD204BTransportSettings:
 
 
 class JESD204BPhysicalSettings:
-    def __init__(self, l, m, n, np, sc):
+    def __init__(self, l, m, n, np):
         self.l = l
         self.m = m
         self.n = n
         self.np = np
-        self.sc = sc
 
         # only support subclass 1
         self.subclassv = 0b001
@@ -149,17 +148,3 @@ class JESD204BSettings:
 
     def get_configuration_checksum(self):
         return self.get_configuration_data()[-1]
-
-    def get_sample_clock(self):
-        return self.phy.sc
-
-    def get_frame_clock(self):
-        return self.get_sample_clock()/self.transport.s
-
-    def get_local_multiframe_clock(self):
-        return self.get_frame_clock()/self.transport.k
-
-    def get_linerate(self):
-        ps = self.phy
-        ts = self.transport
-        return (ps.m*ts.s*ps.np*10/8*self.get_frame_clock())/ps.l
