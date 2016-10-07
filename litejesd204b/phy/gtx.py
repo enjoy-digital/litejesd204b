@@ -26,23 +26,26 @@ class GTXChannelPLL(Module):
     def compute_linerate(freq, d):
         return freq*2/d
 
-    def compute_config(self, refclk_freq, linerate):
-        for n1 in self.n1_values:
-            for n2 in self.n2_values:
-                for m in self.m_values:
-                    freq = self.compute_freq(refclk_freq, n1, n2, m)
-                    if (freq >= self.min_freq and
-                        freq <= self.max_freq):
-                        for d in self.d_values:
-                            if self.compute_linerate(freq, d) == linerate:
+    @classmethod
+    def compute_config(cls, refclk_freq, linerate):
+        for n1 in cls.n1_values:
+            for n2 in cls.n2_values:
+                for m in cls.m_values:
+                    freq = cls.compute_freq(refclk_freq, n1, n2, m)
+                    if (freq >= cls.min_freq and
+                        freq <= cls.max_freq):
+                        for d in cls.d_values:
+                            if cls.compute_linerate(freq, d) == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
 
 class GTXQuadPLL(Module):
-    min_freq = 5.93e9
-    max_freq = 12.5e9
+    min_freq_lower_band = 5.93e9
+    max_freq_lower_band = 8e9
+    min_freq_higher_band = 9.8e9
+    max_freq_higher_band = 12.5e9
     n_values = [16, 20, 32, 40, 64, 66, 80, 100]
     fbdiv_ratios = {
         16  : 1,
@@ -70,21 +73,40 @@ class GTXQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
         self.clk = Signal()
         self.refclk = Signal()
+        self.reset = Signal()
         self.lock = Signal()
-        self.config = self.compute_config(refclk_freq, linerate)
+        self.config, band = self.compute_config(refclk_freq, linerate)
 
         # # #
 
+        if band is "higher":
+            qpll_cfg = 0x0680181
+        elif band is "lower":
+            qpll_cfg = 0x06801c1
+
         self.specials += \
             Instance("GTXE2_COMMON",
+                p_QPLL_CFG=qpll_cfg,
                 p_QPLL_FBDIV=self.fbdivs[self.config["n"]],
                 p_QPLL_FBDIV_RATIO=self.fbdiv_ratios[self.config["n"]],
                 p_QPLL_REFCLK_DIV=self.config["m"],
                 i_GTREFCLK0=refclk,
+
+                i_QPLLOUTRESET=0,
+                i_QPLLPD=0,
+                i_QPLLRESET=self.reset,
+
                 o_QPLLOUTCLK=self.clk,
                 o_QPLLOUTREFCLK=self.refclk,
                 i_QPLLLOCKEN=1,
-                o_QPLLLOCK=self.lock
+                o_QPLLLOCK=self.lock,
+                i_QPLLREFCLKSEL=0b001,
+
+                i_BGBYPASSB=1,
+                i_BGMONITORENB=1,
+                i_BGPDB=1,
+                i_BGRCALOVRD=0b11111,
+                i_RCALENB=1
             )
 
     @staticmethod
@@ -95,15 +117,22 @@ class GTXQuadPLL(Module):
     def compute_linerate(freq, d):
         return freq*2/d
 
-    def compute_config(self, refclk_freq, linerate):
-        for n in self.n_values:
-            for m in self.m_values:
-                freq = self.compute_freq(refclk_freq, n, m)
-                if (freq >= self.min_freq and
-                    freq <= self.max_freq):
-                    for d in self.d_values:
-                        if self.compute_linerate(freq, d) == linerate:
-                            return {"n": n, "m": m, "d": d}
+    @classmethod
+    def compute_config(cls, refclk_freq, linerate):
+        for n in cls.n_values:
+            for m in cls.m_values:
+                freq = cls.compute_freq(refclk_freq, n, m)
+                band = None
+                if (freq >= cls.min_freq_lower_band and
+                    freq <= cls.max_freq_lower_band):
+                    band = "lower"
+                if (freq >= cls.min_freq_higher_band and
+                    freq <= cls.max_freq_higher_band):
+                    band = "higher"
+                if band is not None:
+                    for d in cls.d_values:
+                        if cls.compute_linerate(freq, d) == linerate:
+                            return {"n": n, "m": m, "d": d}, band
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
@@ -111,7 +140,7 @@ class GTXQuadPLL(Module):
 class GTXTransmitter(Module):
     def __init__(self, pll, tx_pads, sys_clk_freq, cd_name):
         self.prbs_config = Signal(4)
-        self.produce_square_wave = Signal(2)
+        self.produce_square_wave = Signal()
 
         # # #
 
