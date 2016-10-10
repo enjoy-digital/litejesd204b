@@ -6,8 +6,8 @@ from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXChannelPLL(Module):
-    min_freq = 1.6e9
-    max_freq = 3.3e9
+    min_vco_freq = 1.6e9
+    max_vco_freq = 3.3e9
     n1_values = [4, 5]
     n2_values = [1, 2, 3, 4, 5]
     m_values = [1, 2]
@@ -19,33 +19,33 @@ class GTXChannelPLL(Module):
         self.config = self.compute_config(refclk_freq, linerate)
 
     @staticmethod
-    def compute_freq(refclk_freq, n1, n2, m):
+    def compute_vco_freq(refclk_freq, n1, n2, m):
         return refclk_freq*(n1*n2)/m
 
     @staticmethod
-    def compute_linerate(freq, d):
-        return freq*2/d
+    def compute_linerate(vco_freq, d):
+        return vco_freq*2/d
 
     @classmethod
     def compute_config(cls, refclk_freq, linerate):
         for n1 in cls.n1_values:
             for n2 in cls.n2_values:
                 for m in cls.m_values:
-                    freq = cls.compute_freq(refclk_freq, n1, n2, m)
-                    if (freq >= cls.min_freq and
-                        freq <= cls.max_freq):
+                    vco_freq = cls.compute_vco_freq(refclk_freq, n1, n2, m)
+                    if (vco_freq >= cls.min_vco_freq and
+                        vco_freq <= cls.max_vco_freq):
                         for d in cls.d_values:
-                            if cls.compute_linerate(freq, d) == linerate:
+                            if cls.compute_linerate(vco_freq, d) == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
 
 class GTXQuadPLL(Module):
-    min_freq_lower_band = 5.93e9
-    max_freq_lower_band = 8e9
-    min_freq_higher_band = 9.8e9
-    max_freq_higher_band = 12.5e9
+    min_vco_freq_lower_band = 5.93e9
+    max_vco_freq_lower_band = 8e9
+    min_vco_freq_higher_band = 9.8e9
+    max_vco_freq_higher_band = 12.5e9
     n_values = [16, 20, 32, 40, 64, 66, 80, 100]
     fbdiv_ratios = {
         16  : 1,
@@ -75,64 +75,51 @@ class GTXQuadPLL(Module):
         self.refclk = Signal()
         self.reset = Signal()
         self.lock = Signal()
-        self.config, band = self.compute_config(refclk_freq, linerate)
+        self.config = self.compute_config(refclk_freq, linerate)
 
         # # #
 
-        if band is "higher":
-            qpll_cfg = 0x0680181
-        elif band is "lower":
-            qpll_cfg = 0x06801c1
-
         self.specials += \
             Instance("GTXE2_COMMON",
-                p_QPLL_CFG=qpll_cfg,
+                p_QPLL_CFG=0x0680181 if self.config["vco_band"] == "higher" else
+                           0x06801c1,
                 p_QPLL_FBDIV=self.fbdivs[self.config["n"]],
                 p_QPLL_FBDIV_RATIO=self.fbdiv_ratios[self.config["n"]],
                 p_QPLL_REFCLK_DIV=self.config["m"],
                 i_GTREFCLK0=refclk,
-
-                i_QPLLOUTRESET=0,
-                i_QPLLPD=0,
                 i_QPLLRESET=self.reset,
 
                 o_QPLLOUTCLK=self.clk,
                 o_QPLLOUTREFCLK=self.refclk,
                 i_QPLLLOCKEN=1,
                 o_QPLLLOCK=self.lock,
-                i_QPLLREFCLKSEL=0b001,
-
-                i_BGBYPASSB=1,
-                i_BGMONITORENB=1,
-                i_BGPDB=1,
-                i_BGRCALOVRD=0b11111,
-                i_RCALENB=1
+                i_QPLLREFCLKSEL=0b001
             )
 
     @staticmethod
-    def compute_freq(refclk_freq, n, m):
-        return refclk_freq*n/(2*m)
+    def compute_vco_freq(refclk_freq, n, m):
+        return refclk_freq*n/m
 
     @staticmethod
-    def compute_linerate(freq, d):
-        return freq*2/d
+    def compute_linerate(vco_freq, d):
+        return (vco_freq/2)*2/d
 
     @classmethod
     def compute_config(cls, refclk_freq, linerate):
         for n in cls.n_values:
             for m in cls.m_values:
-                freq = cls.compute_freq(refclk_freq, n, m)
-                band = None
-                if (freq >= cls.min_freq_lower_band and
-                    freq <= cls.max_freq_lower_band):
+                vco_freq = cls.compute_vco_freq(refclk_freq, n, m)
+                vco_band = None
+                if (vco_freq >= cls.min_vco_freq_lower_band and
+                    vco_freq <= cls.max_vco_freq_lower_band):
                     band = "lower"
-                if (freq >= cls.min_freq_higher_band and
-                    freq <= cls.max_freq_higher_band):
-                    band = "higher"
-                if band is not None:
+                if (vco_freq >= cls.min_vco_freq_higher_band and
+                    vco_freq <= cls.max_vco_freq_higher_band):
+                    vco_band = "higher"
+                if vco_band is not None:
                     for d in cls.d_values:
-                        if cls.compute_linerate(freq, d) == linerate:
-                            return {"n": n, "m": m, "d": d}, band
+                        if cls.compute_linerate(vco_freq, d) == linerate:
+                            return {"n": n, "m": m, "d": d, "vco_band": vco_band}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
