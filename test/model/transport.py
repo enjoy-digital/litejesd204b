@@ -110,7 +110,7 @@ def samples_to_lanes(samples_per_frame, nlanes, nconverters, nbits, samples):
         for i in range(nlanes):
             frame_lane_octets = frame_octets[i*octets_per_lane:
                                              (i+1)*octets_per_lane]
-            lanes[i] = lanes[i] + [frame_lane_octets[::-1]]
+            lanes[i] = lanes[i] + [frame_lane_octets]
 
     return lanes
 
@@ -144,7 +144,7 @@ def lanes_to_samples(samples_per_frame, nlanes, nconverters, nbits, lanes):
         # frame's octets
         frame_octets = []
         for i in range(nlanes):
-            frame_octets = frame_octets + lanes[i][n][::-1]
+            frame_octets = frame_octets + lanes[i][n]
         n += 1
 
         # frame's nibbles

@@ -69,7 +69,7 @@ class LiteJESD204BTransportTX(Module):
                     i*jesd_settings.octets_per_lane:
                     (i+1)*jesd_settings.octets_per_lane]
                 lane_data = getattr(self.source, "lane"+str(i))
-                for j, octet in enumerate(frame_lane_octets[::-1]):
+                for j, octet in enumerate(frame_lane_octets):
                     self.comb += lane_data[
                         8*(current_octet+j):
                         8*(current_octet+j+1)].eq(octet)
