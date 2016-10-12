@@ -4,16 +4,9 @@ from litejesd204b.common import *
 
 from test.model.common import seed_to_data
 
-from test.model.transport import short_test_pattern, long_test_pattern
-from test.model.transport import samples_to_lanes, lanes_to_samples
-from test.model.transport import TransportLayer
-
-from test.model.link import Scrambler, Descrambler
-from test.model.link import scramble_lanes, descramble_lanes
-from test.model.link import insert_alignment_characters, remove_alignment_characters
-from test.model.link import LinkLayer
-
-from test.model.line_coding import encode_lanes, decode_lanes
+from test.model.transport import *
+from test.model.link import *
+from test.model.line_coding import *
 
 
 class TestModel(unittest.TestCase):

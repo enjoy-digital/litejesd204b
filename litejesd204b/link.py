@@ -49,7 +49,9 @@ class Scrambler(Module):
 
         self.comb += [
             full.eq(Cat(feedback, state)),
-            feedback.eq(full[15:15+data_width] ^ full[14:14+data_width] ^ swizzle_in)
+            feedback.eq(full[15:15+data_width] ^
+                        full[14:14+data_width] ^
+                        swizzle_in)
         ]
 
         self.sync += [
@@ -74,9 +76,12 @@ class Framer(Module):
         frames_per_clock = data_width//frame_width
         clocks_per_multiframe = frames_per_multiframe//frames_per_clock
 
-        assert frame_width <= data_width # at least a frame per clock
-        assert data_width%frame_width == 0 # multiple number of frame per clock
-        assert frames_per_multiframe%frames_per_clock == 0 # multiframes aligned on clock
+        # at least a frame per clock
+        assert frame_width <= data_width
+        # multiple number of frame per clock
+        assert data_width%frame_width == 0
+        # multiframes aligned on clock
+        assert frames_per_multiframe%frames_per_clock == 0
 
         frame_last = 0
         for i in range(data_width//8):
@@ -142,14 +147,9 @@ class CGSGenerator(Module):
         ctrl = Signal(data_width//8)
         for i in range(data_width//8):
             self.comb += [
-                data[8*i:8*(i+1)].eq(control_characters["K"]),
-                ctrl[i].eq(1)
+                source.data[8*i:8*(i+1)].eq(control_characters["K"]),
+                source.ctrl[i].eq(1)
             ]
-
-        self.comb += [
-            source.data.eq(data),
-            source.ctrl.eq(ctrl)
-        ]
 
 
 @ResetInserter()
@@ -203,7 +203,9 @@ class ILASGenerator(Module):
             ilas_data_words.append(data_word)
             ilas_ctrl_words.append(ctrl_word)
 
-        assert len(ilas_data_words) == octets_per_frame*frames_per_multiframe*4//octets_per_clock
+        assert len(ilas_data_words) == (octets_per_frame*
+                                        frames_per_multiframe*
+                                        4//octets_per_clock)
 
         data_lut = Memory(data_width, len(ilas_data_words), init=ilas_data_words)
         data_port = data_lut.get_port(async_read=True)

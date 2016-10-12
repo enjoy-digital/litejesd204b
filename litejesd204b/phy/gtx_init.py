@@ -75,9 +75,9 @@ class GTXInit(Module):
         )
         startup_fsm.act("RESET_GTX",
             gtXxreset.eq(1),
-            NextState("WAIT_CPLL")
+            NextState("WAIT_PLL")
         )
-        startup_fsm.act("WAIT_CPLL",
+        startup_fsm.act("WAIT_PLL",
             gtXxreset.eq(1),
             If(plllock, NextState("RELEASE_RESET"))
         )

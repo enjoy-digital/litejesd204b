@@ -79,6 +79,9 @@ class LiteJESD204BTransportTX(Module):
 
 
 class LiteJESD204BSTPLGenerator(Module):
+    """Simple Transport Layer Pattern Generator
+    cf section 5.1.6.2
+    """
     def __init__(self, jesd_settings, converter_data_width):
         self.source = Record([("converter"+str(i), converter_data_width)
             for i in range(jesd_settings.nconverters)])

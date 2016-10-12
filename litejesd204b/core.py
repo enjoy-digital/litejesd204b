@@ -45,7 +45,9 @@ class LiteJESD204BCoreTX(Module):
         stpl = LiteJESD204BSTPLGenerator(jesd_settings,
                                          converter_data_width)
         self.submodules += stpl
-        self.specials += MultiReg(self.stpl_enable, stpl_enable, "jesd_tx_core")
+        self.specials += MultiReg(self.stpl_enable,
+                                  stpl_enable,
+                                  "jesd_tx_core")
         self.comb += \
             If(stpl_enable,
                 transport.sink.eq(stpl.source)
@@ -68,9 +70,7 @@ class LiteJESD204BCoreTX(Module):
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
             link = ClockDomainsRenamer(phy.gtx.cd_tx.name)(link)
             links.append(link)
-            self.comb += [
-                link.start.eq(self.start)
-            ]
+            self.comb += link.start.eq(self.start)
             self.submodules += link
         self.comb += ready.eq(reduce(or_, [link.ready for link in links]))
 
@@ -79,8 +79,8 @@ class LiteJESD204BCoreTX(Module):
             self.comb += [
                 buf.we.eq(1),
                 buf.din.eq(getattr(transport.source, "lane"+str(n))),
-                link.sink.data.eq(buf.dout),
                 buf.re.eq(1),
+                link.sink.data.eq(buf.dout),
                 phys[n].data.eq(link.source.data),
                 phys[n].ctrl.eq(link.source.ctrl)
             ]
@@ -88,11 +88,9 @@ class LiteJESD204BCoreTX(Module):
         # control
         for phy in phys:
             self.comb += phy.gtx.gtx_init.restart.eq(~self.enable)
-            self.specials += [
-                MultiReg(self.prbs_config,
-                    phy.gtx.prbs_config,
-                    phy.gtx.cd_tx.name),
-            ]
+            self.specials += MultiReg(self.prbs_config,
+                                      phy.gtx.prbs_config,
+                                      phy.gtx.cd_tx.name)
         self.specials +=  MultiReg(~self.cd_tx.rst, self.ready)
 
 

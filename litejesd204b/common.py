@@ -118,15 +118,15 @@ class JESD204BSettings:
         self.samples_per_frame = transport_settings.s
 
         self.nibbles_per_word = ceil(phy_settings.np//4)
-        self.octets_per_frame = self.samples_per_frame*self.nibbles_per_word//2
-        self.octets_per_lane = self.octets_per_frame*self.nconverters//self.nlanes
-        assert self.octets_per_lane > 0
+        self.octets_per_frame = (self.samples_per_frame*
+                                 self.nibbles_per_word)//2
+        self.octets_per_lane = (self.octets_per_frame*
+                                self.nconverters)//self.nlanes
 
     def get_configuration_data(self, lid=0):
         cd = JESD204BConfigurationData()
         for k in configuration_data_fields.keys():
-            for settings in [self.phy,
-                             self.transport]:
+            for settings in [self.phy, self.transport]:
                 try:
                     setattr(cd, k, getattr(settings, k))
                 except:
