@@ -120,6 +120,7 @@ class JESD204BSettings:
         self.nibbles_per_word = ceil(phy_settings.np//4)
         self.octets_per_frame = self.samples_per_frame*self.nibbles_per_word//2
         self.octets_per_lane = self.octets_per_frame*self.nconverters//self.nlanes
+        assert self.octets_per_lane > 0
 
     def get_configuration_data(self, lid=0):
         cd = JESD204BConfigurationData()

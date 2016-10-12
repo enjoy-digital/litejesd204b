@@ -8,7 +8,8 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
 
-from litejesd204b.transport import LiteJESD204BTransportTX
+from litejesd204b.transport import (LiteJESD204BTransportTX,
+                                    LiteJESD204BSTPLGenerator)
 from litejesd204b.link import LiteJESD204BLinkTX
 
 
@@ -19,6 +20,10 @@ class LiteJESD204BCoreTX(Module):
         self.ready = Signal()
 
         self.prbs_config = Signal(4)
+        self.stpl_enable = Signal()
+
+        self.sink = Record([("converter"+str(i), converter_data_width)
+            for i in range(jesd_settings.nconverters)])
 
         # # #
 
@@ -34,6 +39,19 @@ class LiteJESD204BCoreTX(Module):
                                             converter_data_width)
         transport = ClockDomainsRenamer("jesd_tx_core")(transport)
         self.submodules.transport = transport
+
+        # stpl
+        stpl_enable = Signal()
+        stpl = LiteJESD204BSTPLGenerator(jesd_settings,
+                                         converter_data_width)
+        self.submodules += stpl
+        self.specials += MultiReg(self.stpl_enable, stpl_enable, "jesd_tx_core")
+        self.comb += \
+            If(stpl_enable,
+                transport.sink.eq(stpl.source)
+            ).Else(
+                transport.sink.eq(self.sink)
+            )
 
         # buffers
         self.bufs = bufs = []
@@ -84,11 +102,14 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         self.ready = CSRStatus()
 
         self.prbs_config = CSRStorage(4)
+        self.stpl_enable = CSRStorage()
 
         # # #
 
         self.comb += [
             core.enable.eq(self.enable.storage),
             core.prbs_config.eq(self.prbs_config.storage),
+            core.stpl_enable.eq(self.stpl_enable.storage),
+
             self.ready.status.eq(core.ready)
         ]
