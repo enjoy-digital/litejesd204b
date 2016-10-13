@@ -3,7 +3,6 @@ from operator import and_
 
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg
-from litex.gen.genlib.fifo import AsyncFIFO
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
@@ -11,6 +10,36 @@ from litex.soc.interconnect.csr import *
 from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BSTPLGenerator)
 from litejesd204b.link import LiteJESD204BLinkTX
+
+
+class ElasticBuffer(Module):
+    def __init__(self, data_width, depth, initial_delay=0):
+        self.din = Signal(data_width)
+        self.dout = Signal(data_width)
+
+        # # #
+
+        wrpointer = Signal(max=depth, reset=initial_delay)
+        rdpointer = Signal(max=depth)
+
+        storage = Memory(data_width, depth)
+        self.specials += storage
+
+        wrport = storage.get_port(write_capable=True, clock_domain="write")
+        rdport = storage.get_port(clock_domain="read")
+        self.specials += wrport, rdport
+
+        self.sync.write += wrpointer.eq(wrpointer + 1)
+        self.sync.read += rdpointer.eq(rdpointer + 1)
+
+        self.comb += [
+            wrport.we.eq(1),
+            wrport.adr.eq(wrpointer),
+            wrport.dat_w.eq(self.din),
+
+            rdport.adr.eq(rdpointer),
+            self.dout.eq(rdport.dat_r)
+        ]
 
 
 class LiteJESD204BCoreTX(Module):
@@ -32,12 +61,14 @@ class LiteJESD204BCoreTX(Module):
         # clocking
         # phys
         for n, phy in enumerate(phys):
-            cd_phy = ClockDomain("phy"+str(n))
+            self.clock_domains.cd_phy = ClockDomain("phy"+str(n))
             self.comb += [
-                cd_phy.clk.eq(phy.gtx.cd_tx.clk),
-                cd_phy.rst.eq(phy.gtx.cd_tx.rst)
+                self.cd_phy.clk.eq(phy.gtx.cd_tx.clk),
+                self.cd_phy.rst.eq(phy.gtx.cd_tx.rst)
             ]
-            self.clock_domains += cd_phy
+            self.clock_domains.cd_ebuf = ClockDomain("ebuf"+str(n))
+            self.comb += self.cd_ebuf.clk.eq(self.cd_phy.clk)
+            self.specials += AsyncResetSynchronizer(self.cd_ebuf, ~ready)
         # user
         self.clock_domains.cd_user = ClockDomain()
         self.comb += self.cd_user.clk.eq(ClockSignal("phy0"))
@@ -67,9 +98,9 @@ class LiteJESD204BCoreTX(Module):
         # buffers
         self.bufs = bufs = []
         for n, phy in enumerate(phys):
-            buf = AsyncFIFO(len(phy.data), 8) # FIXME use elastic buffers
+            buf = ElasticBuffer(len(phy.data), 8, 4)
             buf = ClockDomainsRenamer(
-                {"write": "user", "read": "phy"+str(n)})(buf)
+                {"write": "user", "read": "ebuf"+str(n)})(buf)
             bufs.append(buf)
             self.submodules += buf
 
@@ -86,9 +117,7 @@ class LiteJESD204BCoreTX(Module):
         # connect modules together
         for n, (link, buf) in enumerate(zip(links, bufs)):
             self.comb += [
-                buf.we.eq(1),
                 buf.din.eq(getattr(transport.source, "lane"+str(n))),
-                buf.re.eq(1),
                 link.sink.data.eq(buf.dout),
                 phys[n].data.eq(link.source.data),
                 phys[n].ctrl.eq(link.source.ctrl)
