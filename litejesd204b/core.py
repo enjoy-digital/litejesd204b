@@ -13,13 +13,26 @@ from litejesd204b.link import LiteJESD204BLinkTX
 
 
 class ElasticBuffer(Module):
-    def __init__(self, data_width, depth, initial_delay=0):
+    def __init__(self, data_width, depth, idomain, odomain):
+        self.reset = Signal()
         self.din = Signal(data_width)
         self.dout = Signal(data_width)
 
         # # #
 
-        wrpointer = Signal(max=depth, reset=initial_delay)
+        cd_write = ClockDomain()
+        cd_read = ClockDomain()
+        self.comb += [
+            cd_write.clk.eq(ClockSignal(idomain)),
+            cd_read.clk.eq(ClockSignal(odomain))
+        ]
+        self.specials += [
+            AsyncResetSynchronizer(cd_write, self.reset),
+            AsyncResetSynchronizer(cd_read, self.reset)
+        ]
+        self.clock_domains += cd_write, cd_read
+
+        wrpointer = Signal(max=depth, reset=depth//2)
         rdpointer = Signal(max=depth)
 
         storage = Memory(data_width, depth)
@@ -66,9 +79,6 @@ class LiteJESD204BCoreTX(Module):
                 self.cd_phy.clk.eq(phy.gtx.cd_tx.clk),
                 self.cd_phy.rst.eq(phy.gtx.cd_tx.rst)
             ]
-            self.clock_domains.cd_ebuf = ClockDomain("ebuf"+str(n))
-            self.comb += self.cd_ebuf.clk.eq(self.cd_phy.clk)
-            self.specials += AsyncResetSynchronizer(self.cd_ebuf, ~ready)
         # user
         self.clock_domains.cd_user = ClockDomain()
         self.comb += self.cd_user.clk.eq(ClockSignal("phy0"))
@@ -96,13 +106,12 @@ class LiteJESD204BCoreTX(Module):
             )
 
         # buffers
-        self.bufs = bufs = []
+        self.ebufs = ebufs = []
         for n, phy in enumerate(phys):
-            buf = ElasticBuffer(len(phy.data), 8, 4)
-            buf = ClockDomainsRenamer(
-                {"write": "user", "read": "ebuf"+str(n)})(buf)
-            bufs.append(buf)
-            self.submodules += buf
+            ebuf = ElasticBuffer(len(phy.data), 8, "user", "phy"+str(n))
+            self.comb += ebuf.reset.eq(~ready)
+            ebufs.append(ebuf)
+            setattr(self.submodules, "ebuf"+str(n), ebuf)
 
         # link layer
         self.links = links = []
@@ -115,10 +124,10 @@ class LiteJESD204BCoreTX(Module):
         self.comb += ready.eq(reduce(or_, [link.ready for link in links]))
 
         # connect modules together
-        for n, (link, buf) in enumerate(zip(links, bufs)):
+        for n, (link, ebuf) in enumerate(zip(links, ebufs)):
             self.comb += [
-                buf.din.eq(getattr(transport.source, "lane"+str(n))),
-                link.sink.data.eq(buf.dout),
+                ebuf.din.eq(getattr(transport.source, "lane"+str(n))),
+                link.sink.data.eq(ebuf.dout),
                 phys[n].data.eq(link.source.data),
                 phys[n].ctrl.eq(link.source.ctrl)
             ]
