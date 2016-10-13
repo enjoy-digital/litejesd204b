@@ -8,38 +8,86 @@
 
     A small footprint and configurable JESD204B core
 
-              ********************
-              * WORK IN PROGRESS *
-              ********************
 
 [> Intro
----------
+--------
 LiteJESD204B provides a small footprint and configurable JESD204B core.
-TODO
+
+LiteJESD204B is part of LiteX libraries whose aims are to lower entry level of
+complex FPGA cores by providing simple, elegant and efficient implementations
+ofcomponents used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
+
+Since Python is used to describe the HDL, the core is highly and easily
+configurable.
+
+LiteJESD204B is built using LiteX and uses technologies developed in partnership
+with M-Labs Ltd:
+ - Migen enables generating HDL with Python in an efficient way.
+ - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
+
+LiteJESD204B can be used as LiteX library or can be integrated with your standard
+design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
-TODO
+PHY:
+ - PRBS7/PRBS15/PRBS31 to check link integrity.
+ - 8B/10B encoding
+ - 32 bits interface
+ - Kintex7 support (CPLL up to 5Gbps, QPLL for higher linerates)
+Core:
+ Link:
+  - Scrambling to reduce EMI
+  - Special characters insertion
+  - CGS/ILAS
+ Transport:
+  - converters <--> lanes mapping
 
 [> Possible improvements
--------------------------
-TODO
+------------------------
+- add support for RX (ADC)
+- add support for non scrambled mode
+- add support for Altera PHYs
+- add support for Lattice PHYs
+- add support for Xilinx 7-Series/Ultrascale GTP/GTH (currently only 7-Series
+  GTX are supported)
+
+If you want to support these features, please contact us at florent [AT]
+enjoy-digital.fr. You can also contact our partner on the public mailing list
+devel [AT] lists.m-labs.hk.
 
 [> Getting started
 ------------------
-TODO
+1. Install Python3 and your vendor's software
 
-[> Simulations
---------------
-TODO
+2. Obtain LiteX and install it:
+  git clone https://github.com/enjoy-digital/litex --recursive
+  cd litex
+  python3 setup.py install
+  cd ..
+
+3. TODO
 
 [> Tests
 --------
-TODO
+Unit tests are available in ./test/.
+To run all the unit tests:
+  setup.py test
+Tests can also be run individually:
+  python3 -m unittest test.test_name
 
 [> License
 ----------
-TODO
+We love open-source hardware and like sharing our designs with others.
+
+LiteJESD204B is developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteJESD204B or if you are already a happy user
+and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
 
 [> Contact
 E-mail: florent [AT] enjoy-digital.fr
