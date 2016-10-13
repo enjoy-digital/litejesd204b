@@ -11,6 +11,12 @@ class GTXInit(Module):
         self.done = Signal()
         self.restart = Signal()
 
+        # FIXME: at high linerates (10Gbps for example)
+        # it seems Xxphaligndone is never asserted,
+        # use bypass_phalign as a workaround
+        # for now...
+        self.bypass_phalign = Signal()
+
         # GTX signals
         self.plllock = Signal()
         self.gtXxreset = Signal()
@@ -105,7 +111,14 @@ class GTXInit(Module):
         startup_fsm.act("WAIT_ALIGN",
             Xxuserrdy.eq(1),
             Xxdlysreset.eq(1),
-            If(Xxdlysresetdone, NextState("WAIT_FIRST_ALIGN_DONE"))
+            If(Xxdlysresetdone,
+                # FIXME
+                If(self.bypass_phalign,
+                    NextState("READY")
+                ).Else(
+                    NextState("WAIT_FIRST_ALIGN_DONE")
+                )
+            )
         )
         # Wait 2 rising edges of Xxphaligndone
         # (from UG476 in buffer bypass config)
