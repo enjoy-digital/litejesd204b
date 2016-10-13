@@ -5,7 +5,7 @@ from litejesd204b.phy.gtx import GTXTransmitter
 
 
 class LiteJESD204BPhyTX(Module):
-    def __init__(self, pll, tx_pads, sys_clk_freq, n=0):
+    def __init__(self, pll, tx_pads, sys_clk_freq):
         self.data = Signal(32)
         self.ctrl = Signal(32//8)
 
@@ -15,8 +15,7 @@ class LiteJESD204BPhyTX(Module):
         self.submodules.gtx = GTXTransmitter(
                 pll=pll,
                 tx_pads=tx_pads,
-                sys_clk_freq=sys_clk_freq,
-                cd_name="jesd_tx_phy"+str(n))
+                sys_clk_freq=sys_clk_freq)
 
         for i in range(32//8):
             self.comb += [

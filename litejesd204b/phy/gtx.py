@@ -125,7 +125,7 @@ class GTXQuadPLL(Module):
 
 
 class GTXTransmitter(Module):
-    def __init__(self, pll, tx_pads, sys_clk_freq, cd_name):
+    def __init__(self, pll, tx_pads, sys_clk_freq):
         self.prbs_config = Signal(4)
         self.produce_square_wave = Signal()
 
@@ -204,8 +204,8 @@ class GTXTransmitter(Module):
                 i_TXCHARDISPMODE=Cat(*[txdata[10*i+9] for i in range(nwords)]),
                 i_TXCHARDISPVAL=Cat(*[txdata[10*i+8] for i in range(nwords)]),
                 i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
-                i_TXUSRCLK=ClockSignal(cd_name),
-                i_TXUSRCLK2=ClockSignal(cd_name),
+                i_TXUSRCLK=ClockSignal("tx"),
+                i_TXUSRCLK2=ClockSignal("tx"),
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
@@ -216,13 +216,13 @@ class GTXTransmitter(Module):
                 o_GTXTXN=tx_pads.txn
             )
 
-        self.clock_domains.cd_tx = ClockDomain(cd_name)
+        self.clock_domains.cd_tx = ClockDomain()
         self.specials += Instance("BUFG",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.gtx_init.done)
 
-        self.submodules.encoder = ClockDomainsRenamer(cd_name)(Encoder(nwords, True))
+        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.comb += \
             If(self.produce_square_wave,
                 # square wave @ linerate/40 for scope observation

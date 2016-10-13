@@ -29,15 +29,24 @@ class LiteJESD204BCoreTX(Module):
 
         ready = Signal()
 
-        # clocking (use clock from first phy for core clock)
-        self.clock_domains.cd_tx = ClockDomain("jesd_tx_core")
-        self.comb += self.cd_tx.clk.eq(phys[0].gtx.cd_tx.clk)
-        self.specials += AsyncResetSynchronizer(self.cd_tx, ~ready)
+        # clocking
+        # phys
+        for n, phy in enumerate(phys):
+            cd_phy = ClockDomain("phy"+str(n))
+            self.comb += [
+                cd_phy.clk.eq(phy.gtx.cd_tx.clk),
+                cd_phy.rst.eq(phy.gtx.cd_tx.rst)
+            ]
+            self.clock_domains += cd_phy
+        # user
+        self.clock_domains.cd_user = ClockDomain()
+        self.comb += self.cd_user.clk.eq(ClockSignal("phy0"))
+        self.specials += AsyncResetSynchronizer(self.cd_user, ~ready)
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings,
                                             converter_data_width)
-        transport = ClockDomainsRenamer("jesd_tx_core")(transport)
+        transport = ClockDomainsRenamer("user")(transport)
         self.submodules.transport = transport
 
         # stpl
@@ -47,7 +56,7 @@ class LiteJESD204BCoreTX(Module):
         self.submodules += stpl
         self.specials += MultiReg(self.stpl_enable,
                                   stpl_enable,
-                                  "jesd_tx_core")
+                                  "user")
         self.comb += \
             If(stpl_enable,
                 transport.sink.eq(stpl.source)
@@ -57,10 +66,10 @@ class LiteJESD204BCoreTX(Module):
 
         # buffers
         self.bufs = bufs = []
-        for phy in phys:
+        for n, phy in enumerate(phys):
             buf = AsyncFIFO(len(phy.data), 8) # FIXME use elastic buffers
             buf = ClockDomainsRenamer(
-                {"write": "jesd_tx_core", "read": phy.gtx.cd_tx.name})(buf)
+                {"write": "user", "read": "phy"+str(n)})(buf)
             bufs.append(buf)
             self.submodules += buf
 
@@ -68,7 +77,7 @@ class LiteJESD204BCoreTX(Module):
         self.links = links = []
         for n, phy in enumerate(phys):
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
-            link = ClockDomainsRenamer(phy.gtx.cd_tx.name)(link)
+            link = ClockDomainsRenamer("phy"+str(n))(link)
             links.append(link)
             self.comb += link.start.eq(self.start)
             self.submodules += link
@@ -86,12 +95,12 @@ class LiteJESD204BCoreTX(Module):
             ]
 
         # control
-        for phy in phys:
+        for n, phy in enumerate(phys):
             self.comb += phy.gtx.gtx_init.restart.eq(~self.enable)
             self.specials += MultiReg(self.prbs_config,
                                       phy.gtx.prbs_config,
-                                      phy.gtx.cd_tx.name)
-        self.specials +=  MultiReg(~self.cd_tx.rst, self.ready)
+                                      "phy"+str(n))
+        self.specials +=  MultiReg(~self.cd_user.rst, self.ready)
 
 
 class LiteJESD204BCoreTXControl(Module, AutoCSR):
