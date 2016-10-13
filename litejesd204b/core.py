@@ -2,7 +2,7 @@ from functools import reduce
 from operator import and_
 
 from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg
+from litex.gen.genlib.cdc import MultiReg, ElasticBuffer
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
@@ -10,49 +10,6 @@ from litex.soc.interconnect.csr import *
 from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BSTPLGenerator)
 from litejesd204b.link import LiteJESD204BLinkTX
-
-
-class ElasticBuffer(Module):
-    def __init__(self, data_width, depth, idomain, odomain):
-        self.reset = Signal()
-        self.din = Signal(data_width)
-        self.dout = Signal(data_width)
-
-        # # #
-
-        cd_write = ClockDomain()
-        cd_read = ClockDomain()
-        self.comb += [
-            cd_write.clk.eq(ClockSignal(idomain)),
-            cd_read.clk.eq(ClockSignal(odomain))
-        ]
-        self.specials += [
-            AsyncResetSynchronizer(cd_write, self.reset),
-            AsyncResetSynchronizer(cd_read, self.reset)
-        ]
-        self.clock_domains += cd_write, cd_read
-
-        wrpointer = Signal(max=depth, reset=depth//2)
-        rdpointer = Signal(max=depth)
-
-        storage = Memory(data_width, depth)
-        self.specials += storage
-
-        wrport = storage.get_port(write_capable=True, clock_domain="write")
-        rdport = storage.get_port(clock_domain="read")
-        self.specials += wrport, rdport
-
-        self.sync.write += wrpointer.eq(wrpointer + 1)
-        self.sync.read += rdpointer.eq(rdpointer + 1)
-
-        self.comb += [
-            wrport.we.eq(1),
-            wrport.adr.eq(wrpointer),
-            wrport.dat_w.eq(self.din),
-
-            rdport.adr.eq(rdpointer),
-            self.dout.eq(rdport.dat_r)
-        ]
 
 
 class LiteJESD204BCoreTX(Module):
