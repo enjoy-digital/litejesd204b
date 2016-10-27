@@ -15,6 +15,7 @@ class GTXChannelPLL(Module):
 
     def __init__(self, refclk, refclk_freq, linerate):
         self.refclk = refclk
+        self.reset = Signal()
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
 
@@ -135,7 +136,10 @@ class GTXTransmitter(Module):
         use_qpll = isinstance(pll, GTXQuadPLL)
 
         self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
-        self.comb += self.gtx_init.plllock.eq(pll.lock)
+        self.comb += [
+            self.gtx_init.plllock.eq(pll.lock),
+            pll.reset.eq(self.gtx_init.pllreset)
+        ]
 
         nwords = 40//10
 
@@ -166,6 +170,7 @@ class GTXTransmitter(Module):
                 p_CPLL_REFCLK_DIV=1 if use_qpll else pll.config["m"],
                 p_RXOUT_DIV=pll.config["d"],
                 p_TXOUT_DIV=pll.config["d"],
+                i_CPLLRESET=Signal() if use_qpll else pll.reset,
                 o_CPLLLOCK=Signal() if use_qpll else pll.lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,

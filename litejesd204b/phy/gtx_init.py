@@ -13,6 +13,7 @@ class GTXInit(Module):
 
         # GTX signals
         self.plllock = Signal()
+        self.pllreset = Signal()
         self.gtXxreset = Signal()
         self.Xxresetdone = Signal()
         self.Xxdlysreset = Signal()
@@ -50,7 +51,7 @@ class GTXInit(Module):
         startup_timer = WaitTimer(startup_cycles)
         self.submodules += startup_timer
 
-        startup_fsm = ResetInserter()(FSM(reset_state="INITIAL"))
+        startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
         self.submodules += startup_fsm
 
         ready_timer = WaitTimer(1*sys_clk_freq//1000)
@@ -69,29 +70,28 @@ class GTXInit(Module):
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
-        startup_fsm.act("INITIAL",
+        startup_fsm.act("RESET_ALL",
+            gtXxreset.eq(1),
+            self.pllreset.eq(1),
             startup_timer.wait.eq(1),
-            If(startup_timer.done, NextState("RESET_GTX"))
+            NextState("RELEASE_PLL_RESET")
         )
-        startup_fsm.act("RESET_GTX",
+        startup_fsm.act("RELEASE_PLL_RESET",
             gtXxreset.eq(1),
-            NextState("WAIT_PLL")
-        )
-        startup_fsm.act("WAIT_PLL",
-            gtXxreset.eq(1),
-            If(plllock, NextState("RELEASE_RESET"))
+            startup_timer.wait.eq(1),
+            If(plllock & startup_timer.done, NextState("RELEASE_GTX_RESET"))
         )
         # Release GTX reset and wait for GTX resetdone
         # (from UG476, GTX is reset on falling edge
         # of gtXxreset)
         if rx:
-            startup_fsm.act("RELEASE_RESET",
+            startup_fsm.act("RELEASE_GTX_RESET",
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
                 If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
             )
         else:
-            startup_fsm.act("RELEASE_RESET",
+            startup_fsm.act("RELEASE_GTX_RESET",
                 Xxuserrdy.eq(1),
                 If(Xxresetdone, NextState("ALIGN"))
             )
@@ -104,7 +104,6 @@ class GTXInit(Module):
         # Wait for delay alignment
         startup_fsm.act("WAIT_ALIGN",
             Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
             If(Xxdlysresetdone,
                 NextState("WAIT_FIRST_ALIGN_DONE")
             )
@@ -113,12 +112,10 @@ class GTXInit(Module):
         # (from UG476 in buffer bypass config)
         startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
         )
         startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
             Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
             If(Xxphaligndone_rising, NextState("READY"))
         )
         startup_fsm.act("READY",
