@@ -222,7 +222,7 @@ class GTXTransmitter(Module):
             )
 
         self.clock_domains.cd_tx = ClockDomain()
-        self.specials += Instance("BUFG",
+        self.specials += Instance("BUFH",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.gtx_init.done)
