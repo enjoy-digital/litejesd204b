@@ -34,8 +34,11 @@ class LiteJESD204BCoreTX(Module):
         stpl = LiteJESD204BSTPLGenerator(jesd_settings,
                                          converter_data_width)
         self.submodules += stpl
+        stpl_enable = Signal()
+        self.specials += \
+            MultiReg(self.stpl_enable, stpl_enable)
         self.comb += \
-            If(self.stpl_enable,
+            If(stpl_enable,
                 transport.sink.eq(stpl.source)
             ).Else(
                 transport.sink.eq(self.sink)
