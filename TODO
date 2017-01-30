@@ -1,3 +1,15 @@
-- fix transceiver initialization for high linerates.
+Global:
 - (later) add deterministic latency.
 - (optional) test PRBS generators and use them (we are currently using PRBS generators from the transceivers).
+
+Kintex 7:
+- fix transceiver initialization for high linerates.
+
+Kintex Ultrascale:
+- finish GTHQuadPLL
+- finish transceiver
+- add transceiver init
+- test init & square pattern in simulation
+- test init & square pattern on board
+- test jesd204b example design
+ 
