@@ -66,11 +66,11 @@ class GTHQuadPLL(Module):
         # - simulate (instance is minimal, do we need others ports/attributes?)
         self.specials += \
             Instance("GTHE3_COMMON",
-            	# common
-            	p_TXOUT_DIV=self.config["d"],
-            	i_GTGREFCLK0=refclk,
+                # common
+                p_TXOUT_DIV=self.config["d"],
+                i_GTGREFCLK0=refclk,
 
-				# qpll0
+                # qpll0
                 p_QPLL0_FBDIV=self.config["n"],
                 p_QPLL0_REFCLK_DIV=self.config["m"],
                 #o_QPLLDMONITOR0=,
@@ -83,14 +83,14 @@ class GTHQuadPLL(Module):
                 i_QPLL0LOCKEN=1,
                 o_QPLL0OUTCLK=self.clk if self.config["qpll"] == "qpll0" else
                               Signal(),
- 				o_QPLL0OUTREFCLK=self.refclk if self.config["qpll"] == "qpll0" else
-				                 Signal(),
-				i_QPLL0PD=0,
-				#o_QPLL0REFCLKLOST=,
-				i_QPLL0REFCLKSEL=0b001,
-				i_QPLL0RESET=self.reset,
+                 o_QPLL0OUTREFCLK=self.refclk if self.config["qpll"] == "qpll0" else
+                                 Signal(),
+                i_QPLL0PD=0,
+                #o_QPLL0REFCLKLOST=,
+                i_QPLL0REFCLKSEL=0b001,
+                i_QPLL0RESET=self.reset,
 
-				# qpll1
+                # qpll1
                 p_QPLL1_FBDIV=self.config["n"],
                 p_QPLL1_REFCLK_DIV=self.config["m"],
                 #o_QPLLDMONITOR1=,
@@ -103,13 +103,13 @@ class GTHQuadPLL(Module):
                 i_QPLL1LOCKEN=1,
                 o_QPLL1OUTCLK=self.clk if self.config["qpll"] == "qpll1" else
                               Signal(),
- 				o_QPLL1OUTREFCLK=self.refclk if self.config["qpll"] == "qpll1" else
-				                 Signal(),
-				i_QPLL1PD=0,
-				#o_QPLL1REFCLKLOST=,
-				i_QPLL1REFCLKSEL=0b001,
-				i_QPLL1RESET=self.reset,
-     		)
+                 o_QPLL1OUTREFCLK=self.refclk if self.config["qpll"] == "qpll1" else
+                                 Signal(),
+                i_QPLL1PD=0,
+                #o_QPLL1REFCLKLOST=,
+                i_QPLL1REFCLKSEL=0b001,
+                i_QPLL1RESET=self.reset,
+             )
 
     @staticmethod
     def compute_vco_freq(refclk_freq, n, m):
