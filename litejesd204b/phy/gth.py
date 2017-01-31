@@ -1,6 +1,7 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
+from litejesd204b.phy.gth_init import GTHInit
 from litejesd204b.phy.line_coding import Encoder
 
 
