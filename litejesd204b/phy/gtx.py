@@ -170,16 +170,16 @@ class GTXTransmitter(Module):
                 p_CPLL_REFCLK_DIV=1 if use_qpll else pll.config["m"],
                 p_RXOUT_DIV=pll.config["d"],
                 p_TXOUT_DIV=pll.config["d"],
-                i_CPLLRESET=Signal() if use_qpll else pll.reset,
+                i_CPLLRESET=0 if use_qpll else pll.reset,
                 o_CPLLLOCK=Signal() if use_qpll else pll.lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
                 i_TSTIN=2**20-1,
-                i_GTREFCLK0=Signal() if use_qpll else pll.refclk,
+                i_GTREFCLK0=0 if use_qpll else pll.refclk,
 
                 # QPLL
-                i_QPLLCLK=Signal() if use_cpll else pll.clk,
-                i_QPLLREFCLK=Signal() if use_cpll else pll.refclk,
+                i_QPLLCLK=0 if use_cpll else pll.clk,
+                i_QPLLREFCLK=0 if use_cpll else pll.refclk,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",
