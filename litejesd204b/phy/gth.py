@@ -136,3 +136,115 @@ class GTHQuadPLL(Module):
                             return {"n": n, "m": m, "d": d, "qpll": qpll}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+
+class GTHTransmitter(Module):
+    def __init__(self, pll, tx_pads, sys_clk_freq):
+        self.prbs_config = Signal(4)
+        self.produce_square_wave = Signal()
+
+        # # #
+
+        use_cpll = isinstance(pll, GTHChannelPLL)
+        use_qpll0 = isinstance(pll, GTHQuadPLL) and pll.config["qpll"] == "qpll0"
+        use_qpll1 = isinstance(pll, GTHQuadPLL) and pll.config["qpll"] == "qpll1"
+
+        self.submodules.gth_init = GTHInit(sys_clk_freq, False)
+        self.comb += [
+            self.gth_init.plllock.eq(pll.lock),
+            pll.reset.eq(self.gth_init.pllreset)
+        ]
+
+        nwords = 40//10
+
+        txoutclk = Signal()
+        txdata = Signal(40)
+        self.specials += \
+            Instance("GTHE3_CHANNEL",
+                # PMA Attributes
+                p_PMA_RSV1=0xf800,
+                p_RX_BIAS_CFG0=0x0AB4,
+                p_RX_CM_TRIM=0b1010,
+                p_RX_CLK25_DIV=5,
+                p_TX_CLK25_DIV=5,
+
+                # Power-Down Attributes
+                p_PD_TRANS_TIME_FROM_P2=0x3c,
+                p_PD_TRANS_TIME_NONE_P2=0x19,
+                p_PD_TRANS_TIME_TO_P2=0x64,
+
+                # CPLL
+                p_CPLL_CFG0=0x67f8,
+                p_CPLL_CFG1=0xa4ac,
+                p_CPLL_CFG2=0xf007,
+                p_CPLL_CFG3=0x0000,
+                p_CPLL_FBDIV=1 if (use_qpll0 | use_qpll1) else pll.config["n2"],
+                p_CPLL_FBDIV_45=4 if (use_qpll0 | use_qpll1) else pll.config["n1"],
+                p_CPLL_REFCLK_DIV=1 if (use_qpll0 | use_qpll1) else pll.config["m"],
+                p_RXOUT_DIV=pll.config["d"],
+                p_TXOUT_DIV=pll.config["d"],
+                i_CPLLRESET=0 if (use_qpll0 | use_qpll1) else pll.reset,
+                o_CPLLLOCK=Signal() if (use_qpll0 | use_qpll1) else pll.lock,
+                i_CPLLLOCKEN=1,
+                i_CPLLREFCLKSEL=0b001,
+                i_TSTIN=2**20-1,
+                i_GTREFCLK0=0 if (use_qpll0 | use_qpll1) else pll.refclk,
+
+                # QPLL
+                i_QPLL0CLK=0 if (use_cpll | use_qpll1) else pll.clk,
+                i_QPLL0REFCLK=0 if (use_cpll | use_qpll1) else pll.refclk,
+                i_QPLL1CLK=0 if (use_cpll | use_qpll0) else pll.clk,
+                i_QPLL1REFCLK=0 if (use_cpll | use_qpll0) else pll.refclk,
+
+                # TX clock
+                p_TXBUF_EN="FALSE",
+                p_TX_XCLK_SEL="TXUSR",
+                o_TXOUTCLK=txoutclk,
+                i_TXSYSCLKSEL=0b00 if use_cpll else 0b01 if use_qpll0 else 0b11,
+                i_TXOUTCLKSEL=0b11,
+
+                # disable RX
+                i_RXPD=0b11,
+
+                # Startup/Reset
+                i_GTTXRESET=self.gth_init.gtXxreset,
+                o_TXRESETDONE=self.gth_init.Xxresetdone,
+                i_TXDLYSRESET=self.gth_init.Xxdlysreset,
+                o_TXDLYSRESETDONE=self.gth_init.Xxdlysresetdone,
+                o_TXPHALIGNDONE=self.gth_init.Xxphaligndone,
+                i_TXUSERRDY=self.gth_init.Xxuserrdy,
+
+                # PRBS
+                i_TXPRBSSEL=self.prbs_config[0:3],
+                i_TXPRBSFORCEERR=self.prbs_config[3],
+
+                # TX data
+                p_TX_DATA_WIDTH=40,
+                p_TX_INT_DATAWIDTH=1,
+                i_TXDATA=txdata,
+                i_TXUSRCLK=ClockSignal("tx"),
+                i_TXUSRCLK2=ClockSignal("tx"),
+
+                # TX electrical
+                i_TXBUFDIFFCTRL=0b100,
+                i_TXDIFFCTRL=0b1000,
+
+                # Pads
+                o_GTHTXP=tx_pads.txp,
+                o_GTHTXN=tx_pads.txn
+            )
+
+        self.clock_domains.cd_tx = ClockDomain()
+        self.specials += Instance("BUFH",
+            i_I=txoutclk, o_O=self.cd_tx.clk)
+        self.specials += AsyncResetSynchronizer(
+            self.cd_tx, ~self.gth_init.done)
+
+        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
+        self.comb += \
+            If(self.produce_square_wave,
+                # square wave @ linerate/40 for scope observation
+                txdata.eq(0b1111111111111111111100000000000000000000)
+            ).Else(
+                txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
+            )
