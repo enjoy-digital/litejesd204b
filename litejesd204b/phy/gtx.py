@@ -113,7 +113,7 @@ class GTXQuadPLL(Module):
                 vco_band = None
                 if (vco_freq >= cls.min_vco_freq_lower_band and
                     vco_freq <= cls.max_vco_freq_lower_band):
-                    band = "lower"
+                    vco_band = "lower"
                 if (vco_freq >= cls.min_vco_freq_higher_band and
                     vco_freq <= cls.max_vco_freq_higher_band):
                     vco_band = "higher"
