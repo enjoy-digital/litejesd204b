@@ -222,7 +222,9 @@ class GTHTransmitter(Module):
                 # TX data
                 p_TX_DATA_WIDTH=40,
                 p_TX_INT_DATAWIDTH=1,
-                i_TXDATA=txdata,
+                i_TXCTRL0=Cat(*[txdata[10*i+8] for i in range(nwords)]),
+                i_TXCTRL1=Cat(*[txdata[10*i+9] for i in range(nwords)]),
+                i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
                 i_TXUSRCLK=ClockSignal("tx"),
                 i_TXUSRCLK2=ClockSignal("tx"),
 
