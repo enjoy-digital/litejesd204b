@@ -236,7 +236,7 @@ class GTHTransmitter(Module):
             )
 
         self.clock_domains.cd_tx = ClockDomain()
-        self.specials += Instance("BUFH",
+        self.specials += Instance("BUFG_GT",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
             self.cd_tx, ~self.init.done)
