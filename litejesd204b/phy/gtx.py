@@ -135,10 +135,10 @@ class GTXTransmitter(Module):
         use_cpll = isinstance(pll, GTXChannelPLL)
         use_qpll = isinstance(pll, GTXQuadPLL)
 
-        self.submodules.gtx_init = GTXInit(sys_clk_freq, False)
+        self.submodules.init = GTXInit(sys_clk_freq, False)
         self.comb += [
-            self.gtx_init.plllock.eq(pll.lock),
-            pll.reset.eq(self.gtx_init.pllreset)
+            self.init.plllock.eq(pll.lock),
+            pll.reset.eq(self.init.pllreset)
         ]
 
         nwords = 40//10
@@ -192,12 +192,12 @@ class GTXTransmitter(Module):
                 i_RXPD=0b11,
 
                 # Startup/Reset
-                i_GTTXRESET=self.gtx_init.gtXxreset,
-                o_TXRESETDONE=self.gtx_init.Xxresetdone,
-                i_TXDLYSRESET=self.gtx_init.Xxdlysreset,
-                o_TXDLYSRESETDONE=self.gtx_init.Xxdlysresetdone,
-                o_TXPHALIGNDONE=self.gtx_init.Xxphaligndone,
-                i_TXUSERRDY=self.gtx_init.Xxuserrdy,
+                i_GTTXRESET=self.init.gtXxreset,
+                o_TXRESETDONE=self.init.Xxresetdone,
+                i_TXDLYSRESET=self.init.Xxdlysreset,
+                o_TXDLYSRESETDONE=self.init.Xxdlysresetdone,
+                o_TXPHALIGNDONE=self.init.Xxphaligndone,
+                i_TXUSERRDY=self.init.Xxuserrdy,
 
                 # PRBS
                 i_TXPRBSSEL=self.prbs_config[0:3],
@@ -225,7 +225,7 @@ class GTXTransmitter(Module):
         self.specials += Instance("BUFH",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
-            self.cd_tx, ~self.gtx_init.done)
+            self.cd_tx, ~self.init.done)
 
         self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.comb += \

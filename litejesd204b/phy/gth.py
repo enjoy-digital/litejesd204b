@@ -150,10 +150,10 @@ class GTHTransmitter(Module):
         use_qpll0 = isinstance(pll, GTHQuadPLL) and pll.config["qpll"] == "qpll0"
         use_qpll1 = isinstance(pll, GTHQuadPLL) and pll.config["qpll"] == "qpll1"
 
-        self.submodules.gth_init = GTHInit(sys_clk_freq, False)
+        self.submodules.init = GTHInit(sys_clk_freq, False)
         self.comb += [
-            self.gth_init.plllock.eq(pll.lock),
-            pll.reset.eq(self.gth_init.pllreset)
+            self.init.plllock.eq(pll.lock),
+            pll.reset.eq(self.init.pllreset)
         ]
 
         nwords = 40//10
@@ -208,12 +208,12 @@ class GTHTransmitter(Module):
                 i_RXPD=0b11,
 
                 # Startup/Reset
-                i_GTTXRESET=self.gth_init.gtXxreset,
-                o_TXRESETDONE=self.gth_init.Xxresetdone,
-                i_TXDLYSRESET=self.gth_init.Xxdlysreset,
-                o_TXDLYSRESETDONE=self.gth_init.Xxdlysresetdone,
-                o_TXPHALIGNDONE=self.gth_init.Xxphaligndone,
-                i_TXUSERRDY=self.gth_init.Xxuserrdy,
+                i_GTTXRESET=self.init.gtXxreset,
+                o_TXRESETDONE=self.init.Xxresetdone,
+                i_TXDLYSRESET=self.init.Xxdlysreset,
+                o_TXDLYSRESETDONE=self.init.Xxdlysresetdone,
+                o_TXPHALIGNDONE=self.init.Xxphaligndone,
+                i_TXUSERRDY=self.init.Xxuserrdy,
 
                 # PRBS
                 i_TXPRBSSEL=self.prbs_config[0:3],
@@ -239,7 +239,7 @@ class GTHTransmitter(Module):
         self.specials += Instance("BUFH",
             i_I=txoutclk, o_O=self.cd_tx.clk)
         self.specials += AsyncResetSynchronizer(
-            self.cd_tx, ~self.gth_init.done)
+            self.cd_tx, ~self.init.done)
 
         self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.comb += \

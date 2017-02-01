@@ -70,9 +70,9 @@ class LiteJESD204BCoreTX(Module):
             ]
 
             # connect control
-            self.comb += phy.gtx.gtx_init.restart.eq(~self.enable)
+            self.comb += phy.transmitter.init.restart.eq(~self.enable)
             self.specials += MultiReg(self.prbs_config,
-                                      phy.gtx.prbs_config,
+                                      phy.transmitter.prbs_config,
                                       phy_cd)
         ready = Signal()
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
