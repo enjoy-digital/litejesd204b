@@ -234,8 +234,8 @@ class GTHTransmitter(Module):
                 i_TXUSRCLK2=ClockSignal("tx"),
 
                 # TX electrical
-                i_TXBUFDIFFCTRL=0b100,
-                i_TXDIFFCTRL=0b1000,
+                i_TXBUFDIFFCTRL=0b000,
+                i_TXDIFFCTRL=0b1100,
 
                 # Pads
                 o_GTHTXP=tx_pads.txp,
