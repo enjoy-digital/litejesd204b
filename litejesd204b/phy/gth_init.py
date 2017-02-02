@@ -45,11 +45,10 @@ class GTHInit(Module):
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
 
-        # After configuration, transceiver resets have to stay low for
-        # at least 500ns (see AR43482)
-        startup_cycles = ceil(500*sys_clk_freq/1000000000)
-        startup_timer = WaitTimer(startup_cycles)
-        self.submodules += startup_timer
+        # PLL reset must be at least 2us
+        pll_reset_cycles = ceil(2000*sys_clk_freq/1000000000)
+        pll_reset_timer = WaitTimer(pll_reset_cycles)
+        self.submodules += pll_reset_timer
 
         startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
         self.submodules += startup_fsm
@@ -73,13 +72,14 @@ class GTHInit(Module):
         startup_fsm.act("RESET_ALL",
             gtXxreset.eq(1),
             self.pllreset.eq(1),
-            startup_timer.wait.eq(1),
-            NextState("RELEASE_PLL_RESET")
+            pll_reset_timer.wait.eq(1),
+            If(pll_reset_timer.done,
+                NextState("RELEASE_PLL_RESET")
+            )
         )
         startup_fsm.act("RELEASE_PLL_RESET",
             gtXxreset.eq(1),
-            startup_timer.wait.eq(1),
-            If(plllock & startup_timer.done, NextState("RELEASE_GTH_RESET"))
+            If(plllock, NextState("RELEASE_GTH_RESET"))
         )
         # Release GTH reset and wait for GTH resetdone
         # (from UG476, GTH is reset on falling edge
@@ -109,7 +109,7 @@ class GTHInit(Module):
             )
         )
         # Wait 2 rising edges of Xxphaligndone
-        # (from UG476 in buffer bypass config)
+        # (from UG576 in TX Buffer Bypass in Single-Lane Auto Mode)
         startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))

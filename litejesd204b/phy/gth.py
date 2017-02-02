@@ -162,6 +162,10 @@ class GTHTransmitter(Module):
         txdata = Signal(40)
         self.specials += \
             Instance("GTHE3_CHANNEL",
+                # Reset modes
+                i_GTRESETSEL=0,
+                i_RESETOVRD=0,
+
                 # PMA Attributes
                 p_PMA_RSV1=0xf800,
                 p_RX_BIAS_CFG0=0x0AB4,
@@ -184,7 +188,8 @@ class GTHTransmitter(Module):
                 p_CPLL_REFCLK_DIV=1 if (use_qpll0 | use_qpll1) else pll.config["m"],
                 p_RXOUT_DIV=pll.config["d"],
                 p_TXOUT_DIV=pll.config["d"],
-                i_CPLLRESET=0 if (use_qpll0 | use_qpll1) else pll.reset,
+                i_CPLLRESET=0,
+                i_CPLLPD=0 if (use_qpll0 | use_qpll1) else pll.reset,
                 o_CPLLLOCK=Signal() if (use_qpll0 | use_qpll1) else pll.lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
