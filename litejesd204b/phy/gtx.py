@@ -37,9 +37,49 @@ class GTXChannelPLL(Module):
                         vco_freq <= cls.max_vco_freq):
                         for d in cls.d_values:
                             if cls.compute_linerate(vco_freq, d) == linerate:
-                                return {"n1": n1, "n2": n2, "m": m, "d": d}
+                                return {"n1": n1, "n2": n2, "m": m, "d": d,
+                                        "clkin": refclk_freq,
+                                        "clkout": vco_freq,
+                                        "linerate": linerate}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+    def __repr__(self):
+        r = """
+GTXChannel PLL
+==============
+  overview:
+  ---------
+           +--------------------------------------------------+
+           |                                                  |
+           |   +-----+  +---------------------------+ +-----+ |
+           |   |     |  | Phase Frequency Detector  | |     | |
+    CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
+           |   |     |  |       Loop Filter         | |     | |
+           |   +-----+  +---------------------------+ +--+--+ |
+           |              ^                              |    |
+           |              |    +-------+    +-------+    |    |
+           |              +----+  /N2  <----+  /N1  <----+    |
+           |                   +-------+    +-------+         |
+           +--------------------------------------------------+
+                                +-------+
+                       CLKOUT +->  2/D  +-> LINERATE
+                                +-------+
+  config:
+  -------
+    CLKIN    = {:3.2f}MHz / M = {} / N1 = {} / N2 = {} / D = {}
+    CLKOUT   = CLKIN x (N1 x N2) / M
+             = {:3.2f}GHz
+    LINERATE = CLKOUT x 2 / D
+             = {:3.2f}GHz
+""".format(self.config["clkin"]/1e6,
+           self.config["m"],
+           self.config["n1"],
+           self.config["n2"],
+           self.config["d"],
+           self.config["clkout"]/1e9,
+           self.config["linerate"]/1e9)
+        return r
 
 
 class GTXQuadPLL(Module):
