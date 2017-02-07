@@ -38,6 +38,7 @@ class GTXChannelPLL(Module):
                         for d in cls.d_values:
                             if cls.compute_linerate(vco_freq, d) == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
+                                        "vco_freq": vco_freq,
                                         "clkin": refclk_freq,
                                         "clkout": vco_freq,
                                         "linerate": linerate}
@@ -70,6 +71,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
     CLKIN    = {clkin}MHz
     CLKOUT   = CLKIN x (N1 x N2) / M = {clkin}MHz x ({n1} x {n2}) / {m}
              = {clkout}GHz
+    VCO      = {vco_freq}GHz (range: {vco_min} to {vco_max}GHz)
     LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
              = {linerate}GHz
 """.format(clkin=self.config["clkin"]/1e6,
@@ -77,6 +79,9 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            n2=self.config["n2"],
            m=self.config["m"],
            clkout=self.config["clkout"]/1e9,
+           vco_freq=self.config["vco_freq"]/1e9,
+           vco_min=self.min_vco_freq/1e9,
+           vco_max=self.max_vco_freq/1e9,
            d=self.config["d"],
            linerate=self.config["linerate"]/1e9)
         return r
@@ -195,7 +200,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
     CLKIN    = {clkin}MHz
     CLKOUT   = CLKIN x N / (2 x M) = {clkin}MHz x {n} / (2 x {m})
              = {clkin}GHz
-    VCO      = {vco_freq}GHz ({vco_band})
+    VCO      = {vco_freq}GHz ({vco_band}, range: {vco_min} to {vco_max}GHz)
     LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
              = {linerate}GHz
 """.format(clkin=self.config["clkin"]/1e6,
@@ -204,6 +209,10 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
            clkout=self.config["clkout"]/1e9,
            vco_freq=self.config["vco_freq"]/1e9,
            vco_band=self.config["vco_band"],
+           vco_min=self.min_vco_freq_lower_band/1e9 if self.config["vco_band"] == "lower" else
+                   self.min_vco_freq_upper_band/1e9,
+           vco_max=self.max_vco_freq_lower_band/1e9 if self.config["vco_band"] == "lower" else
+                    self.max_vco_freq_upper_band/1e9,
            d=self.config["d"],
            linerate=self.config["linerate"]/1e9)
         return r
