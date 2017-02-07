@@ -50,43 +50,43 @@ GTXChannel PLL
 ==============
   overview:
   ---------
-           +--------------------------------------------------+
-           |                                                  |
-           |   +-----+  +---------------------------+ +-----+ |
-           |   |     |  | Phase Frequency Detector  | |     | |
-    CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
-           |   |     |  |       Loop Filter         | |     | |
-           |   +-----+  +---------------------------+ +--+--+ |
-           |              ^                              |    |
-           |              |    +-------+    +-------+    |    |
-           |              +----+  /N2  <----+  /N1  <----+    |
-           |                   +-------+    +-------+         |
-           +--------------------------------------------------+
-                                +-------+
-                       CLKOUT +->  2/D  +-> LINERATE
-                                +-------+
+       +--------------------------------------------------+
+       |                                                  |
+       |   +-----+  +---------------------------+ +-----+ |
+       |   |     |  | Phase Frequency Detector  | |     | |
+CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
+       |   |     |  |       Loop Filter         | |     | |
+       |   +-----+  +---------------------------+ +--+--+ |
+       |              ^                              |    |
+       |              |    +-------+    +-------+    |    |
+       |              +----+  /N2  <----+  /N1  <----+    |
+       |                   +-------+    +-------+         |
+       +--------------------------------------------------+
+                            +-------+
+                   CLKOUT +->  2/D  +-> LINERATE
+                            +-------+
   config:
   -------
-    CLKIN    = {:3.2f}MHz / M = {} / N1 = {} / N2 = {} / D = {}
-    CLKOUT   = CLKIN x (N1 x N2) / M
-             = {:3.2f}GHz
-    LINERATE = CLKOUT x 2 / D
-             = {:3.2f}GHz
-""".format(self.config["clkin"]/1e6,
-           self.config["m"],
-           self.config["n1"],
-           self.config["n2"],
-           self.config["d"],
-           self.config["clkout"]/1e9,
-           self.config["linerate"]/1e9)
+    CLKIN    = {clkin}MHz
+    CLKOUT   = CLKIN x (N1 x N2) / M = {clkin}MHz x ({n1} x {n2}) / {m}
+             = {clkout}GHz
+    LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
+             = {linerate}GHz
+""".format(clkin=self.config["clkin"]/1e6,
+           n1=self.config["n1"],
+           n2=self.config["n2"],
+           m=self.config["m"],
+           clkout=self.config["clkout"]/1e9,
+           d=self.config["d"],
+           linerate=self.config["linerate"]/1e9)
         return r
 
 
 class GTXQuadPLL(Module):
     min_vco_freq_lower_band = 5.93e9
     max_vco_freq_lower_band = 8e9
-    min_vco_freq_higher_band = 9.8e9
-    max_vco_freq_higher_band = 12.5e9
+    min_vco_freq_upper_band = 9.8e9
+    max_vco_freq_upper_band = 12.5e9
     n_values = [16, 20, 32, 40, 64, 66, 80, 100]
     fbdiv_ratios = {
         16  : 1,
@@ -122,7 +122,7 @@ class GTXQuadPLL(Module):
 
         self.specials += \
             Instance("GTXE2_COMMON",
-                p_QPLL_CFG=0x0680181 if self.config["vco_band"] == "higher" else
+                p_QPLL_CFG=0x0680181 if self.config["vco_band"] == "upper" else
                            0x06801c1,
                 p_QPLL_FBDIV=self.fbdivs[self.config["n"]],
                 p_QPLL_FBDIV_RATIO=self.fbdiv_ratios[self.config["n"]],
@@ -154,15 +154,59 @@ class GTXQuadPLL(Module):
                 if (vco_freq >= cls.min_vco_freq_lower_band and
                     vco_freq <= cls.max_vco_freq_lower_band):
                     vco_band = "lower"
-                if (vco_freq >= cls.min_vco_freq_higher_band and
-                    vco_freq <= cls.max_vco_freq_higher_band):
-                    vco_band = "higher"
+                if (vco_freq >= cls.min_vco_freq_upper_band and
+                    vco_freq <= cls.max_vco_freq_upper_band):
+                    vco_band = "upper"
                 if vco_band is not None:
                     for d in cls.d_values:
                         if cls.compute_linerate(vco_freq, d) == linerate:
-                            return {"n": n, "m": m, "d": d, "vco_band": vco_band}
+                            return {"n": n, "m": m, "d": d,
+                                    "vco_freq": vco_freq,
+                                    "vco_band": vco_band,
+                                    "clkin": refclk_freq,
+                                    "clkout": vco_freq/2,
+                                    "linerate": linerate}
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+    def __repr__(self):
+        r = """
+GTXQuad PLL
+===========
+  overview:
+  ---------
+       +-------------------------------------------------------------++
+       |                                          +------------+      |
+       |   +-----+  +---------------------------+ | Upper Band | +--+ |
+       |   |     |  | Phase Frequency Detector  +->    VCO     | |  | |
+CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
+       |   |     |  |       Loop Filter         +-> Lower Band | |  | |
+       |   +-----+  +---------------------------+ |    VCO     | +--+ |
+       |              ^                           +-----+------+      |
+       |              |        +-------+                |             |
+       |              +--------+  /N   <----------------+             |
+       |                       +-------+                              |
+       +--------------------------------------------------------------+
+                               +-------+
+                      CLKOUT +->  2/D  +-> LINERATE
+                               +-------+
+  config:
+  -------
+    CLKIN    = {clkin}MHz
+    CLKOUT   = CLKIN x N / (2 x M) = {clkin}MHz x {n} / (2 x {m})
+             = {clkin}GHz
+    VCO      = {vco_freq}GHz ({vco_band})
+    LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
+             = {linerate}GHz
+""".format(clkin=self.config["clkin"]/1e6,
+           n=self.config["n"],
+           m=self.config["m"],
+           clkout=self.config["clkout"]/1e9,
+           vco_freq=self.config["vco_freq"]/1e9,
+           vco_band=self.config["vco_band"],
+           d=self.config["d"],
+           linerate=self.config["linerate"]/1e9)
+        return r
 
 
 class GTXTransmitter(Module):
