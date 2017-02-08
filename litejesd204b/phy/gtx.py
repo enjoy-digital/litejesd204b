@@ -199,7 +199,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
   -------
     CLKIN    = {clkin}MHz
     CLKOUT   = CLKIN x N / (2 x M) = {clkin}MHz x {n} / (2 x {m})
-             = {clkin}GHz
+             = {clkout}GHz
     VCO      = {vco_freq}GHz ({vco_band}, range: {vco_min} to {vco_max}GHz)
     LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
              = {linerate}GHz

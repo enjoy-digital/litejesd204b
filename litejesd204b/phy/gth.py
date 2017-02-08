@@ -213,7 +213,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
   -------
     CLKIN    = {clkin}MHz
     CLKOUT   = CLKIN x N / (2 x M) = {clkin}MHz x {n} / (2 x {m})
-             = {clkin}GHz
+             = {clkout}GHz
     VCO      = {vco_freq}GHz ({qpll}, range: {vco_min} to {vco_max}GHz)
     LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
              = {linerate}GHz
@@ -224,9 +224,9 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
            vco_freq=self.config["vco_freq"]/1e9,
            qpll=self.config["qpll"].upper(),
            vco_min=self.min_vco_freq_qpll0/1e9 if self.config["qpll"] == "qpll0" else
-                    self.min_vco_freq_qpll1/1e9,
+                   self.min_vco_freq_qpll1/1e9,
            vco_max=self.max_vco_freq_qpll0/1e9 if self.config["qpll"] == "qpll0" else
-                    self.max_vco_freq_qpll1/1e9,
+                   self.max_vco_freq_qpll1/1e9,
            d=self.config["d"],
            linerate=self.config["linerate"]/1e9)
         return r
