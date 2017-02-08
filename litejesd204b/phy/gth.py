@@ -106,15 +106,11 @@ class GTHQuadPLL(Module):
 
         # # #
 
-        # TODO:
-        # - only set configuration to selected QPLL?
-        # - simulate (instance is minimal, do we need others ports/attributes?)
         self.specials += \
             Instance("GTHE3_COMMON",
                 # common
                 i_GTREFCLK00=refclk,
                 i_GTREFCLK01=refclk,
-
                 i_QPLLRSVD1=0,
                 i_QPLLRSVD2=0,
                 i_QPLLRSVD3=0,
@@ -125,6 +121,7 @@ class GTHQuadPLL(Module):
                 i_BGRCALOVRD=0b11111,
                 i_BGRCALOVRDENB=0b1,
                 i_RCALENB=1,
+
                 # qpll0
                 p_QPLL0_FBDIV=self.config["n"],
                 p_QPLL0_REFCLK_DIV=self.config["m"],
@@ -303,8 +300,8 @@ class GTHTransmitter(Module):
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=txoutclk,
-                i_TXSYSCLKSEL=0b00 if use_cpll else 0b01 if use_qpll0 else 0b11,
-                i_TXPLLCLKSEL=0b00 if use_cpll else 0b01 if use_qpll0 else 0b11,
+                i_TXSYSCLKSEL=0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
+                i_TXPLLCLKSEL=0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
                 i_TXOUTCLKSEL=0b11,
 
                 # disable RX
