@@ -112,46 +112,50 @@ class GTHQuadPLL(Module):
         self.specials += \
             Instance("GTHE3_COMMON",
                 # common
-                p_TXOUT_DIV=self.config["d"],
-                i_GTGREFCLK0=refclk,
+                i_GTREFCLK00=refclk,
+                i_GTREFCLK01=refclk,
 
+                i_QPLLRSVD1=0,
+                i_QPLLRSVD2=0,
+                i_QPLLRSVD3=0,
+                i_QPLLRSVD4=0,
+                i_BGBYPASSB=1,
+                i_BGMONITORENB=1,
+                i_BGPDB=1,
+                i_BGRCALOVRD=0b11111,
+                i_BGRCALOVRDENB=0b1,
+                i_RCALENB=1,
                 # qpll0
                 p_QPLL0_FBDIV=self.config["n"],
                 p_QPLL0_REFCLK_DIV=self.config["m"],
-                #o_QPLLDMONITOR0=,
                 i_QPLL0CLKRSVD0=0,
                 i_QPLL0CLKRSVD1=0,
-                #o_QPLL0FBCLKLOST=,
-                #o_QPLL0LOCK=,
-                #o_QPLL0LOCK=,
                 i_QPLL0LOCKDETCLK=ClockSignal(),
                 i_QPLL0LOCKEN=1,
+                o_QPLL0LOCK=self.lock if self.config["qpll"] == "qpll0" else
+                            Signal(),
                 o_QPLL0OUTCLK=self.clk if self.config["qpll"] == "qpll0" else
                               Signal(),
-                 o_QPLL0OUTREFCLK=self.refclk if self.config["qpll"] == "qpll0" else
+                o_QPLL0OUTREFCLK=self.refclk if self.config["qpll"] == "qpll0" else
                                  Signal(),
-                i_QPLL0PD=0,
-                #o_QPLL0REFCLKLOST=,
+                i_QPLL0PD=0 if self.config["qpll"] == "qpll0" else 1,
                 i_QPLL0REFCLKSEL=0b001,
                 i_QPLL0RESET=self.reset,
 
                 # qpll1
                 p_QPLL1_FBDIV=self.config["n"],
                 p_QPLL1_REFCLK_DIV=self.config["m"],
-                #o_QPLLDMONITOR1=,
                 i_QPLL1CLKRSVD0=0,
                 i_QPLL1CLKRSVD1=0,
-                #o_QPLL1FBCLKLOST=,
-                #o_QPLL1LOCK=,
-                #o_QPLL1LOCK=,
                 i_QPLL1LOCKDETCLK=ClockSignal(),
                 i_QPLL1LOCKEN=1,
+                o_QPLL1LOCK=self.lock if self.config["qpll"] == "qpll1" else
+                            Signal(),
                 o_QPLL1OUTCLK=self.clk if self.config["qpll"] == "qpll1" else
                               Signal(),
-                 o_QPLL1OUTREFCLK=self.refclk if self.config["qpll"] == "qpll1" else
+                o_QPLL1OUTREFCLK=self.refclk if self.config["qpll"] == "qpll1" else
                                  Signal(),
-                i_QPLL1PD=0,
-                #o_QPLL1REFCLKLOST=,
+                i_QPLL1PD=0 if self.config["qpll"] == "qpll1" else 1,
                 i_QPLL1REFCLKSEL=0b001,
                 i_QPLL1RESET=self.reset,
              )
@@ -300,6 +304,7 @@ class GTHTransmitter(Module):
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=txoutclk,
                 i_TXSYSCLKSEL=0b00 if use_cpll else 0b01 if use_qpll0 else 0b11,
+                i_TXPLLCLKSEL=0b00 if use_cpll else 0b01 if use_qpll0 else 0b11,
                 i_TXOUTCLKSEL=0b11,
 
                 # disable RX
