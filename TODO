@@ -6,10 +6,5 @@ Kintex 7:
 - fix transceiver initialization for high linerates.
 
 Kintex Ultrascale:
-- finish GTHQuadPLL
-- finish transceiver
-- add transceiver init
-- test init & square pattern in simulation
-- test init & square pattern on board
-- test jesd204b example design
- 
+- fix transceiver initialization.
+- test with 8 lanes.
