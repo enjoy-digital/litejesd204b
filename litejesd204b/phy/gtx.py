@@ -12,8 +12,8 @@ class GTXChannelPLL(Module):
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
 
-    @classmethod
-    def compute_config(self, refclk_freq, linerate):
+    @staticmethod
+    def compute_config(refclk_freq, linerate):
         for n1 in [4, 5]:
             for n2 in [1, 2, 3, 4, 5]:
                 for m in [1, 2]:
@@ -115,8 +115,8 @@ class GTXQuadPLL(Module):
                 i_QPLLREFCLKSEL=0b001
             )
 
-    @classmethod
-    def compute_config(cls, refclk_freq, linerate):
+    @staticmethod
+    def compute_config(refclk_freq, linerate):
         for n in [16, 20, 32, 40, 64, 66, 80, 100]:
             for m in [1, 2, 3, 4]:
                 vco_freq = refclk_freq*n/m
