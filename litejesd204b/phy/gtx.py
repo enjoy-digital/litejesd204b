@@ -14,12 +14,12 @@ class GTXChannelPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n1 in [4, 5]:
-            for n2 in [1, 2, 3, 4, 5]:
-                for m in [1, 2]:
+        for n1 in 4, 5:
+            for n2 in 1, 2, 3, 4, 5:
+                for m in 1, 2:
                     vco_freq = refclk_freq*(n1*n2)/m
                     if 1.6e9 <= vco_freq <= 3.3e9:
-                        for d in [1, 2, 4, 8, 16]:
+                        for d in 1, 2, 4, 8, 16:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
@@ -117,8 +117,8 @@ class GTXQuadPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n in [16, 20, 32, 40, 64, 66, 80, 100]:
-            for m in [1, 2, 3, 4]:
+        for n in 16, 20, 32, 40, 64, 66, 80, 100:
+            for m in 1, 2, 3, 4:
                 vco_freq = refclk_freq*n/m
                 if 5.93e9 <= vco_freq <= 8e9:
                     vco_band = "lower"

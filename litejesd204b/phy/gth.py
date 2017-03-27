@@ -14,12 +14,12 @@ class GTHChannelPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n1 in [4, 5]:
-            for n2 in [1, 2, 3, 4, 5]:
-                for m in [1, 2]:
+        for n1 in 4, 5:
+            for n2 in 1, 2, 3, 4, 5:
+                for m in 1, 2:
                     vco_freq = refclk_freq*(n1*n2)/m
                     if 2.0e9 <= vco_freq <= 6.25e9:
-                        for d in [1, 2, 4, 8, 16]:
+                        for d in 1, 2, 4, 8, 16:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
@@ -132,7 +132,7 @@ class GTHQuadPLL(Module):
     def compute_config(refclk_freq, linerate):
         for n in [16, 20, 32, 40, 60, 64, 66, 75, 80, 84,
                   90, 96, 100, 112, 120, 125, 150, 160]:
-            for m in [1, 2, 3, 4]:
+            for m in 1, 2, 3, 4:
                 vco_freq = refclk_freq*n/m
                 if 9.8e9 <= vco_freq <= 16.375e9:
                     qpll = "qpll0"
@@ -141,7 +141,7 @@ class GTHQuadPLL(Module):
                 else:
                     qpll = None
                 if qpll is not None:
-                    for d in [1, 2, 4, 8, 16]:
+                    for d in 1, 2, 4, 8, 16:
                         current_linerate = (vco_freq/2)*2/d
                         if current_linerate == linerate:
                             return {"n": n, "m": m, "d": d,
