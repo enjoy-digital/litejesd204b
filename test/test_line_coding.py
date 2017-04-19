@@ -3,7 +3,7 @@ import random
 
 from litex.gen import *
 
-from litejesd204b.phy import line_coding
+from litex.soc.cores import code_8b10b as line_coding
 
 from test.model.line_coding import Control, encode_lanes
 

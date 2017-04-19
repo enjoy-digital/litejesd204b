@@ -1,8 +1,8 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+from litex.soc.cores.code_8b10b import Encoder
 
 from litejesd204b.phy.gtx_init import GTXInit
-from litejesd204b.phy.line_coding import Encoder
 
 
 class GTXChannelPLL(Module):

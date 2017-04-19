@@ -1,4 +1,4 @@
-from litejesd204b.phy.line_coding import disparity
+from litex.soc.cores.code_8b10b import disparity
 
 from test.model.common import Control
 
