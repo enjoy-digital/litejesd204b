@@ -134,10 +134,10 @@ class GTHQuadPLL(Module):
                   90, 96, 100, 112, 120, 125, 150, 160]:
             for m in 1, 2, 3, 4:
                 vco_freq = refclk_freq*n/m
-                if 9.8e9 <= vco_freq <= 16.375e9:
-                    qpll = "qpll0"
-                elif 8e9 <= vco_freq <= 13e9:
+                if 8e9 <= vco_freq <= 13e9:
                     qpll = "qpll1"
+                elif 9.8e9 <= vco_freq <= 16.375e9:
+                    qpll = "qpll0"
                 else:
                     qpll = None
                 if qpll is not None:
