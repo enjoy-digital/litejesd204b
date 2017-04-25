@@ -47,7 +47,7 @@ configuration_data_fields = {
     "subclassv": Field(8,  5, 8), # device subclass version
     #----------- octet 9 --------------
     "s":         Field(9,  0, 5),
-    "jesdv":     Field(9,  5, 8), # jsed204 version
+    "jesdv":     Field(9,  5, 8), # jesd204 version
     #----------- octet 10 -------------
     "cf":        Field(10, 0, 5),
     "hd":        Field(10, 5, 8),
@@ -101,7 +101,7 @@ class JESD204BPhysicalSettings:
         self.adjdir = 0
         self.phadj = 0
 
-        # jsed204b revision
+        # jesd204b revision
         self.jesdv = 0b001
 
 
