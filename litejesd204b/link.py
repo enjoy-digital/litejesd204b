@@ -234,7 +234,7 @@ class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """
     def __init__(self, data_width, jesd_settings, n=0):
-        self.start = Signal()
+        self.jsync = Signal()
         self.ready = Signal()
 
         self.sink = sink = Record([("data", data_width)])
@@ -278,7 +278,7 @@ class LiteJESD204BLinkTX(Module):
             framer.reset.eq(1),
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
-            If(self.start,
+            If(self.jsync,
                 NextState("ILAS")
             )
         )
