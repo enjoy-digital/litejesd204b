@@ -35,6 +35,7 @@ PHY:
  - 8B/10B encoding
  - 32 bits interface
  - Kintex7 support (CPLL up to 5Gbps, QPLL for higher linerates)
+ - Kintex Ultrascale support (CPLL up to 6.25Gbps, QPLL for higher linerates)
 Core:
  Link:
   - Scrambling to reduce EMI
@@ -49,8 +50,7 @@ Core:
 - add support for non scrambled mode
 - add support for Altera PHYs
 - add support for Lattice PHYs
-- add support for Xilinx 7-Series/Ultrascale GTP/GTH (currently only 7-Series
-  GTX are supported)
+- add support for others Xilinx transceivers
 
 If you want to support these features, please contact us at florent [AT]
 enjoy-digital.fr. You can also contact our partner on the public mailing list

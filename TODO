@@ -1,11 +1,4 @@
 Global:
-- regroup jesd lanes in buses
+- test with 8 lanes.
 - (later) add deterministic latency.
 - (optional) test PRBS generators and use them (we are currently using PRBS generators from the transceivers).
-
-Kintex 7:
-- fix transceiver initialization for high linerates.
-
-Kintex Ultrascale:
-- fix transceiver initialization.
-- test with 8 lanes.
