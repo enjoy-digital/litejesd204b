@@ -3,12 +3,46 @@ from operator import and_
 
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg, ElasticBuffer
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 
 from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BSTPLGenerator)
 from litejesd204b.link import LiteJESD204BLinkTX
+
+
+class LiteJESD204BCoreTXWatchdog(Module):
+    def __init__(self):
+        self.enable = Signal()
+        self.start = Signal()
+        self.ready = Signal()
+        self.prbs = Signal()
+
+        self.restart = Signal()
+
+        # # #
+
+        init_timer = WaitTimer(1024)
+        ready_timer = WaitTimer(1024*1024)
+        self.submodules += init_timer, ready_timer
+
+        self.submodules.fsm = fsm = FSM(reset_state="INIT")
+        fsm.act("INIT",
+            self.restart.eq(~self.prbs),
+            init_timer.wait.eq(self.enable),
+            If(init_timer.done,
+                NextState("RUN")
+            )
+        )
+        fsm.act("RUN",
+            ready_timer.wait.eq(~self.ready),
+             If(~self.enable |
+               (self.ready & ~self.start) |
+               ready_timer.done,
+                NextState("INIT")
+            )
+        )
 
 
 class LiteJESD204BCoreTX(Module):
@@ -24,6 +58,15 @@ class LiteJESD204BCoreTX(Module):
             for i in range(jesd_settings.nconverters)])
 
         # # #
+
+        # watchdog
+        self.submodules.watchdog = watchdog = LiteJESD204BCoreTXWatchdog()
+        self.comb += [
+            watchdog.enable.eq(self.enable),
+            watchdog.start.eq(self.start),
+            watchdog.ready.eq(self.ready),
+            watchdog.prbs.eq(self.prbs_config != 0)
+        ]
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings,
@@ -70,7 +113,7 @@ class LiteJESD204BCoreTX(Module):
             ]
 
             # connect control
-            self.comb += phy.transmitter.init.restart.eq(~self.enable)
+            self.comb += phy.transmitter.init.restart.eq(watchdog.restart)
             self.specials += MultiReg(self.prbs_config,
                                       phy.transmitter.prbs_config,
                                       phy_cd)
