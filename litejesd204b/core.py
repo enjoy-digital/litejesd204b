@@ -141,6 +141,9 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 
         self.jsync = CSRStatus()
 
+        self.restart_count_clear = CSR()
+        self.restart_count = CSRStatus(16)
+
         # # #
 
         self.comb += [
@@ -151,3 +154,15 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
             self.ready.status.eq(core.ready)
         ]
         self.specials += MultiReg(core.jsync, self.jsync.status)
+
+        restart = Signal()
+        restart_d = Signal()
+        restart_rising = Signal()
+        self.specials += MultiReg(core.watchdog.restart, restart)
+        self.comb += restart_rising.eq(restart & ~restart_d)
+        self.sync += \
+            If(self.restart_count_clear.re,
+                self.restart_count.status.eq(0)
+            ).Elif(restart_rising,
+                self.restart_count.status.eq(self.restart_count.status + 1)
+            )
