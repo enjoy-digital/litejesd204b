@@ -4,6 +4,7 @@ from operator import and_
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg, ElasticBuffer
 from litex.gen.genlib.misc import WaitTimer
+from litex.gen.genlib.io import DifferentialInput
 
 from litex.soc.interconnect.csr import *
 
@@ -121,6 +122,14 @@ class LiteJESD204BCoreTX(Module):
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
 
+    def register_jsync(self, jsync):
+        if isinstance(jsync, Signal):
+            self.comb += self.jsync.eq(jsync)
+        elif isinstance(jsync, Record):
+            self.specials += DifferentialInput(jsync.p, jsync.n, self.jsync)
+        else:
+            raise ValueError
+
 
 class LiteJESD204BCoreTXControl(Module, AutoCSR):
     def __init__(self, core):
@@ -129,6 +138,8 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 
         self.prbs_config = CSRStorage(4)
         self.stpl_enable = CSRStorage()
+
+        self.jsync = CSRStatus()
 
         # # #
 
@@ -139,3 +150,4 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 
             self.ready.status.eq(core.ready)
         ]
+        self.specials += MultiReg(core.jsync, self.jsync.status)
