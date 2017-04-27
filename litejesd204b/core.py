@@ -142,10 +142,11 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         self.jsync = CSRStatus()
 
         self.restart_count_clear = CSR()
-        self.restart_count = CSRStatus(16)
+        self.restart_count = CSRStatus(8)
 
         # # #
 
+        # core control/status
         self.comb += [
             core.enable.eq(self.enable.storage),
             core.prbs_config.eq(self.prbs_config.storage),
@@ -155,14 +156,23 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         ]
         self.specials += MultiReg(core.jsync, self.jsync.status)
 
+        # restart monitoring
+
+        # restart is a slow signal so we simply pass it to sys_clk and
+        # count rising edges
         restart = Signal()
         restart_d = Signal()
-        restart_rising = Signal()
+        restart_count = Signal(8)
         self.specials += MultiReg(core.watchdog.restart, restart)
-        self.comb += restart_rising.eq(restart & ~restart_d)
         self.sync += \
             If(self.restart_count_clear.re,
-                self.restart_count.status.eq(0)
-            ).Elif(restart_rising,
-                self.restart_count.status.eq(self.restart_count.status + 1)
+                restart_count.eq(0)
+            ).Elif(restart & ~restart_d,
+                # don't overflow when max is reached
+                If(restart_count != (2**8-1),
+                    restart_count.eq(restart_count + 1)
+                )
             )
+        self.comb += self.restart_count.status.eq(restart_count)
+
+
