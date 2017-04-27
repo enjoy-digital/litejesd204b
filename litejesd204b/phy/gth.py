@@ -212,6 +212,17 @@ class GTHTransmitter(Module):
 
         nwords = 40//10
 
+        # remap prbs_config for compatibility with others transceivers
+        # another reason we should move prbs to fabric...
+        prbs_sel = Signal(3)
+        prbs_remapping = {
+            0b000 : prbs_sel.eq(0b000), # no prbs
+            0b001 : prbs_sel.eq(0b001), # prbs7
+            0b010 : prbs_sel.eq(0b011), # prbs15
+            0b100 : prbs_sel.eq(0b101)  # prbs31
+        }
+        self.comb += Case(self.prbs_config[:3], prbs_remapping)
+
         txoutclk = Signal()
         txdata = Signal(40)
         self.specials += \
@@ -276,7 +287,7 @@ class GTHTransmitter(Module):
                 i_TXUSERRDY=self.init.Xxuserrdy,
 
                 # PRBS
-                i_TXPRBSSEL=self.prbs_config[0:3],
+                i_TXPRBSSEL=prbs_sel,
                 i_TXPRBSFORCEERR=self.prbs_config[3],
 
                 # TX data
