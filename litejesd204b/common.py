@@ -125,19 +125,25 @@ class JESD204BSettings:
 
     def get_configuration_data(self, lid=0):
         cd = JESD204BConfigurationData()
-        for k in configuration_data_fields.keys():
-            for settings in [self.phy, self.transport]:
-                try:
-                    setattr(cd, k, getattr(settings, k))
-                except:
-                    pass
         cd.did = self.did
         cd.bid = self.bid
         cd.lid = lid
-        # field value = value-1 for these parameters
-        for name in ["l", "f", "k", "m", "n", "np", "s"]:
-            p = getattr(cd, name)
-            setattr(cd, name, p-1)
+
+        cd.l = self.phy.l - 1
+        cd.m = self.phy.m - 1
+        cd.n = self.phy.n - 1
+        cd.np = self.phy.np - 1
+        cd.subclassv = self.phy.subclassv
+        cd.adjcnt = self.phy.adjcnt
+        cd.adjdir = self.phy.adjdir
+        cd.phadj = self.phy.phadj
+        cd.jesdv = self.phy.jesdv
+
+        cd.f = self.transport.f - 1
+        cd.k = self.transport.k - 1
+        cd.s = self.transport.s - 1
+        cd.cs = self.transport.cs
+
         octets = cd.get_octets()
         chksum = cd.get_checksum()
         return octets[:-1] + [chksum]
