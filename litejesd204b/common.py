@@ -82,18 +82,18 @@ class JESD204BConfigurationData:
 
 class JESD204BTransportSettings:
     def __init__(self, f, s, k, cs):
-        self.f = f
-        self.s = s
-        self.k = k
-        self.cs = cs
+        self.f = f # octets/(lane and frame)
+        self.s = s # samples/(converter and frame)
+        self.k = k # frames/multiframe
+        self.cs = cs # control bits/sample
 
 
 class JESD204BPhysicalSettings:
     def __init__(self, l, m, n, np):
-        self.l = l
-        self.m = m
-        self.n = n
-        self.np = np
+        self.l = l # lanes
+        self.m = m # converters
+        self.n = n # bits/converter
+        self.np = np # bits/sample
 
         # only support subclass 1
         self.subclassv = 0b001
