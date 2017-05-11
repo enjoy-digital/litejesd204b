@@ -13,44 +13,12 @@ from litejesd204b.transport import (LiteJESD204BTransportTX,
 from litejesd204b.link import LiteJESD204BLinkTX
 
 
-class LiteJESD204BCoreTXWatchdog(Module):
-    def __init__(self):
-        self.enable = Signal()
-        self.jsync = Signal()
-        self.ready = Signal()
-        self.prbs = Signal()
-
-        self.restart = Signal()
-
-        # # #
-
-        init_timer = WaitTimer(1024)
-        ready_timer = WaitTimer(1024*1024)
-        self.submodules += init_timer, ready_timer
-
-        self.submodules.fsm = fsm = FSM(reset_state="INIT")
-        fsm.act("INIT",
-            self.restart.eq(~self.prbs),
-            init_timer.wait.eq(self.enable),
-            If(init_timer.done,
-                NextState("RUN")
-            )
-        )
-        fsm.act("RUN",
-            ready_timer.wait.eq(~self.ready),
-             If(~self.enable |
-               (self.ready & ~self.jsync) |
-               ready_timer.done,
-                NextState("INIT")
-            )
-        )
-
-
 class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
         self.enable = Signal()
         self.jsync = Signal()
         self.ready = Signal()
+        self.restart = Signal()
 
         self.prbs_config = Signal(4)
         self.stpl_enable = Signal()
@@ -60,14 +28,8 @@ class LiteJESD204BCoreTX(Module):
 
         # # #
 
-        # watchdog
-        self.submodules.watchdog = watchdog = LiteJESD204BCoreTXWatchdog()
-        self.comb += [
-            watchdog.enable.eq(self.enable),
-            watchdog.jsync.eq(self.jsync),
-            watchdog.ready.eq(self.ready),
-            watchdog.prbs.eq(self.prbs_config != 0)
-        ]
+        # restart when disabled or on re-synchronization request
+        self.comb += self.restart.eq(~self.enable | self.ready & ~self.jsync)
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings,
@@ -114,7 +76,9 @@ class LiteJESD204BCoreTX(Module):
             ]
 
             # connect control
-            self.comb += phy.transmitter.init.restart.eq(watchdog.restart)
+            self.comb += phy.transmitter.init.restart.eq(self.restart &
+            	                                         (self.prbs_config == 0))
+
             self.specials += MultiReg(self.prbs_config,
                                       phy.transmitter.prbs_config,
                                       phy_cd)
@@ -163,7 +127,7 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         restart = Signal()
         restart_d = Signal()
         restart_count = Signal(8)
-        self.specials += MultiReg(core.watchdog.restart, restart)
+        self.specials += MultiReg(core.restart, restart)
         self.sync += \
             If(self.restart_count_clear.re,
                 restart_count.eq(0)
