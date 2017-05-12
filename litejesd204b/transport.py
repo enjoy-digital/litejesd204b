@@ -35,8 +35,8 @@ class LiteJESD204BTransportTX(Module):
         while current_sample < samples_per_clock:
             # frame's samples
             frame_samples = []
-            for i in range(samples_per_frame):
-                for j in range(jesd_settings.nconverters):
+            for j in range(jesd_settings.nconverters):
+                for i in range(samples_per_frame):
                     converter_data = getattr(self.sink, "converter"+str(j))
                     sample = Signal(jesd_settings.phy.n)
                     self.comb += sample.eq(

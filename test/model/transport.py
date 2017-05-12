@@ -86,8 +86,8 @@ def samples_to_lanes(samples_per_frame, nlanes, nconverters, nbits, samples):
     while n < len(samples[0]):
         # frame's samples
         frame_samples = []
-        for i in range(samples_per_frame):
-            for j in range(nconverters):
+        for j in range(nconverters):
+            for i in range(samples_per_frame):
                 frame_samples.append(samples[j][n+i])
         n += samples_per_frame
 
