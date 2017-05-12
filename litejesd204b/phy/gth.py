@@ -194,7 +194,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 
 class GTHTransmitter(Module):
-    def __init__(self, pll, tx_pads, sys_clk_freq):
+    def __init__(self, pll, tx_pads, sys_clk_freq, polarity=0):
         self.prbs_config = Signal(4)
         self.produce_square_wave = Signal()
 
@@ -302,6 +302,9 @@ class GTHTransmitter(Module):
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b000,
                 i_TXDIFFCTRL=0b1100,
+
+                # Polarity
+                i_TXPOLARITY=polarity,
 
                 # Pads
                 o_GTHTXP=tx_pads.txp,

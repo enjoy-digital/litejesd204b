@@ -180,7 +180,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 
 class GTXTransmitter(Module):
-    def __init__(self, pll, tx_pads, sys_clk_freq):
+    def __init__(self, pll, tx_pads, sys_clk_freq, polarity=0):
         self.prbs_config = Signal(4)
         self.produce_square_wave = Signal()
 
@@ -269,6 +269,9 @@ class GTXTransmitter(Module):
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
                 i_TXDIFFCTRL=0b1000,
+
+                # Polarity
+                i_TXPOLARITY=polarity,
 
                 # Pads
                 o_GTXTXP=tx_pads.txp,
