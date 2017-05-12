@@ -249,7 +249,7 @@ class LiteJESD204BLinkTX(Module):
         # Init
         cgs = CGSGenerator(data_width)
         ilas = ILASGenerator(data_width,
-                             jesd_settings.octets_per_frame,
+                             jesd_settings.octets_per_lane,
                              jesd_settings.transport.k,
                              jesd_settings.get_configuration_data(n))
         self.submodules += cgs, ilas
