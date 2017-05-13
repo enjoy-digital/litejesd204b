@@ -1,4 +1,2 @@
-Global:
-- test with 8 lanes.
 - (later) add deterministic latency.
 - (optional) test PRBS generators and use them (we are currently using PRBS generators from the transceivers).
