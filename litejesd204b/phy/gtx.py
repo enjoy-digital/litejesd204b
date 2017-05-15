@@ -3,6 +3,7 @@ from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.cores.code_8b10b import Encoder
 
 from litejesd204b.phy.gtx_init import GTXInit
+from litejesd204b.phy.prbs import *
 
 
 class GTXChannelPLL(Module):
@@ -181,7 +182,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 class GTXTransmitter(Module):
     def __init__(self, pll, tx_pads, sys_clk_freq, polarity=0):
-        self.prbs_config = Signal(4)
+        self.prbs_config = Signal(2)
         self.produce_square_wave = Signal()
 
         # # #
@@ -253,10 +254,6 @@ class GTXTransmitter(Module):
                 o_TXPHALIGNDONE=self.init.Xxphaligndone,
                 i_TXUSERRDY=self.init.Xxuserrdy,
 
-                # PRBS
-                i_TXPRBSSEL=self.prbs_config[0:3],
-                i_TXPRBSFORCEERR=self.prbs_config[3],
-
                 # TX data
                 p_TX_DATA_WIDTH=40,
                 p_TX_INT_DATAWIDTH=1,
@@ -285,10 +282,19 @@ class GTXTransmitter(Module):
             self.cd_tx, ~self.init.done)
 
         self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
+        self.submodules.prbs7 = ClockDomainsRenamer("tx")(PRBS7Generator(40))
+        self.submodules.prbs15 = ClockDomainsRenamer("tx")(PRBS15Generator(40))
+        self.submodules.prbs31 = ClockDomainsRenamer("tx")(PRBS31Generator(40))
         self.comb += \
             If(self.produce_square_wave,
                 # square wave @ linerate/40 for scope observation
                 txdata.eq(0b1111111111111111111100000000000000000000)
+            ).Elif(self.prbs_config == 0b01,
+                txdata.eq(self.prbs7.o[::-1])
+            ).Elif(self.prbs_config == 0b10,
+                txdata.eq(self.prbs15.o[::-1])
+            ).Elif(self.prbs_config == 0b11,
+                txdata.eq(self.prbs31.o[::-1])
             ).Else(
                 txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
             )
