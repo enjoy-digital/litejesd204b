@@ -1,2 +1,1 @@
-- (later) add deterministic latency.
-- (optional) test PRBS generators and use them (we are currently using PRBS generators from the transceivers).
+- add deterministic latency.
