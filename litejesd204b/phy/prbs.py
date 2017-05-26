@@ -3,7 +3,7 @@ from functools import reduce
 
 from litex.gen import *
 
-@ResetInserter()
+
 class PRBSGenerator(Module):
     def __init__(self, n_out, n_state=23, taps=[17, 22]):
         self.o = Signal(n_out)
