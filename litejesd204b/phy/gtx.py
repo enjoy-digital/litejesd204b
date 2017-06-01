@@ -282,19 +282,14 @@ class GTXTransmitter(Module):
             self.cd_tx, ~self.init.done)
 
         self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
-        self.submodules.prbs7 = ClockDomainsRenamer("tx")(PRBS7Generator(40))
-        self.submodules.prbs15 = ClockDomainsRenamer("tx")(PRBS15Generator(40))
-        self.submodules.prbs31 = ClockDomainsRenamer("tx")(PRBS31Generator(40))
-        self.comb += \
+        self.submodules.prbs = ClockDomainsRenamer("tx")(PRBSTX(40, True))
+        self.comb += [
+            self.prbs.config.eq(self.prbs_config),
+            self.prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(self.produce_square_wave,
                 # square wave @ linerate/40 for scope observation
                 txdata.eq(0b1111111111111111111100000000000000000000)
-            ).Elif(self.prbs_config == 0b01,
-                txdata.eq(self.prbs7.o[::-1])
-            ).Elif(self.prbs_config == 0b10,
-                txdata.eq(self.prbs15.o[::-1])
-            ).Elif(self.prbs_config == 0b11,
-                txdata.eq(self.prbs31.o[::-1])
             ).Else(
-                txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
+                txdata.eq(self.prbs.o)
             )
+        ]
