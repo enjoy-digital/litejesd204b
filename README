@@ -66,7 +66,7 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-3. TODO
+3. TODO: add example design(s)
 
 [> Tests
 --------
@@ -78,10 +78,19 @@ Tests can also be run individually:
 
 [> License
 ----------
-TODO
+LiteJESD204B is released under the very permissive two-clause BSD license. Under
+the terms of this license, you are authorized to use LiteJESD204B for closed-source
+proprietary designs.
+Even though we do not require you to do so, those things are awesome, so please
+do them if possible:
+ - tell us that you are using LiteJESD204B
+ - cite LiteJESD204B in publications related to research it has helped
+ - send us feedback and suggestions for improvements
+ - send us bug reports when something goes wrong
+ - send us the modifications and improvements you have done to LiteJESD204B.
 
 [> Support and consulting
---------------------------
+-------------------------
 We love open-source hardware and like sharing our designs with others.
 
 LiteJESD204B is developed and maintained by EnjoyDigital.
