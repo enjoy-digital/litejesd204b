@@ -3,7 +3,6 @@ from math import ceil
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg
 from litex.gen.genlib.misc import WaitTimer
-from litex.gen.genlib.fsm import FSM
 
 
 class GTXInit(Module):
