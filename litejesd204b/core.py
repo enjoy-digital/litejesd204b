@@ -13,7 +13,7 @@ from litejesd204b.transport import (LiteJESD204BTransportTX,
 from litejesd204b.link import LiteJESD204BLinkTX
 
 
-class LiteJESD204BCoreTX(Module):
+class LiteJESD204BCoreTX(Module, AutoCSR):
     def __init__(self, phys, jesd_settings, converter_data_width):
         self.enable = Signal()
         self.jsync = Signal()

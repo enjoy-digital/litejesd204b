@@ -4,8 +4,10 @@ from litejesd204b.common import *
 from litejesd204b.phy.gtx import GTXTransmitter
 from litejesd204b.phy.gth import GTHTransmitter
 
+from litex.soc.interconnect.csr import *
 
-class LiteJESD204BPhyTX(Module):
+
+class LiteJESD204BPhyTX(Module, AutoCSR):
     def __init__(self, pll, tx_pads, sys_clk_freq, transceiver="gtx"):
         self.data = Signal(32)
         self.ctrl = Signal(32//8)
