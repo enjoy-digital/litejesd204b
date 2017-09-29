@@ -1,5 +1,7 @@
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder
 
 from litejesd204b.phy.gtx_init import GTXInit
@@ -180,10 +182,16 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
         return r
 
 
-class GTXTransmitter(Module):
+class GTXTransmitter(Module, AutoCSR):
     def __init__(self, pll, tx_pads, sys_clk_freq, polarity=0):
         self.prbs_config = Signal(2)
-        self.produce_square_wave = Signal()
+
+        self.produce_square_wave = CSRStorage()
+
+        self.txdiffcttrl = CSRStorage(4, reset=0b1000)
+        self.txmaincursor = CSRStorage(7, reset=80)
+        self.txprecursor = CSRStorage(5)
+        self.txpostcursor = CSRStorage(5)
 
         # # #
 
@@ -265,7 +273,11 @@ class GTXTransmitter(Module):
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
-                i_TXDIFFCTRL=0b1000,
+                i_TXDIFFCTRL=self.txdiffcttrl.storage,
+                p_TX_MAINCURSOR_SEL=1,
+                i_TXMAINCURSOR=self.txmaincursor.storage,
+                i_TXPRECURSOR=self.txprecursor.storage,
+                i_TXPOSTCURSOR=self.txpostcursor.storage,
 
                 # Polarity
                 i_TXPOLARITY=polarity,
@@ -286,7 +298,7 @@ class GTXTransmitter(Module):
         self.comb += [
             self.prbs.config.eq(self.prbs_config),
             self.prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
-            If(self.produce_square_wave,
+            If(self.produce_square_wave.storage,
                 # square wave @ linerate/40 for scope observation
                 txdata.eq(0b1111111111111111111100000000000000000000)
             ).Else(
