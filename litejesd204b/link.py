@@ -269,8 +269,16 @@ class LiteJESD204BLinkTX(Module):
             inserter.sink.eq(framer.source)
         ]
 
-        jref_last = Signal()
-        self.sync += jref_last.eq(self.jref)
+        jsync = Signal()
+        jref = Signal()
+        jref_d = Signal()
+        jref_rising = Signal()
+        self.sync += [
+            jsync.eq(self.jsync),
+            jref.eq(self.jref),
+            jref_d.eq(jref)
+        ]
+        self.comb += jref_rising.eq(self.jref & ~jref)
 
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="CGS")
@@ -283,7 +291,7 @@ class LiteJESD204BLinkTX(Module):
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
             # start ILAS on first LMFC after jsync is asserted
-            If(self.jsync & (self.jref & ~jref_last),
+            If(jsync & jref_rising,
                 NextState("ILAS")
             )
         )
