@@ -17,6 +17,7 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
     def __init__(self, phys, jesd_settings, converter_data_width):
         self.enable = Signal()
         self.jsync = Signal()
+        self.jref = Signal()
         self.ready = Signal()
         self.restart = Signal()
 
@@ -64,7 +65,10 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
             link = ClockDomainsRenamer(phy_cd)(link)
             links.append(link)
-            self.comb += link.jsync.eq(self.jsync)
+            self.comb += [
+                link.jsync.eq(self.jsync),
+                link.jref.eq(self.jref)
+            ]
             self.submodules += link
 
             # connect data
@@ -87,12 +91,26 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
         self.specials += MultiReg(ready, self.ready)
 
     def register_jsync(self, jsync):
+        self.jsync_registered = True
         if isinstance(jsync, Signal):
             self.comb += self.jsync.eq(jsync)
         elif isinstance(jsync, Record):
             self.specials += DifferentialInput(jsync.p, jsync.n, self.jsync)
         else:
             raise ValueError
+
+    def register_jref(self, jref):
+        self.jref_registered = True
+        if isinstance(jref, Signal):
+            self.comb += self.jref.eq(jref)
+        elif isinstance(jref, Record):
+            self.specials += DifferentialInput(jref.p, jref.n, self.jref)
+        else:
+            raise ValueError
+
+    def do_finalize(self):
+        assert hasattr(self, "jsync_registered")
+        assert hasattr(self, "jref_registered")
 
 
 class LiteJESD204BCoreTXControl(Module, AutoCSR):
