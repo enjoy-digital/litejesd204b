@@ -5,14 +5,14 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-if sys.version_info[:3] < (3, 3):
-    raise SystemExit("You need Python 3.3+")
+if sys.version_info[:3] < (3, 5):
+    raise SystemExit("You need Python 3.5+")
 
 
 setup(
     name="litejesd204b",
     version="0.1",
-    description="small footprint and configurable JESD204B core",
+    description="Small footprint and configurable JESD204B core",
     long_description=open("README").read(),
     author="Florent Kermarrec",
     author_email="florent@enjoy-digital.fr",
