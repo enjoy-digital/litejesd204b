@@ -11,7 +11,7 @@ if sys.version_info[:3] < (3, 5):
 
 setup(
     name="litejesd204b",
-    version="0.1",
+    version="0.2.dev",
     description="Small footprint and configurable JESD204B core",
     long_description=open("README").read(),
     author="Florent Kermarrec",
