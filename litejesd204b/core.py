@@ -1,10 +1,10 @@
 from functools import reduce
 from operator import and_
 
-from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg, ElasticBuffer
-from litex.gen.genlib.misc import WaitTimer
-from litex.gen.genlib.io import DifferentialInput
+from migen import *
+from migen.genlib.cdc import MultiReg, ElasticBuffer
+from migen.genlib.misc import WaitTimer
+from migen.genlib.io import DifferentialInput
 
 from litex.soc.interconnect.csr import *
 

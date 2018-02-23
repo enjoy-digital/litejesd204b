@@ -1,6 +1,6 @@
 import unittest
 
-from litex.gen import *
+from migen import *
 
 from litejesd204b.phy.prbs import (PRBS7Generator,
                                    PRBS15Generator,

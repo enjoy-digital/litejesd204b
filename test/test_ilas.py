@@ -1,6 +1,6 @@
 import unittest
 
-from litex.gen import *
+from migen import *
 
 from test.model.common import swap_bytes
 

@@ -1,7 +1,7 @@
 import unittest
 from math import ceil
 
-from litex.gen import *
+from migen import *
 
 from litejesd204b.common import *
 from litejesd204b.transport import LiteJESD204BTransportTX

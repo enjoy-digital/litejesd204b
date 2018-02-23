@@ -1,7 +1,7 @@
 import unittest
 import random
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.cores import code_8b10b as line_coding
 

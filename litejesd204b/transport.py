@@ -1,6 +1,6 @@
 from math import ceil
 
-from litex.gen import *
+from migen import *
 
 
 def seed_to_data(seed, random=True):

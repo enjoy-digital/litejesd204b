@@ -1,4 +1,4 @@
-from litex.gen import *
+from migen import *
 
 from litejesd204b.common import *
 from litejesd204b.phy.gtx import GTXTransmitter

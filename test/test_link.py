@@ -1,7 +1,7 @@
 import unittest
 import random
 
-from litex.gen import *
+from migen import *
 
 from litejesd204b.link import link_layout
 from litejesd204b.link import Scrambler, Framer, AlignInserter

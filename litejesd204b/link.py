@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-from litex.gen import *
+from migen import *
 
 from litejesd204b.common import control_characters
 
