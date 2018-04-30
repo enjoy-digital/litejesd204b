@@ -278,7 +278,7 @@ class LiteJESD204BLinkTX(Module):
             jref.eq(self.jref),
             jref_d.eq(jref)
         ]
-        self.comb += jref_rising.eq(self.jref & ~jref)
+        self.comb += jref_rising.eq(jref & ~jref_d)
 
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="CGS")
