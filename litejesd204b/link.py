@@ -230,6 +230,7 @@ class ILASGenerator(Module):
             )
 
 
+@ResetInserter()
 class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """

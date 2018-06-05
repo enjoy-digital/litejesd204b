@@ -51,7 +51,9 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
                 transport.sink.eq(self.sink)
             )
 
-        links = []
+        self.links = links = []
+        link_reset = Signal()
+        self.comb += link_reset.eq(~reduce(and_, [phy.transmitter.init.done for phy in phys]))
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
             phy_name = "phy{}".format(n)
             phy_cd = phy_name + "_tx"
@@ -59,13 +61,13 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             # claim the phy
             setattr(self.submodules, phy_name, phy)
 
-            ebuf = ElasticBuffer(len(phy.data), 4, "sys", phy_cd)
+            ebuf = ElasticBuffer(len(phy.data) + len(phy.ctrl), 4, "sys", phy_cd)
             setattr(self.submodules, "ebuf{}".format(n), ebuf)
 
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
-            link = ClockDomainsRenamer(phy_cd)(link)
             links.append(link)
             self.comb += [
+                link.reset.eq(link_reset),
                 link.jsync.eq(self.jsync),
                 link.jref.eq(self.jref)
             ]
@@ -73,10 +75,11 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
 
             # connect data
             self.comb += [
-                ebuf.din.eq(lane),
-                link.sink.data.eq(ebuf.dout),
-                phy.data.eq(link.source.data),
-                phy.ctrl.eq(link.source.ctrl)
+                link.sink.data.eq(lane),
+                ebuf.din[:len(phy.data)].eq(link.source.data),
+                ebuf.din[len(phy.data):].eq(link.source.ctrl),
+                phy.data.eq(ebuf.dout[:len(phy.data)]),
+                phy.ctrl.eq(ebuf.dout[len(phy.data):])
             ]
 
             # connect control
