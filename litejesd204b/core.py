@@ -13,7 +13,7 @@ from litejesd204b.transport import (LiteJESD204BTransportTX,
 from litejesd204b.link import LiteJESD204BLinkTX
 
 
-class LiteJESD204BCoreTX(Module, AutoCSR):
+class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
         self.enable = Signal()
         self.jsync = Signal()
@@ -30,20 +30,21 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
         # # #
 
         # restart when disabled or on re-synchronization request
-        self.comb += self.restart.eq(~self.enable | self.ready & ~self.jsync)
+        jsync = Signal()
+        self.specials += MultiReg(self.jsync, jsync, "sys")
+        self.comb += self.restart.eq(~self.enable | (self.ready & ~jsync))
 
         # transport layer
-        transport = LiteJESD204BTransportTX(jesd_settings,
-                                            converter_data_width)
+        transport = LiteJESD204BTransportTX(jesd_settings, converter_data_width)
+        transport = ClockDomainsRenamer("jesd")(transport)
         self.submodules.transport = transport
 
         # stpl
-        stpl = LiteJESD204BSTPLGenerator(jesd_settings,
-                                         converter_data_width)
+        stpl = LiteJESD204BSTPLGenerator(jesd_settings, converter_data_width)
+        stpl = ClockDomainsRenamer("jesd")(stpl)
         self.submodules += stpl
         stpl_enable = Signal()
-        self.specials += \
-            MultiReg(self.stpl_enable, stpl_enable)
+        self.specials += MultiReg(self.stpl_enable, stpl_enable)
         self.comb += \
             If(stpl_enable,
                 transport.sink.eq(stpl.source)
@@ -61,17 +62,18 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             # claim the phy
             setattr(self.submodules, phy_name, phy)
 
-            ebuf = ElasticBuffer(len(phy.data) + len(phy.ctrl), 4, "sys", phy_cd)
+            ebuf = ElasticBuffer(len(phy.data) + len(phy.ctrl), 4, "jesd", phy_cd)
             setattr(self.submodules, "ebuf{}".format(n), ebuf)
 
             link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
+            link = ClockDomainsRenamer("jesd")(link)
+            self.submodules += link
             links.append(link)
             self.comb += [
                 link.reset.eq(link_reset),
                 link.jsync.eq(self.jsync),
                 link.jref.eq(self.jref)
             ]
-            self.submodules += link
 
             # connect data
             self.comb += [
@@ -83,8 +85,8 @@ class LiteJESD204BCoreTX(Module, AutoCSR):
             ]
 
             # connect control
-            self.comb += phy.transmitter.init.restart.eq(self.restart &
-            	                                         (self.prbs_config == 0))
+            self.comb += phy.transmitter.init.restart.eq(
+                    self.restart & (self.prbs_config == 0))
 
             self.specials += MultiReg(self.prbs_config,
                                       phy.transmitter.prbs_config,
