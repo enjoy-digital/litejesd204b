@@ -1,6 +1,7 @@
 from migen import *
 
 from litejesd204b.common import *
+from litejesd204b.phy.gtp import GTPTransmitter
 from litejesd204b.phy.gtx import GTXTransmitter
 from litejesd204b.phy.gth import GTHTransmitter
 
@@ -15,6 +16,7 @@ class LiteJESD204BPhyTX(Module, AutoCSR):
         # # #
 
         transmitters = {
+            "gtp": GTPTransmitter,
             "gtx": GTXTransmitter,
             "gth": GTHTransmitter
         }
