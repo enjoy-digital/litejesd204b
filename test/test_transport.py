@@ -5,7 +5,7 @@ from migen import *
 
 from litejesd204b.common import *
 from litejesd204b.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
-from litejesd204b.transport import LiteJESD204BSTPLGenerator
+from litejesd204b.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
 
 from test.model.transport import samples_to_lanes, lanes_to_samples
 
@@ -117,5 +117,29 @@ class TestTransport(unittest.TestCase):
             dut.errors += (yield dut.source.converter2) != 0x0200020002000200
             dut.errors += (yield dut.source.converter3) != 0x0300030003000300
 
-        run_simulation(stpl, [checker(stpl)], vcd_name="toto")
+        run_simulation(stpl, [checker(stpl)])
         self.assertEqual(stpl.errors, 0)
+
+    def test_stpl_checker(self):
+        ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
+        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+
+        stpl = LiteJESD204BSTPLChecker(jesd_settings, 64, random=False)
+        stpl._errors = 0
+
+        def generator(dut):
+            yield dut.sink.converter0.eq(0x0000000000000000)
+            yield dut.sink.converter1.eq(0x0100010001000100)
+            yield dut.sink.converter2.eq(0x0200020002000200)
+            yield dut.sink.converter3.eq(0x0300030003000300)
+            yield
+            yield dut.sink.converter0.eq(0x0000000000000000 ^ 0x0000000000000001)
+            yield dut.sink.converter1.eq(0x0100010001000100 ^ 0x0000000000000010)
+            yield dut.sink.converter2.eq(0x0200020002000200 ^ 0x0000000000000100)
+            yield dut.sink.converter3.eq(0x0300030003000300 ^ 0x0000000000001000)
+            yield
+            stpl._errors = (yield stpl.errors)
+
+        run_simulation(stpl, [generator(stpl)])
+        self.assertEqual(stpl._errors, 1)
