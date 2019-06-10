@@ -2,10 +2,10 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
+from litex.soc.cores.prbs import PRBSTX
 from litex.soc.cores.code_8b10b import Encoder
 
 from litejesd204b.phy.gth_init import GTHInit
-from litejesd204b.phy.prbs import *
 
 
 class GTHChannelPLL(Module):
