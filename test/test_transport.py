@@ -32,22 +32,25 @@ class TestTransport(unittest.TestCase):
         lane_data_width = len(transport.source.lane0)
 
         def generator(dut):
-            for i in range(5):
-                if i < 4:
-                    for c in range(nconverters):
-                        converter_data = getattr(dut.sink, "converter"+str(c))
-                        for j in range(nconverters):
-                            yield converter_data[16*j:16*(j+1)].eq(input_samples[c][4*i+j])
-                if i > 0:
-                    for l in range(nlanes):
-                        lane_data = (yield getattr(dut.source, "lane"+str(l)))
-                        for f in range(lane_data_width//(octets_per_lane*8)):
-                            frame = [(lane_data >> (f*8*octets_per_lane)+8*i) & 0xff
-                                for i in range(octets_per_lane)]
-                            output_lanes[l].append(frame)
+            for i in range(4):
+                for c in range(nconverters):
+                    converter_data = getattr(dut.sink, "converter"+str(c))
+                    for j in range(nconverters):
+                        yield converter_data[16*j:16*(j+1)].eq(input_samples[c][4*i+j])
                 yield
 
-        run_simulation(transport, generator(transport))
+        def checker(dut):
+            yield
+            for i in range(4):
+                for l in range(nlanes):
+                    lane_data = (yield getattr(dut.source, "lane"+str(l)))
+                    for f in range(lane_data_width//(octets_per_lane*8)):
+                        frame = [(lane_data >> (f*8*octets_per_lane)+8*i) & 0xff
+                            for i in range(octets_per_lane)]
+                        output_lanes[l].append(frame)
+                yield
+
+        run_simulation(transport, [generator(transport), checker(transport)])
         return reference_lanes, output_lanes
 
     def test_transport_tx(self):
@@ -73,21 +76,24 @@ class TestTransport(unittest.TestCase):
         output_samples = [[] for i in range(nconverters)]
 
         def generator(dut):
-            for i in range(5):
-                if i < 4:
-                    for c in range(nconverters):
-                        converter_data = getattr(dut.sink, "converter"+str(c))
-                        for j in range(nconverters):
-                            yield converter_data[16*j:16*(j+1)].eq(input_samples[c][4*i+j])
-                if i > 0:
-                    for c in range(nconverters):
-                        converter_data = (yield getattr(dut.source, "converter"+str(c)))
-                        for j in range(nconverters):
-                            sample = (converter_data >> 16*j) & 0xffff
-                            output_samples[c].append(sample)
+            for i in range(4):
+                for c in range(nconverters):
+                    converter_data = getattr(dut.sink, "converter"+str(c))
+                    for j in range(nconverters):
+                        yield converter_data[16*j:16*(j+1)].eq(input_samples[c][4*i+j])
                 yield
 
-        run_simulation(dut, generator(dut))
+        def checker(dut):
+            yield
+            for i in range(4):
+                for c in range(nconverters):
+                    converter_data = (yield getattr(dut.source, "converter"+str(c)))
+                    for j in range(nconverters):
+                        sample = (converter_data >> 16*j) & 0xffff
+                        output_samples[c].append(sample)
+                yield
+
+        run_simulation(dut, [generator(dut), checker(dut)])
         return input_samples, output_samples
 
     def test_transport_loopback(self):
