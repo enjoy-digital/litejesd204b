@@ -164,3 +164,28 @@ class LiteJESD204BSTPLGenerator(Module):
                 data = seed_to_data((i << 8) | j%samples_per_frame, random)
                 self.comb += converter[j*jesd_settings.phy.n:
                                        (j+1)*jesd_settings.phy.n].eq(data)
+
+
+class LiteJESD204BSTPLChecker(Module):
+    """Simple Transport Layer Pattern Checker
+    cf section 5.1.6.2
+    """
+    def __init__(self, jesd_settings, converter_data_width, random=True):
+        self.sink = Record([("converter"+str(i), converter_data_width)
+            for i in range(jesd_settings.nconverters)])
+        self.errors = Signal(32)
+
+        # # #
+
+        samples_per_clock = converter_data_width//jesd_settings.phy.n
+        samples_per_frame = jesd_settings.transport.s
+
+        for i in range(jesd_settings.nconverters):
+            converter = getattr(self.sink, "converter"+str(i))
+            for j in range(samples_per_clock):
+                data = seed_to_data((i << 8) | j%samples_per_frame, random)
+                self.sync += [
+                    If(converter[j*jesd_settings.phy.n:(j+1)*jesd_settings.phy.n] != data,
+                        self.errors.eq(self.errors + 1)
+                    )
+                ]
