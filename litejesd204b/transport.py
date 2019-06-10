@@ -149,7 +149,7 @@ class LiteJESD204BSTPLGenerator(Module):
     """Simple Transport Layer Pattern Generator
     cf section 5.1.6.2
     """
-    def __init__(self, jesd_settings, converter_data_width):
+    def __init__(self, jesd_settings, converter_data_width, random=True):
         self.source = Record([("converter"+str(i), converter_data_width)
             for i in range(jesd_settings.nconverters)])
 
@@ -161,6 +161,6 @@ class LiteJESD204BSTPLGenerator(Module):
         for i in range(jesd_settings.nconverters):
             converter = getattr(self.source, "converter"+str(i))
             for j in range(samples_per_clock):
-                data = seed_to_data((i << 8) | j%samples_per_frame, True)
+                data = seed_to_data((i << 8) | j%samples_per_frame, random)
                 self.comb += converter[j*jesd_settings.phy.n:
                                        (j+1)*jesd_settings.phy.n].eq(data)
