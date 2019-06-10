@@ -62,6 +62,9 @@ class Scrambler(Module):
             state.eq(full)
         ]
 
+class Descrambler(Scrambler):
+    pass
+
 # Framing ------------------------------------------------------------------------------------------
 
 @ResetInserter()
