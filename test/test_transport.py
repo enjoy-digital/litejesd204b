@@ -5,6 +5,7 @@ from migen import *
 
 from litejesd204b.common import *
 from litejesd204b.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
+from litejesd204b.transport import LiteJESD204BSTPLGenerator
 
 from test.model.transport import samples_to_lanes, lanes_to_samples
 
@@ -100,3 +101,21 @@ class TestTransport(unittest.TestCase):
         for nlanes in [1, 2, 4, 8]:
             reference, output = self.transport_loopback_test(nlanes, 4, 64)
             self.assertEqual(reference, output)
+
+    def test_stpl_generator(self):
+        ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
+        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+
+        stpl = LiteJESD204BSTPLGenerator(jesd_settings, 64, random=False)
+        stpl.errors = 0
+
+        def checker(dut):
+            yield
+            dut.errors += (yield dut.source.converter0) != 0x0000000000000000
+            dut.errors += (yield dut.source.converter1) != 0x0100010001000100
+            dut.errors += (yield dut.source.converter2) != 0x0200020002000200
+            dut.errors += (yield dut.source.converter3) != 0x0300030003000300
+
+        run_simulation(stpl, [checker(stpl)], vcd_name="toto")
+        self.assertEqual(stpl.errors, 0)
