@@ -6,6 +6,7 @@ from migen import *
 def seed_to_data(seed, random=True):
     return ((seed + 1)*0x31415979 + 1) & 0xffff if random else seed
 
+# Transport TX -------------------------------------------------------------------------------------
 
 class LiteJESD204BTransportTX(Module):
     """Transport TX layer
@@ -77,6 +78,7 @@ class LiteJESD204BTransportTX(Module):
             current_sample += samples_per_frame
             current_octet += jesd_settings.octets_per_lane
 
+# Transport RX -------------------------------------------------------------------------------------
 
 class LiteJESD204BTransportRX(Module):
     """Transport RX layer
@@ -144,6 +146,7 @@ class LiteJESD204BTransportRX(Module):
             current_sample += samples_per_frame
             current_octet += jesd_settings.octets_per_lane
 
+# STPL Generator (TX) ------------------------------------------------------------------------------
 
 class LiteJESD204BSTPLGenerator(Module):
     """Simple Transport Layer Pattern Generator
@@ -165,6 +168,7 @@ class LiteJESD204BSTPLGenerator(Module):
                 self.comb += converter[j*jesd_settings.phy.n:
                                        (j+1)*jesd_settings.phy.n].eq(data)
 
+# STPL Checker (RX) --------------------------------------------------------------------------------
 
 class LiteJESD204BSTPLChecker(Module):
     """Simple Transport Layer Pattern Checker

@@ -7,6 +7,7 @@ from litejesd204b.common import control_characters
 
 Control = namedtuple("Control", "value")
 
+# Layout -------------------------------------------------------------------------------------------
 
 def link_layout(data_width):
     layout = [
@@ -20,6 +21,7 @@ def link_layout(data_width):
     ]
     return layout
 
+# Scrambling ---------------------------------------------------------------------------------------
 
 @ResetInserter()
 class Scrambler(Module):
@@ -60,6 +62,7 @@ class Scrambler(Module):
             state.eq(full)
         ]
 
+# Framing ------------------------------------------------------------------------------------------
 
 @ResetInserter()
 class Framer(Module):
@@ -104,6 +107,7 @@ class Framer(Module):
             )
         ]
 
+# Alignment ----------------------------------------------------------------------------------------
 
 class AlignInserter(Module):
     """Alignment Character Inserter
@@ -134,6 +138,7 @@ class AlignInserter(Module):
                 )
             ]
 
+# Code Group Synchronization -----------------------------------------------------------------------
 
 class CGSGenerator(Module):
     """Code Group Synchronization
@@ -151,6 +156,7 @@ class CGSGenerator(Module):
                 source.ctrl[i].eq(1)
             ]
 
+# Initial Lane Alignment Sequence ------------------------------------------------------------------
 
 @ResetInserter()
 class ILASGenerator(Module):
@@ -229,6 +235,7 @@ class ILASGenerator(Module):
                 counter.eq(counter + 1)
             )
 
+# Link TX ------------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteJESD204BLinkTX(Module):

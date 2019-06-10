@@ -12,6 +12,7 @@ from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BSTPLGenerator)
 from litejesd204b.link import LiteJESD204BLinkTX
 
+# Core TX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
@@ -117,6 +118,7 @@ class LiteJESD204BCoreTX(Module):
         assert hasattr(self, "jsync_registered")
         assert hasattr(self, "jref_registered")
 
+# Core TX Control ----------------------------------------------------------------------------------
 
 class LiteJESD204BCoreTXControl(Module, AutoCSR):
     def __init__(self, core):

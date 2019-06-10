@@ -1,6 +1,6 @@
 from math import ceil
 
-# control characters
+# Control characters -------------------------------------------------------------------------------
 
 control_characters = {
     "R": 0b00011100, # K28.0, Start of multi-frame
@@ -10,7 +10,7 @@ control_characters = {
     "F": 0b11111100, # K28.7, Frame alignment
 }
 
-# configuration data
+# Configuration data -------------------------------------------------------------------------------
 
 class Field:
     def __init__(self, octet, offset, width):
@@ -78,7 +78,7 @@ class JESD204BConfigurationData:
             checksum += getattr(self, name) & (2**field.width-1)
         return checksum % 256
 
-# settings
+# Settings -----------------------------------------------------------------------------------------
 
 class JESD204BTransportSettings:
     def __init__(self, f, s, k, cs):
