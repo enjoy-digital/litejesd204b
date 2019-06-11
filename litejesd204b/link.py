@@ -23,6 +23,9 @@ def link_layout(data_width):
 
 # Scrambling ---------------------------------------------------------------------------------------
 
+def swizzle(s, data_width):
+    return Cat(*[s[data_width-8*(i+1):data_width-8*i] for i in range(data_width//8)])
+
 @ResetInserter()
 class Scrambler(Module):
     """Scrambler
@@ -40,30 +43,50 @@ class Scrambler(Module):
         feedback = Signal(data_width)
         full = Signal(data_width+15)
 
-        swizzle_in = Signal(data_width)
-        swizzle_out = Signal(data_width)
-        self.comb += [
-            swizzle_in.eq(Cat(*[sink.data[data_width-8*(i+1):data_width-8*i]
-                for i in range(data_width//8)])),
-            source.data.eq(Cat(*[swizzle_out[data_width-8*(i+1):data_width-8*i]
-                for i in range(data_width//8)]))
-        ]
-
         self.comb += [
             full.eq(Cat(feedback, state)),
             feedback.eq(full[15:15+data_width] ^
                         full[14:14+data_width] ^
-                        swizzle_in)
+                        swizzle(sink.data, data_width))
         ]
 
         self.sync += [
             self.valid.eq(1),
-            swizzle_out.eq(feedback),
+            source.data.eq(swizzle(feedback, data_width)),
             state.eq(full)
         ]
 
+
+@ResetInserter()
 class Descrambler(Scrambler):
-    pass
+    """Scrambler
+    cf section 5.2.3
+    """
+    def __init__(self, data_width, seed=0x7f80):
+        self.sink = sink = Record([("data", data_width)])
+        self.source = source = Record([("data", data_width)])
+        self.valid = Signal()
+        self.latency = 1
+
+        # # #
+
+        state = Signal(15, reset=seed)
+        feedback = Signal(data_width)
+        full = Signal(data_width+15)
+
+        self.comb += [
+            full.eq(Cat(swizzle(sink.data, data_width), state)),
+            feedback.eq(full[15:15+data_width] ^
+                        full[14:14+data_width] ^
+                        full[0:32])
+        ]
+
+        self.sync += [
+            self.valid.eq(1),
+            source.data.eq(swizzle(feedback, data_width)),
+            state.eq(full)
+        ]
+
 
 # Framing ------------------------------------------------------------------------------------------
 
