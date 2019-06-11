@@ -311,6 +311,7 @@ class ILASGenerator(ILAS, Module):
                  configuration_data,
                  with_counter=True):
         self.source = source = Record(link_layout(data_width))
+        self.done = Signal()
 
         # # #
 
@@ -344,6 +345,10 @@ class ILASGenerator(ILAS, Module):
                 counter.eq(counter + 1)
             )
 
+        # done
+        self.comb += self.done.eq(counter == len(self.data_words))
+
+
 @ResetInserter()
 class ILASChecker(ILAS, Module):
     """Initial Lane Alignment Sequence Checker
@@ -355,6 +360,7 @@ class ILASChecker(ILAS, Module):
                  configuration_data,
                  with_counter=True):
         self.sink = sink = Record(link_layout(data_width))
+        self.done = Signal()
         self.errors = Signal(16)
 
         # # #
@@ -393,6 +399,9 @@ class ILASChecker(ILAS, Module):
             )
         ]
 
+        # done
+        self.comb += self.done.eq(counter == len(self.data_words))
+
 # Link TX ------------------------------------------------------------------------------------------
 
 @ResetInserter()
@@ -400,20 +409,16 @@ class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """
     def __init__(self, data_width, jesd_settings, n=0):
-        self.jsync = Signal()
-        self.jref = Signal()
-        self.ready = Signal()
+        self.jsync = Signal() # input
+        self.jref = Signal()  # input
+        self.ready = Signal() # output
 
         self.sink = sink = Record([("data", data_width)])
         self.source = source = Record(link_layout(data_width))
 
         # # #
 
-        #   CGS-----+
-        #   ILAS----+-mux(fsm) --> source
-        #  Datapath-+
-
-        # Init
+        # Control (CGS + ILAS)
         cgs = CGSGenerator(data_width)
         ilas = ILASGenerator(data_width,
                              jesd_settings.octets_per_lane,
@@ -423,16 +428,14 @@ class LiteJESD204BLinkTX(Module):
 
 
         # Datapath
-        self.scrambler = scrambler = Scrambler(data_width)
-        self.framer = framer = Framer(data_width,
-                                      jesd_settings.octets_per_frame,
-                                      jesd_settings.transport.k)
-        self.inserter = inserter = AlignInserter(data_width)
-        self.submodules += scrambler, framer, inserter
+        scrambler = Scrambler(data_width)
+        framer = Framer(data_width, jesd_settings.octets_per_frame, jesd_settings.transport.k)
+        alignment = AlignInserter(data_width)
+        self.submodules += scrambler, framer, alignment
         self.comb += [
             scrambler.sink.eq(sink),
             framer.sink.eq(scrambler.source),
-            inserter.sink.eq(framer.source)
+            alignment.sink.eq(framer.source)
         ]
 
         jsync = Signal()
@@ -447,10 +450,10 @@ class LiteJESD204BLinkTX(Module):
         self.comb += jref_rising.eq(jref & ~jref_d)
 
         # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="CGS")
+        self.submodules.fsm = fsm = FSM(reset_state="SEND-CGS")
 
         # Code Group Synchronization
-        fsm.act("CGS",
+        fsm.act("SEND-CGS",
             ilas.reset.eq(1),
             scrambler.reset.eq(1),
             framer.reset.eq(1),
@@ -458,23 +461,95 @@ class LiteJESD204BLinkTX(Module):
             source.ctrl.eq(cgs.source.ctrl),
             # start ILAS on first LMFC after jsync is asserted
             If(jsync & jref_rising,
-                NextState("ILAS")
+                NextState("SEND-ILAS")
             )
         )
 
         # Initial Lane Alignment Sequence
-        fsm.act("ILAS",
+        fsm.act("SEND-ILAS",
             framer.reset.eq(1),
             source.data.eq(ilas.source.data),
             source.ctrl.eq(ilas.source.ctrl),
             If(ilas.source.last,
-                NextState("USER_DATA")
+                NextState("SEND-DATA")
             )
         )
 
-        # User Data
-        fsm.act("USER_DATA",
+        # Data
+        fsm.act("SEND-DATA",
             ilas.reset.eq(1),
             self.ready.eq(1),
-            source.eq(inserter.source),
+            source.eq(alignment.source),
+        )
+
+
+# Link RX ------------------------------------------------------------------------------------------
+
+@ResetInserter()
+class LiteJESD204BLinkRX(Module):
+    # WORK IN PROGRESS - UNTESTED
+    """Link RX layer
+    """
+    def __init__(self, data_width, jesd_settings, n=0):
+        self.jsync = Signal() # output
+        self.jref = Signal()  # input
+        self.ready = Signal() # output
+
+        self.sink = sink = Record(link_layout(data_width))
+        self.source = source = Record([("data", data_width)])
+
+        # # #
+
+        # Control (CGS + ILAS)
+        cgs = CGSChecker(data_width)
+        ilas = ILASChecker(data_width,
+                             jesd_settings.octets_per_lane,
+                             jesd_settings.transport.k,
+                             jesd_settings.get_configuration_data(n))
+        self.submodules += cgs, ilas
+
+
+        # Datapath
+        descrambler = Descrambler(data_width)
+        deframer = Deframer(data_width, jesd_settings.octets_per_frame, jesd_settings.transport.k)
+        alignment = AlignRemover(data_width)
+        self.submodules += descrambler, deframer, alignment
+        self.comb += [
+            source.eq(descrambler.source),
+            descrambler.sink.eq(deframer.source),
+            deframer.sink.eq(alignment.source)
+        ]
+
+        # FSM
+        self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
+
+        # Code Group Synchronization
+        fsm.act("RECEIVE-CGS",
+            ilas.reset.eq(1),
+            descrambler.reset.eq(1),
+            deframer.reset.eq(1),
+            cgs.sink.data.eq(sink.data),
+            cgs.sink.ctrl.eq(sink.ctrl),
+            # set jsync if CGS detected
+            If(~cgs.error, # FIXME: check how many CGS should be detected before receiving ILAS
+                self.jsync.eq(1),
+                NextState("RECEIVE-ILAS")
+            )
+        )
+
+        # Initial Lane Alignment Sequence
+        fsm.act("RECEIVE-ILAS",
+            deframer.reset.eq(1),
+            ilas.sink.data.eq(sink.data),
+            ilas.sink.ctrl.eq(sink.ctrl),
+            If(ilas.done,
+                NextState("RECEIVE-DATA")
+            )
+        )
+
+        # Data
+        fsm.act("RECEIVE-DATA",
+            ilas.reset.eq(1),
+            self.ready.eq(1),
+            alignment.sink.eq(sink),
         )
