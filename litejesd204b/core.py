@@ -9,8 +9,10 @@ from migen.genlib.io import DifferentialInput
 from litex.soc.interconnect.csr import *
 
 from litejesd204b.transport import (LiteJESD204BTransportTX,
-                                    LiteJESD204BSTPLGenerator)
-from litejesd204b.link import LiteJESD204BLinkTX
+                                    LiteJESD204BTransportRX,
+                                    LiteJESD204BSTPLGenerator,
+                                    LiteJESD204BSTPLChecker)
+from litejesd204b.link import LiteJESD204BLinkTX, LiteJESD204BLinkRX
 
 # Core TX ------------------------------------------------------------------------------------------
 
@@ -165,3 +167,86 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         self.comb += self.restart_count.status.eq(restart_count)
 
 
+# Core RX ------------------------------------------------------------------------------------------
+
+class LiteJESD204BCoreRX(Module):
+    # WORK IN PROGRESS - UNTESTED
+    def __init__(self, phys, jesd_settings, converter_data_width):
+        self.enable = Signal()
+        self.jsync = Signal()
+        self.jref = Signal()
+        self.ready = Signal()
+
+        self.prbs_config = Signal(4)
+        self.stpl_enable = Signal()
+
+        self.source = Record([("converter"+str(i), converter_data_width)
+            for i in range(jesd_settings.nconverters)])
+
+        # # #
+
+        # transport layer
+        transport = LiteJESD204BTransportRX(jesd_settings, converter_data_width)
+        transport = ClockDomainsRenamer("jesd")(transport)
+        self.submodules.transport = transport
+
+        # stpl
+        stpl = LiteJESD204BSTPLChecker(jesd_settings, converter_data_width)
+        stpl = ClockDomainsRenamer("jesd")(stpl)
+        self.submodules += stpl
+        stpl_enable = Signal()
+        self.specials += MultiReg(self.stpl_enable, stpl_enable)
+        self.comb += \
+            If(stpl_enable,
+                stpl.sink.req(transport.source)
+            ).Else(
+                self.source.eq(transport.source)
+            )
+
+        self.links = links = []
+        link_reset = Signal()
+        self.comb += link_reset.eq(~reduce(and_, [phy.transmitter.init.done for phy in phys])) # FIXME: use rx_init.done
+        for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
+            phy_name = "phy{}".format(n)
+            phy_cd = phy_name + "_rx"
+
+            ebuf = ElasticBuffer(len(phy.data) + len(phy.ctrl), 4, phy_cd, "jesd")
+            setattr(self.submodules, "ebuf{}".format(n), ebuf)
+
+            link = LiteJESD204BLinkRX(len(phy.data), jesd_settings, n)
+            link = ClockDomainsRenamer("jesd")(link)
+            self.submodules += link
+            links.append(link)
+            self.comb += [
+                link.reset.eq(link_reset),
+                self.jsync.eq(link.jsync),
+                link.jref.eq(self.jref)
+            ]
+
+            # connect data
+            self.comb += [
+                ebuf.din[:len(phy.data)].eq(phy.data), # FIXME: use phy.source.data
+                ebuf.din[len(phy.data):].eq(phy.ctrl), # FIXME: use phy.source.ctrl
+                link.sink.data.eq(ebuf.dout[:len(phy.data)]),
+                link.sink.ctrl.eq(ebuf.dout[:len(phy.ctrl)]),
+                lane.eq(link.source.data)
+            ]
+
+            self.specials += MultiReg(self.prbs_config,
+                                      phy.transmitter.prbs_config,
+                                      phy_cd)
+        ready = Signal()
+        self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
+        self.specials += MultiReg(ready, self.ready)
+
+    def register_jref(self, jref):
+        self.jref_registered = True
+        if isinstance(jref, Signal):
+            self.comb += self.jref.eq(jref)
+        elif isinstance(jref, Record):
+            self.specials += DifferentialInput(jref.p, jref.n, self.jref)
+        else:
+            raise ValueError
+
+    def do_finalize(self):
+        assert hasattr(self, "jref_registered")
