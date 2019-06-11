@@ -133,6 +133,33 @@ class Framer(Module):
             )
         ]
 
+@ResetInserter()
+class Deframer(Module):
+    """Deframer
+    """
+    def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
+        self.sink = sink = Record(link_layout(data_width))
+        self.source = source = Record([("data", data_width)])
+        self.latency = 0
+
+        # # #
+
+        frame_width = octets_per_frame*8
+        frames_per_clock = data_width//frame_width
+        clocks_per_multiframe = frames_per_multiframe//frames_per_clock
+
+        # at least a frame per clock
+        assert frame_width <= data_width
+        # multiple number of frame per clock
+        assert data_width%frame_width == 0
+        # multiframes aligned on clock
+        assert frames_per_multiframe%frames_per_clock == 0
+
+        # FIXME: start on multiframe boundary?
+        self.comb += [
+            source.data.eq(sink.data),
+        ]
+
 # Alignment ----------------------------------------------------------------------------------------
 
 class AlignInserter(Module):
@@ -150,19 +177,36 @@ class AlignInserter(Module):
 
         for i in range(data_width//8):
             self.comb += [
-                # last scrambled octet in a multiframe equals 0x7c
+                # last scrambled octet in a multiframe equals "A" control character
                 If(sink.data[8*i:8*(i+1)] == control_characters["A"],
                     If(sink.multiframe_last[i],
                         source.ctrl[i].eq(1)
                     )
                 # last scrambled octet in a frame but not at the end of a
-                # multiframe equals 0xfc
+                # multiframe equals "F" control character
                 ).Elif(sink.data[8*i:8*(i+1)] == control_characters["F"],
                     If(sink.frame_last[i] & ~sink.multiframe_last[i],
                         source.ctrl[i].eq(1)
                     )
                 )
             ]
+
+
+class AlignRemover(Module):
+    """Alignment Character Remover
+    cf section 5.3.3.4.3
+    """
+    def __init__(self, data_width):
+        self.sink = sink = Record(link_layout(data_width))
+        self.source = source = Record(link_layout(data_width))
+        self.latency = 0
+
+        # # #
+
+        # recopy data and set ctrl to 0
+        self.comb += source.eq(sink)
+        for i in range(data_width//8):
+            self.comb += source.ctrl.eq(0)
 
 # Code Group Synchronization -----------------------------------------------------------------------
 
@@ -182,10 +226,82 @@ class CGSGenerator(Module):
                 source.ctrl[i].eq(1)
             ]
 
+class CGSChecker(Module):
+    """Code Group Synchronization
+    """
+    def __init__(self, data_width):
+        self.sink = sink = Record(link_layout(data_width))
+        self.error = Signal()
+
+        # # #
+
+        data = Signal(data_width)
+        ctrl = Signal(data_width//8)
+        for i in range(data_width//8):
+            self.comb += [
+                If(source.data[8*i:8*(i+1)] != control_characters["K"],
+                    self.error.eq(1)
+                ),
+                If(source.ctrl[i] != 1,
+                    self.error.eq(1)
+                )
+            ]
+
 # Initial Lane Alignment Sequence ------------------------------------------------------------------
 
+class ILAS:
+    """Initial Lane Alignment Sequence
+    cf section 5.3.3.5
+    """
+    def __init__(self, data_width,
+                 octets_per_frame,
+                 frames_per_multiframe,
+                 configuration_data,
+                 with_counter=True):
+
+        # compute ILAS's octets
+
+        octets_per_multiframe = octets_per_frame*frames_per_multiframe
+
+        octets = []
+        for i in range(4):
+            if with_counter:
+                multiframe = [i*octets_per_multiframe + j
+                    for j in range(octets_per_multiframe)]
+            else:
+                multiframe = [0]*octets_per_multiframe
+            multiframe[0]  = Control(control_characters["R"])
+            multiframe[-1] = Control(control_characters["A"])
+            if i == 1:
+                multiframe[1] = Control(control_characters["Q"])
+                multiframe[2:2+len(configuration_data)] = configuration_data
+            octets += multiframe
+
+        # pack ILAS's octets in a lookup table
+
+        octets_per_clock = data_width//8
+
+        self.data_words = data_words = []
+        self.ctrl_words = ctrl_words = []
+        for i in range(len(octets)//octets_per_clock):
+            data_word = 0
+            ctrl_word = 0
+            for j in range(octets_per_clock):
+                octet = octets[i*octets_per_clock+j]
+                if isinstance(octet, Control):
+                    data_word |= (octet.value << 8*j)
+                    ctrl_word |= (1 << j)
+                else:
+                    data_word |= (octet << 8*j)
+            data_words.append(data_word)
+            ctrl_words.append(ctrl_word)
+
+        assert len(data_words) == (octets_per_frame*
+                                        frames_per_multiframe*
+                                        4//octets_per_clock)
+
 @ResetInserter()
-class ILASGenerator(Module):
+class ILASGenerator(ILAS, Module):
     """Initial Lane Alignment Sequence Generator
     cf section 5.3.3.5
     """
@@ -198,68 +314,84 @@ class ILASGenerator(Module):
 
         # # #
 
-        # compute ilas's octets
+        # compute ILAS's data/ctrl words
+        ILAS.__init__(self,
+            data_width,
+            octets_per_frame,
+            frames_per_multiframe,
+            configuration_data,
+            with_counter)
 
-        octets_per_multiframe = octets_per_frame*frames_per_multiframe
-
-        ilas_octets = []
-        for i in range(4):
-            if with_counter:
-                multiframe = [i*octets_per_multiframe + j
-                    for j in range(octets_per_multiframe)]
-            else:
-                multiframe = [0]*octets_per_multiframe
-            multiframe[0]  = Control(control_characters["R"])
-            multiframe[-1] = Control(control_characters["A"])
-            if i == 1:
-                multiframe[1] = Control(control_characters["Q"])
-                multiframe[2:2+len(configuration_data)] = configuration_data
-            ilas_octets += multiframe
-
-        # pack ilas's octets in a lookup table
-
-        octets_per_clock = data_width//8
-
-        ilas_data_words = []
-        ilas_ctrl_words = []
-        for i in range(len(ilas_octets)//octets_per_clock):
-            data_word = 0
-            ctrl_word = 0
-            for j in range(octets_per_clock):
-                octet = ilas_octets[i*octets_per_clock+j]
-                if isinstance(octet, Control):
-                    data_word |= (octet.value << 8*j)
-                    ctrl_word |= (1 << j)
-                else:
-                    data_word |= (octet << 8*j)
-            ilas_data_words.append(data_word)
-            ilas_ctrl_words.append(ctrl_word)
-
-        assert len(ilas_data_words) == (octets_per_frame*
-                                        frames_per_multiframe*
-                                        4//octets_per_clock)
-
-        data_lut = Memory(data_width, len(ilas_data_words), init=ilas_data_words)
+        data_lut = Memory(data_width, len(self.data_words), init=self.data_words)
         data_port = data_lut.get_port(async_read=True)
         self.specials += data_lut, data_port
 
-        ctrl_lut = Memory(data_width//8, len(ilas_ctrl_words), init=ilas_ctrl_words)
+        ctrl_lut = Memory(data_width//8, len(self.ctrl_words), init=self.ctrl_words)
         ctrl_port = ctrl_lut.get_port(async_read=True)
         self.specials += ctrl_lut, ctrl_port
 
         # stream data/ctrl from lookup tables
-        counter = Signal(max=len(ilas_data_words)+1)
+        counter = Signal(max=len(self.data_words)+1)
         self.comb += [
-            source.last.eq(counter == (len(ilas_data_words)-1)),
+            source.last.eq(counter == (len(self.data_words)-1)),
             data_port.adr.eq(counter),
             ctrl_port.adr.eq(counter),
             source.data.eq(data_port.dat_r),
             source.ctrl.eq(ctrl_port.dat_r)
         ]
         self.sync += \
-            If(counter != len(ilas_data_words),
+            If(counter != len(self.data_words),
                 counter.eq(counter + 1)
             )
+
+@ResetInserter()
+class ILASChecker(ILAS, Module):
+    """Initial Lane Alignment Sequence Checker
+    cf section 5.3.3.5
+    """
+    def __init__(self, data_width,
+                 octets_per_frame,
+                 frames_per_multiframe,
+                 configuration_data,
+                 with_counter=True):
+        self.sink = sink = Record(link_layout(data_width))
+        self.errors = Signal(16)
+
+        # # #
+
+        # compute ILAS's data/ctrl words
+        ILAS.__init__(self,
+            data_width,
+            octets_per_frame,
+            frames_per_multiframe,
+            configuration_data,
+            with_counter)
+
+        data_lut = Memory(data_width, len(self.data_words), init=self.data_words)
+        data_port = data_lut.get_port(async_read=True)
+        self.specials += data_lut, data_port
+
+        ctrl_lut = Memory(data_width//8, len(self.ctrl_words), init=self.ctrl_words)
+        ctrl_port = ctrl_lut.get_port(async_read=True)
+        self.specials += ctrl_lut, ctrl_port
+
+        # compare data/ctrl with lookup tables
+        counter = Signal(max=len(self.data_words)+1)
+        self.comb += [
+            data_port.adr.eq(counter),
+            ctrl_port.adr.eq(counter),
+        ]
+        self.sync += [
+            If(counter != len(self.data_words),
+                counter.eq(counter + 1),
+                If(sink.data != data_port.dat_r,
+                    self.errors.eq(self.errors + 1)
+                ),
+                If(sink.ctrl != ctrl_port.dat_r,
+                    self.errors.eq(self.errors + 1)
+                )
+            )
+        ]
 
 # Link TX ------------------------------------------------------------------------------------------
 
