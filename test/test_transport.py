@@ -19,8 +19,7 @@ class TestTransport(unittest.TestCase):
         transport = LiteJESD204BTransportTX(jesd_settings,
                                             converter_data_width)
 
-        input_samples = [[j+i*256 for j in range(16)]
-            for i in range(nconverters)]
+        input_samples = [[j+i*256 for j in range(16)] for i in range(nconverters)]
         reference_lanes = samples_to_lanes(samples_per_frame=1,
                                            nlanes=nlanes,
                                            nconverters=nconverters,
@@ -36,7 +35,7 @@ class TestTransport(unittest.TestCase):
             for i in range(4):
                 for c in range(nconverters):
                     converter_data = getattr(dut.sink, "converter"+str(c))
-                    for j in range(nconverters):
+                    for j in range(converter_data_width//jesd_settings.phy.n):
                         yield converter_data[16*j:16*(j+1)].eq(input_samples[c][4*i+j])
                 yield
 
@@ -46,8 +45,8 @@ class TestTransport(unittest.TestCase):
                 for l in range(nlanes):
                     lane_data = (yield getattr(dut.source, "lane"+str(l)))
                     for f in range(lane_data_width//(octets_per_lane*8)):
-                        frame = [(lane_data >> (f*8*octets_per_lane)+8*i) & 0xff
-                            for i in range(octets_per_lane)]
+                        frame = [(lane_data >> (f*8*octets_per_lane)+8*k) & 0xff
+                            for k in range(octets_per_lane)]
                         output_lanes[l].append(frame)
                 yield
 
@@ -57,6 +56,53 @@ class TestTransport(unittest.TestCase):
     def test_transport_tx(self):
         for nlanes in [1, 2, 4, 8]:
             reference, output = self.transport_tx_test(nlanes, 4, 64)
+            self.assertEqual(reference, output)
+
+    def transport_rx_test(self, nlanes, nconverters, converter_data_width):
+        ps = JESD204BPhysicalSettings(l=nlanes, m=nconverters, n=16, np=16)
+        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+
+        transport = LiteJESD204BTransportRX(jesd_settings,
+                                            converter_data_width)
+
+        reference_samples = [[j+i*256 for j in range(16)] for i in range(nconverters)]
+        input_lanes = samples_to_lanes(samples_per_frame=1,
+                                       nlanes=nlanes,
+                                       nconverters=nconverters,
+                                       nbits=16,
+                                       samples=reference_samples)
+
+        octets_per_lane = jesd_settings.octets_per_lane
+        lane_data_width = len(transport.sink.lane0)
+
+        output_samples = [[] for i in range(nconverters)]
+
+        def generator(dut):
+            for i in range(4):
+                for l in range(nlanes):
+                    lane_data = getattr(dut.sink, "lane"+str(l))
+                    for f in range(lane_data_width//(octets_per_lane*8)):
+                        for k in range(octets_per_lane):
+                            offset = (f*8*octets_per_lane)+8*k
+                            yield lane_data[offset:offset+8].eq(input_lanes[l][4*i+f][k])
+                yield
+
+        def checker(dut):
+            yield
+            for i in range(4):
+                for c in range(nconverters):
+                    converter_data = (yield getattr(dut.source, "converter"+str(c)))
+                    for j in range(converter_data_width//jesd_settings.phy.n):
+                        output_samples[c].append((converter_data >> 16*j) & 0xffff)
+                yield
+
+        run_simulation(transport, [generator(transport), checker(transport)])
+        return reference_samples, output_samples
+
+    def test_transport_rx(self):
+        for nlanes in [1, 2, 4, 8]:
+            reference, output = self.transport_rx_test(nlanes, 4, 64)
             self.assertEqual(reference, output)
 
     def transport_loopback_test(self, nlanes, nconverters, converter_data_width):
