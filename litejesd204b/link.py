@@ -239,10 +239,10 @@ class CGSChecker(Module):
         ctrl = Signal(data_width//8)
         for i in range(data_width//8):
             self.comb += [
-                If(source.data[8*i:8*(i+1)] != control_characters["K"],
+                If(sink.data[8*i:8*(i+1)] != control_characters["K"],
                     self.error.eq(1)
                 ),
-                If(source.ctrl[i] != 1,
+                If(sink.ctrl[i] != 1,
                     self.error.eq(1)
                 )
             ]
@@ -508,6 +508,7 @@ class LiteJESD204BLinkRX(Module):
                              jesd_settings.get_configuration_data(n))
         self.submodules += cgs, ilas
 
+        self.cgs = cgs
 
         # Datapath
         descrambler = Descrambler(data_width)
@@ -530,26 +531,43 @@ class LiteJESD204BLinkRX(Module):
             deframer.reset.eq(1),
             cgs.sink.data.eq(sink.data),
             cgs.sink.ctrl.eq(sink.ctrl),
-            # set jsync if CGS detected
-            If(~cgs.error, # FIXME: check how many CGS should be detected before receiving ILAS
-                self.jsync.eq(1),
+            If(~cgs.error,
+                NextState("RECEIVE-ILAS")
+            )
+        )
+        fsm.act("WAIT-ILAS",
+            self.jsync.eq(1),
+            ilas.reset.eq(1),
+            descrambler.reset.eq(1),
+            deframer.reset.eq(1),
+            ilas.sink.data.eq(sink.data),
+            ilas.sink.ctrl.eq(sink.ctrl),
+            If(cgs.error,
+                ilas.reset.eq(0),
                 NextState("RECEIVE-ILAS")
             )
         )
 
         # Initial Lane Alignment Sequence
         fsm.act("RECEIVE-ILAS",
+            self.jsync.eq(1),
+            descrambler.reset.eq(1),
             deframer.reset.eq(1),
             ilas.sink.data.eq(sink.data),
             ilas.sink.ctrl.eq(sink.ctrl),
             If(ilas.done,
-                NextState("RECEIVE-DATA")
+                If(ilas.errors,
+                    NextState("RECEIVE-CGS")
+                ).Else(
+                    NextState("RECEIVE-DATA")
+                )
             )
         )
 
         # Data
         fsm.act("RECEIVE-DATA",
             ilas.reset.eq(1),
+            self.jsync.eq(1),
             self.ready.eq(1),
             alignment.sink.eq(sink),
         )

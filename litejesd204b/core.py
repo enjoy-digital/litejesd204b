@@ -170,6 +170,7 @@ class LiteJESD204BCoreRX(Module):
         self.jsync = Signal()
         self.jref = Signal()
         self.ready = Signal()
+        self.restart = Signal()
 
         self.prbs_config = Signal(4)
         self.stpl_enable = Signal()
@@ -178,6 +179,8 @@ class LiteJESD204BCoreRX(Module):
             for i in range(jesd_settings.nconverters)])
 
         # # #
+
+        self.comb += self.restart.eq(~self.enable)
 
         # transport layer
         transport = LiteJESD204BTransportRX(jesd_settings, converter_data_width)
@@ -192,7 +195,7 @@ class LiteJESD204BCoreRX(Module):
         self.specials += MultiReg(self.stpl_enable, stpl_enable)
         self.comb += \
             If(stpl_enable,
-                stpl.sink.req(transport.source)
+                stpl.sink.eq(transport.source)
             ).Else(
                 self.source.eq(transport.source)
             )
@@ -213,7 +216,6 @@ class LiteJESD204BCoreRX(Module):
             links.append(link)
             self.comb += [
                 link.reset.eq(link_reset),
-                self.jsync.eq(link.jsync),
                 link.jref.eq(self.jref)
             ]
 
@@ -223,11 +225,14 @@ class LiteJESD204BCoreRX(Module):
                 ebuf.din[:len(phy.source.data)].eq(phy.source.data),
                 ebuf.din[len(phy.source.data):].eq(phy.source.ctrl),
                 link.sink.data.eq(ebuf.dout[:len(phy.source.data)]),
-                link.sink.ctrl.eq(ebuf.dout[:len(phy.source.ctrl)]),
+                link.sink.ctrl.eq(ebuf.dout[len(phy.source.data):]),
                 lane.eq(link.source.data)
             ]
 
+            # connect control
+            self.comb += phy.rx_restart.eq(self.restart & (self.prbs_config == 0))
             self.specials += MultiReg(self.prbs_config, phy.rx_prbs_config, phy_cd)
+        self.comb += self.jsync.eq(reduce(and_, [link.jsync for link in links]))
         ready = Signal()
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
@@ -243,3 +248,27 @@ class LiteJESD204BCoreRX(Module):
 
     def do_finalize(self):
         assert hasattr(self, "jref_registered")
+
+# Core RX Control ----------------------------------------------------------------------------------
+
+class LiteJESD204BCoreRXControl(Module, AutoCSR):
+    def __init__(self, core):
+        self.enable = CSRStorage()
+        self.ready = CSRStatus()
+
+        self.prbs_config = CSRStorage(4)
+        self.stpl_enable = CSRStorage()
+
+        self.jsync = CSRStatus()
+
+        # # #
+
+        # core control/status
+        self.comb += [
+            core.enable.eq(self.enable.storage),
+            core.prbs_config.eq(self.prbs_config.storage),
+            core.stpl_enable.eq(self.stpl_enable.storage),
+
+            self.ready.status.eq(core.ready)
+        ]
+        self.specials += MultiReg(core.jsync, self.jsync.status)
