@@ -57,18 +57,15 @@ class LiteJESD204BCoreTX(Module):
 
         self.links = links = []
         link_reset = Signal()
-        self.comb += link_reset.eq(~reduce(and_, [phy.transmitter.init.done for phy in phys]))
+        self.comb += link_reset.eq(~reduce(and_, [phy.tx_init.done for phy in phys]))
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
             phy_name = "phy{}".format(n)
             phy_cd = phy_name + "_tx"
 
-            # claim the phy
-            setattr(self.submodules, phy_name, phy)
-
-            ebuf = ElasticBuffer(len(phy.data) + len(phy.ctrl), 4, "jesd", phy_cd)
+            ebuf = ElasticBuffer(len(phy.sink.data) + len(phy.source.ctrl), 4, "jesd", phy_cd)
             setattr(self.submodules, "ebuf{}".format(n), ebuf)
 
-            link = LiteJESD204BLinkTX(len(phy.data), jesd_settings, n)
+            link = LiteJESD204BLinkTX(len(phy.sink.data), jesd_settings, n)
             link = ClockDomainsRenamer("jesd")(link)
             self.submodules += link
             links.append(link)
@@ -81,19 +78,16 @@ class LiteJESD204BCoreTX(Module):
             # connect data
             self.comb += [
                 link.sink.data.eq(lane),
-                ebuf.din[:len(phy.data)].eq(link.source.data),
-                ebuf.din[len(phy.data):].eq(link.source.ctrl),
-                phy.data.eq(ebuf.dout[:len(phy.data)]),
-                phy.ctrl.eq(ebuf.dout[len(phy.data):])
+                ebuf.din[:len(phy.sink.data)].eq(link.source.data),
+                ebuf.din[len(phy.sink.data):].eq(link.source.ctrl),
+                phy.sink.valid.eq(1),
+                phy.sink.data.eq(ebuf.dout[:len(phy.sink.data)]),
+                phy.sink.ctrl.eq(ebuf.dout[len(phy.sink.data):])
             ]
 
             # connect control
-            self.comb += phy.transmitter.init.restart.eq(
-                    self.restart & (self.prbs_config == 0))
-
-            self.specials += MultiReg(self.prbs_config,
-                                      phy.transmitter.prbs_config,
-                                      phy_cd)
+            self.comb += phy.tx_restart.eq(self.restart & (self.prbs_config == 0))
+            self.specials += MultiReg(self.prbs_config, phy.tx_prbs_config, phy_cd)
         ready = Signal()
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
@@ -205,15 +199,15 @@ class LiteJESD204BCoreRX(Module):
 
         self.links = links = []
         link_reset = Signal()
-        self.comb += link_reset.eq(~reduce(and_, [phy.transmitter.init.done for phy in phys])) # FIXME: use rx_init.done
+        self.comb += link_reset.eq(~reduce(and_, [phy.rx_init.done for phy in phys]))
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "phy{}".format(n)
             phy_cd = phy_name + "_rx"
 
-            ebuf = ElasticBuffer(len(phy.data) + len(phy.ctrl), 4, phy_cd, "jesd")
+            ebuf = ElasticBuffer(len(phy.source.data) + len(phy.source.ctrl), 4, phy_cd, "jesd")
             setattr(self.submodules, "ebuf{}".format(n), ebuf)
 
-            link = LiteJESD204BLinkRX(len(phy.data), jesd_settings, n)
+            link = LiteJESD204BLinkRX(len(phy.source.data), jesd_settings, n)
             link = ClockDomainsRenamer("jesd")(link)
             self.submodules += link
             links.append(link)
@@ -225,16 +219,15 @@ class LiteJESD204BCoreRX(Module):
 
             # connect data
             self.comb += [
-                ebuf.din[:len(phy.data)].eq(phy.data), # FIXME: use phy.source.data
-                ebuf.din[len(phy.data):].eq(phy.ctrl), # FIXME: use phy.source.ctrl
-                link.sink.data.eq(ebuf.dout[:len(phy.data)]),
-                link.sink.ctrl.eq(ebuf.dout[:len(phy.ctrl)]),
+                phy.source.ready.eq(1),
+                ebuf.din[:len(phy.source.data)].eq(phy.source.data),
+                ebuf.din[len(phy.source.data):].eq(phy.source.ctrl),
+                link.sink.data.eq(ebuf.dout[:len(phy.source.data)]),
+                link.sink.ctrl.eq(ebuf.dout[:len(phy.source.ctrl)]),
                 lane.eq(link.source.data)
             ]
 
-            self.specials += MultiReg(self.prbs_config,
-                                      phy.transmitter.prbs_config,
-                                      phy_cd)
+            self.specials += MultiReg(self.prbs_config, phy.rx_prbs_config, phy_cd)
         ready = Signal()
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
