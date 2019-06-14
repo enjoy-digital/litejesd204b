@@ -231,19 +231,20 @@ class CGSChecker(Module):
     """
     def __init__(self, data_width):
         self.sink = sink = Record(link_layout(data_width))
-        self.error = Signal()
+        self.valid = valid = Signal()
 
         # # #
 
         data = Signal(data_width)
         ctrl = Signal(data_width//8)
+        self.comb += valid.eq(1)
         for i in range(data_width//8):
             self.comb += [
                 If(sink.data[8*i:8*(i+1)] != control_characters["K"],
-                    self.error.eq(1)
+                    valid.eq(0)
                 ),
                 If(sink.ctrl[i] != 1,
-                    self.error.eq(1)
+                    valid.eq(0)
                 )
             ]
 
@@ -360,8 +361,8 @@ class ILASChecker(ILAS, Module):
                  configuration_data,
                  with_counter=True):
         self.sink = sink = Record(link_layout(data_width))
-        self.done = Signal()
-        self.errors = Signal(16)
+        self.done = done = Signal()
+        self.valid = valid = Signal()
 
         # # #
 
@@ -381,6 +382,9 @@ class ILASChecker(ILAS, Module):
         ctrl_port = ctrl_lut.get_port(async_read=True)
         self.specials += ctrl_lut, ctrl_port
 
+        self.data = data_port.dat_r
+        self.ctrl = ctrl_port.dat_r
+
         # compare data/ctrl with lookup tables
         counter = Signal(max=len(self.data_words)+1)
         self.comb += [
@@ -390,12 +394,15 @@ class ILASChecker(ILAS, Module):
         self.sync += [
             If(counter != len(self.data_words),
                 counter.eq(counter + 1),
-                If(sink.data != data_port.dat_r,
-                    self.errors.eq(self.errors + 1)
-                ),
-                If(sink.ctrl != ctrl_port.dat_r,
-                    self.errors.eq(self.errors + 1)
-                )
+            )
+        ]
+        self.comb += [
+            valid.eq(1),
+            If(sink.data != self.data,
+                valid.eq(0)
+            ),
+            If(sink.ctrl != self.ctrl,
+                valid.eq(0)
             )
         ]
 
@@ -424,8 +431,8 @@ class LiteJESD204BLinkTX(Module):
                              jesd_settings.octets_per_lane,
                              jesd_settings.transport.k,
                              jesd_settings.get_configuration_data(n))
-        self.submodules += cgs, ilas
-
+        self.submodules.cgs = cgs
+        self.submodules.ilas = ilas
 
         # Datapath
         scrambler = Scrambler(data_width)
@@ -502,13 +509,12 @@ class LiteJESD204BLinkRX(Module):
 
         # Control (CGS + ILAS)
         cgs = CGSChecker(data_width)
-        ilas = ILASChecker(data_width,
-                             jesd_settings.octets_per_lane,
-                             jesd_settings.transport.k,
-                             jesd_settings.get_configuration_data(n))
-        self.submodules += cgs, ilas
-
-        self.cgs = cgs
+        ilas = ilas = ILASChecker(data_width,
+                                  jesd_settings.octets_per_lane,
+                                  jesd_settings.transport.k,
+                                  jesd_settings.get_configuration_data(n))
+        self.submodules.cgs = cgs
+        self.submodules.ilas = ilas
 
         # Datapath
         descrambler = Descrambler(data_width)
@@ -524,50 +530,52 @@ class LiteJESD204BLinkRX(Module):
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
 
+        self.comb += [
+            cgs.sink.data.eq(sink.data),
+            cgs.sink.ctrl.eq(sink.ctrl),
+            ilas.sink.data.eq(sink.data),
+            ilas.sink.ctrl.eq(sink.ctrl),
+            alignment.sink.eq(sink),
+        ]
+
         # Code Group Synchronization
         fsm.act("RECEIVE-CGS",
             ilas.reset.eq(1),
             descrambler.reset.eq(1),
             deframer.reset.eq(1),
-            cgs.sink.data.eq(sink.data),
-            cgs.sink.ctrl.eq(sink.ctrl),
-            If(~cgs.error,
-                NextState("RECEIVE-ILAS")
+            If(cgs.valid,
+                NextState("WAIT-ILAS")
             )
         )
+        # Initial Lane Alignment Sequence
         fsm.act("WAIT-ILAS",
             self.jsync.eq(1),
             ilas.reset.eq(1),
             descrambler.reset.eq(1),
             deframer.reset.eq(1),
-            ilas.sink.data.eq(sink.data),
-            ilas.sink.ctrl.eq(sink.ctrl),
-            If(cgs.error,
+            If(~cgs.valid,
                 ilas.reset.eq(0),
                 NextState("RECEIVE-ILAS")
             )
         )
-
-        # Initial Lane Alignment Sequence
         fsm.act("RECEIVE-ILAS",
             self.jsync.eq(1),
             descrambler.reset.eq(1),
             deframer.reset.eq(1),
-            ilas.sink.data.eq(sink.data),
-            ilas.sink.ctrl.eq(sink.ctrl),
+            #If(~ilas.valid,
+            #    NextState("RECEIVE-CGS")
+            #),
             If(ilas.done,
-                If(ilas.errors,
-                    NextState("RECEIVE-CGS")
-                ).Else(
-                    NextState("RECEIVE-DATA")
-                )
+                NextState("RECEIVE-DATA")
             )
         )
 
         # Data
         fsm.act("RECEIVE-DATA",
-            ilas.reset.eq(1),
             self.jsync.eq(1),
             self.ready.eq(1),
-            alignment.sink.eq(sink),
+            ilas.reset.eq(1),
+            If(cgs.valid,
+                NextState("RECEIVE-CGS")
+            )
         )
