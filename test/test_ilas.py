@@ -83,7 +83,7 @@ class TestILAS(unittest.TestCase):
         jesd_settings = JESD204BSettings(ps, ts, did=0x55, bid=0xa)
 
         dut = ILASChecker(32, 2, 32, jesd_settings.get_configuration_data())
-        dut._errors = 0
+        dut.errors = 0
 
         ilas_output = []
 
@@ -101,7 +101,8 @@ class TestILAS(unittest.TestCase):
                 yield dut.sink.data.eq(data)
                 yield dut.sink.ctrl.eq(ctrl)
                 yield
-            dut._errors = (yield dut.errors)
+                if (yield dut.valid) == 0:
+                    dut.errors += 1
 
         run_simulation(dut, generator(dut))
-        self.assertEqual(dut._errors, 2)
+        self.assertEqual(dut.errors, 2)
