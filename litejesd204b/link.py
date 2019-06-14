@@ -208,6 +208,64 @@ class AlignRemover(Module):
         for i in range(data_width//8):
             self.comb += source.ctrl.eq(0)
 
+
+class Aligner(Module):
+    def __init__(self, data_width):
+        assert data_width == 32
+        self.sink = sink = Record(link_layout(data_width))
+        self.source = source = Record(link_layout(data_width))
+        self.latency = 1
+
+        # # #
+
+        alignment = Signal(2)
+
+        last_data = Signal(32)
+        last_ctrl = Signal(4)
+
+        # Register last data/ctrl
+        self.sync += [
+            last_data.eq(sink.data),
+            last_ctrl.eq(sink.ctrl)
+        ]
+
+        # Alignment detection
+        self.sync += [
+            If(sink.ctrl[0] & (sink.data[0:8] == control_characters["R"]),
+                alignment.eq(0)
+            ),
+            If(sink.ctrl[1] & (sink.data[8:16] == control_characters["R"]),
+                alignment.eq(1)
+            ),
+            If(sink.ctrl[2] & (sink.data[16:24] == control_characters["R"]),
+                alignment.eq(2)
+            ),
+            If(sink.ctrl[3] & (sink.data[24:32] == control_characters["R"]),
+                alignment.eq(3)
+            )
+        ]
+
+        # Do the alignment
+        cases = {}
+        cases[0] = [
+            source.data.eq(last_data),
+            source.ctrl.eq(last_ctrl)
+        ]
+        cases[1] = [
+            source.data.eq(Cat(last_data[8:32], sink.data[0:8])),
+            source.ctrl.eq(Cat(last_ctrl[1:4], sink.ctrl[0:1])),
+        ]
+        cases[2] = [
+            source.data.eq(Cat(last_data[16:32], sink.data[0:16])),
+            source.ctrl.eq(Cat(last_ctrl[2:4], sink.ctrl[0:2])),
+        ]
+        cases[3] = [
+            source.data.eq(Cat(last_data[24:32], sink.data[0:24])),
+            source.ctrl.eq(Cat(last_ctrl[3:4], sink.ctrl[0:3])),
+        ]
+        self.comb += Case(alignment, cases)
+
+
 # Code Group Synchronization -----------------------------------------------------------------------
 
 class CGSGenerator(Module):
@@ -507,12 +565,14 @@ class LiteJESD204BLinkRX(Module):
 
         # # #
 
-        # Control (CGS + ILAS)
+        # Control (ALIGN + CGS + ILAS)
+        aligner = Aligner(data_width)
         cgs = CGSChecker(data_width)
         ilas = ilas = ILASChecker(data_width,
                                   jesd_settings.octets_per_lane,
                                   jesd_settings.transport.k,
                                   jesd_settings.get_configuration_data(n))
+        self.submodules.aligner = aligner
         self.submodules.cgs = cgs
         self.submodules.ilas = ilas
 
@@ -531,11 +591,10 @@ class LiteJESD204BLinkRX(Module):
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
 
         self.comb += [
-            cgs.sink.data.eq(sink.data),
-            cgs.sink.ctrl.eq(sink.ctrl),
-            ilas.sink.data.eq(sink.data),
-            ilas.sink.ctrl.eq(sink.ctrl),
-            alignment.sink.eq(sink),
+            aligner.sink.eq(sink),
+            cgs.sink.eq(aligner.source),
+            ilas.sink.eq(aligner.source),
+            alignment.sink.eq(aligner.source),
         ]
 
         # Code Group Synchronization
