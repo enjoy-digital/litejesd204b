@@ -635,7 +635,7 @@ class LiteJESD204BLinkRX(Module):
     # WORK IN PROGRESS - UNTESTED
     """Link RX layer
     """
-    def __init__(self, data_width, jesd_settings, n=0):
+    def __init__(self, data_width, jesd_settings, n=0, ilas_check=False):
         self.jsync = Signal() # output
         self.jref = Signal()  # input
         self.ready = Signal() # output
@@ -699,10 +699,9 @@ class LiteJESD204BLinkRX(Module):
             self.jsync.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
-            #If(~ilas.valid,
-            #    NextState("RECEIVE-CGS")
-            #),
-            If(ilas.done,
+            If(ilas_check & ~ilas.valid,
+                NextState("RECEIVE-CGS")
+            ).Elif(ilas.done,
                 NextState("RECEIVE-DATA")
             )
         )
