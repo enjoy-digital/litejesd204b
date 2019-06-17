@@ -639,6 +639,7 @@ class LiteJESD204BLinkRX(Module):
         self.jsync = Signal() # output
         self.jref = Signal()  # input
         self.ready = Signal() # output
+        self.align = Signal() # output
 
         self.sink = sink = Record(link_layout(data_width))
         self.source = source = Record([("data", data_width)])
@@ -678,6 +679,7 @@ class LiteJESD204BLinkRX(Module):
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
         fsm.act("RECEIVE-CGS",
+            self.align.eq(1),
             ilas.reset.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),

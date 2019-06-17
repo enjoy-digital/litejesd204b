@@ -220,7 +220,8 @@ class LiteJESD204BCoreRX(Module):
             links.append(link)
             self.comb += [
                 link.reset.eq(link_reset),
-                link.jref.eq(self.jref)
+                link.jref.eq(self.jref),
+                phy.rx_align.eq(link.align)
             ]
 
             align_fifo = SyncFIFO(len(phy.source.data), 32) # FIXME: determine depth
