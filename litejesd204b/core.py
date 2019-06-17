@@ -58,7 +58,7 @@ class LiteJESD204BCoreTX(Module):
 
         self.links = links = []
         link_reset = Signal()
-        self.comb += link_reset.eq(~reduce(and_, [phy.tx_init.done for phy in phys]))
+        self.comb += link_reset.eq(~reduce(and_, [phy.tx_init.done for phy in phys]) | self.restart)
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
             phy_name = "phy{}".format(n)
             phy_cd = phy_name + "_tx"
@@ -206,7 +206,7 @@ class LiteJESD204BCoreRX(Module):
 
         self.links = links = []
         link_reset = Signal()
-        self.comb += link_reset.eq(~reduce(and_, [phy.rx_init.done for phy in phys]))
+        self.comb += link_reset.eq(~reduce(and_, [phy.rx_init.done for phy in phys]) | self.restart)
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "phy{}".format(n)
             phy_cd = phy_name + "_rx"
