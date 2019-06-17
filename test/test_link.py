@@ -31,6 +31,7 @@ class LinkTXDatapath(Module):
         ]
         self.latency = scrambler.latency + framer.latency + inserter.latency
 
+
 class TestLink(unittest.TestCase):
     def test_link_tx(self, nlanes=4, data_width=32):
         prng = random.Random(6)
@@ -61,22 +62,25 @@ class TestLink(unittest.TestCase):
             yield
             yield dut.reset.eq(0)
             for i in range(2048):
-                # set sink data
                 sink_data = get_lane_data(input_lane, i)
                 if sink_data is not None:
                     yield dut.sink.data.eq(sink_data)
-                if i > dut.latency:
-                    # get source data
-                    source_data = (yield dut.source.data)
-                    source_ctrl = (yield dut.source.ctrl)
-                    data = list(source_data.to_bytes(octets_per_cycle,
-                                                     byteorder='little'))
-                    for i in range(octets_per_cycle):
-                        if source_ctrl & (1<<i):
-                            data[i] = Control(data[i])
-                    dut.output_lane += data
                 yield
 
-        run_simulation(link, generator(link))
+        def checker(dut):
+            for i in range(2 + dut.latency):
+                yield
+            for i in range(2048):
+                source_data = (yield dut.source.data)
+                source_ctrl = (yield dut.source.ctrl)
+                data = list(source_data.to_bytes(octets_per_cycle,
+                                                 byteorder='little'))
+                for i in range(octets_per_cycle):
+                    if source_ctrl & (1<<i):
+                        data[i] = Control(data[i])
+                dut.output_lane += data
+                yield
+
+        run_simulation(link, [generator(link), checker(link)])
         reference = flatten_lane(output_lanes[0])
         self.assertEqual(link.output_lane[:len(reference)], reference)
