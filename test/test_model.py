@@ -101,7 +101,7 @@ class TestModel(unittest.TestCase):
         lanes = insert_alignment_characters(frames_per_multiframe=4,
                                             scrambled=True,
                                             lanes=lanes)
-        output_lanes = remove_alignment_characters(frames_per_multiframe=4,
+        output_lanes = replace_alignment_characters(frames_per_multiframe=4,
                                                    scrambled=True,
                                                    lanes=lanes)
         output_lanes = descramble_lanes(lanes)

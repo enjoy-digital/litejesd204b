@@ -114,7 +114,7 @@ def insert_alignment_characters(frames_per_multiframe, scrambled, lanes):
     return new_lanes
 
 
-def remove_alignment_characters(frames_per_multiframe, scrambled, lanes):
+def replace_alignment_characters(frames_per_multiframe, scrambled, lanes):
     """
     -lanes: Lanes' octets organized in frames
             lanes[i][j][k]: octet k of frame j of lane i
@@ -158,7 +158,7 @@ class LinkLayer:
         return new_lanes
 
     def decode(self, lanes):
-        new_lanes = remove_alignment_characters(self.frames_per_multiframe,
+        new_lanes = replace_alignment_characters(self.frames_per_multiframe,
                                                 self.scrambled,
                                                 lanes)
         new_lanes = lanes

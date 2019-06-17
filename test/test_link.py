@@ -4,11 +4,17 @@ import random
 from migen import *
 
 from litejesd204b.link import link_layout
-from litejesd204b.link import LiteJESD204BLinkTXDapath
+from litejesd204b.link import LiteJESD204BLinkTXDapath, LiteJESD204BLinkRXDapath
 
 from test.model.common import Control
-from test.model.link import scramble_lanes
-from test.model.link import insert_alignment_characters
+from test.model.link import scramble_lanes, descramble_lanes
+from test.model.link import insert_alignment_characters, replace_alignment_characters
+
+def flatten_lane(lane):
+    flat_lane = []
+    for frame in lane:
+        flat_lane += frame
+    return flat_lane
 
 
 class TestLink(unittest.TestCase):
@@ -26,12 +32,6 @@ class TestLink(unittest.TestCase):
         link.output_lane = []
 
         octets_per_cycle = data_width//8
-
-        def flatten_lane(lane):
-            flat_lane = []
-            for frame in lane:
-                flat_lane += frame
-            return flat_lane
 
         def get_lane_data(lane, cycle):
             flat_lane = flatten_lane(lane)
@@ -65,3 +65,59 @@ class TestLink(unittest.TestCase):
         run_simulation(link, [generator(link), checker(link)])
         reference = flatten_lane(output_lanes[0])
         self.assertEqual(link.output_lane[:len(reference)], reference)
+
+
+    def test_link_loopback(self, nlanes=4, data_width=32):
+        prng = random.Random(6)
+        input_lane = [[prng.randrange(256), prng.randrange(256)]
+            for _ in range(2048)]
+        output_lane = input_lane
+
+        octets_per_cycle = data_width//8
+
+        def get_lane_data(lane, cycle):
+            flat_lane = flatten_lane(lane)
+            data = flat_lane[octets_per_cycle*cycle:octets_per_cycle*(cycle+1)]
+            return int.from_bytes(data, byteorder='little') if data != [] else None
+
+        class DUT(Module):
+            def __init__(self):
+                tx = ResetInserter()(LiteJESD204BLinkTXDapath(data_width,
+                    octets_per_frame=2,
+                    frames_per_multiframe=4))
+                self.submodules.tx = tx
+                rx = ResetInserter()(LiteJESD204BLinkRXDapath(data_width,
+                    octets_per_frame=2,
+                    frames_per_multiframe=4))
+                self.submodules.rx = rx
+                self.comb += rx.sink.eq(tx.source)
+
+        dut = DUT()
+        dut.errors = 0
+
+        def generator(dut):
+            yield dut.tx.reset.eq(1)
+            yield
+            yield dut.tx.reset.eq(0)
+            for i in range(2048):
+                sink_data = get_lane_data(input_lane, i)
+                if sink_data is not None:
+                    yield dut.tx.sink.data.eq(sink_data)
+                yield
+
+        def checker(dut):
+            yield dut.rx.reset.eq(1)
+            yield
+            yield
+            yield dut.rx.reset.eq(0)
+            yield
+            yield
+            for i in range(2048):
+                source_data = get_lane_data(input_lane, i)
+                if source_data is not None:
+                    if (yield dut.rx.source.data) != source_data:
+                        dut.errors += 1
+                yield
+
+        run_simulation(dut, [generator(dut), checker(dut)], vcd_name="toto.vcd")
+        self.assertEqual(dut.errors, 0)
