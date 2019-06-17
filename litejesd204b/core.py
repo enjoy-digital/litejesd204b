@@ -5,6 +5,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg, ElasticBuffer
 from migen.genlib.misc import WaitTimer
 from migen.genlib.io import DifferentialInput
+from migen.genlib.fifo import SyncFIFO
 
 from litex.soc.interconnect.csr import *
 
@@ -181,6 +182,8 @@ class LiteJESD204BCoreRX(Module):
 
         # # #
 
+        ready = Signal()
+
         self.comb += self.restart.eq(~self.enable)
 
         # transport layer
@@ -220,6 +223,15 @@ class LiteJESD204BCoreRX(Module):
                 link.jref.eq(self.jref)
             ]
 
+            align_fifo = SyncFIFO(len(phy.source.data), 32) # FIXME: determine depth
+            align_fifo = ResetInserter()(align_fifo)
+            self.submodules += align_fifo
+            self.comb += [
+                align_fifo.reset.eq(link_reset),
+                align_fifo.we.eq(1),
+                align_fifo.re.eq(ready),
+            ]
+
             # connect data
             self.comb += [
                 phy.source.ready.eq(1),
@@ -227,7 +239,8 @@ class LiteJESD204BCoreRX(Module):
                 ebuf.din[len(phy.source.data):].eq(phy.source.ctrl),
                 link.sink.data.eq(ebuf.dout[:len(phy.source.data)]),
                 link.sink.ctrl.eq(ebuf.dout[len(phy.source.data):]),
-                lane.eq(link.source.data)
+                align_fifo.din.eq(link.source.data),
+                lane.eq(align_fifo.dout)
             ]
 
             # connect control
@@ -235,7 +248,6 @@ class LiteJESD204BCoreRX(Module):
             self.specials += MultiReg(self.prbs_config, phy.rx_prbs_config, phy_cd)
 
         self.comb += self.jsync.eq(reduce(and_, [link.jsync for link in links]))
-        ready = Signal()
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
 
