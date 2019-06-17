@@ -408,6 +408,26 @@ class ILASGenerator(ILAS, Module):
         self.comb += self.done.eq(counter == len(self.data_words))
 
 
+class ILASStartChecker(Module):
+    """Code Group Synchronization
+    """
+    def __init__(self, data_width):
+        self.sink = sink = Record(link_layout(data_width))
+        self.valid = valid = Signal()
+
+        # # #
+
+        self.comb += [
+            valid.eq(1),
+            If((~sink.ctrl[0]) | (sink.data[0:8] != control_characters["R"]),
+                valid.eq(0)
+            ),
+            If(sink.ctrl[1] | sink.ctrl[2] | sink.ctrl[3],
+                valid.eq(0)
+            ),
+        ]
+
+
 @ResetInserter()
 class ILASChecker(ILAS, Module):
     """Initial Lane Alignment Sequence Checker
@@ -423,6 +443,11 @@ class ILASChecker(ILAS, Module):
         self.valid = valid = Signal()
 
         # # #
+
+        # detect start
+        start =  ILASStartChecker(data_width)
+        self.submodules.start = start
+        self.comb += start.sink.eq(sink)
 
         # compute ILAS's data/ctrl words
         ILAS.__init__(self,
@@ -629,7 +654,7 @@ class LiteJESD204BLinkRX(Module):
         self.submodules.cgs = cgs
 
         # Initial Lane Alignment Sequence
-        ilas = ilas = ILASChecker(data_width,
+        ilas = ILASChecker(data_width,
             jesd_settings.octets_per_lane,
             jesd_settings.transport.k,
             jesd_settings.get_configuration_data(n))
@@ -665,7 +690,7 @@ class LiteJESD204BLinkRX(Module):
             ilas.reset.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
-            If(~cgs.valid,
+            If(~cgs.valid & ilas.start.valid,
                 ilas.reset.eq(0),
                 NextState("RECEIVE-ILAS")
             )

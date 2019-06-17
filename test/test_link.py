@@ -119,5 +119,5 @@ class TestLink(unittest.TestCase):
                         dut.errors += 1
                 yield
 
-        run_simulation(dut, [generator(dut), checker(dut)], vcd_name="toto.vcd")
+        run_simulation(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.errors, 0)
