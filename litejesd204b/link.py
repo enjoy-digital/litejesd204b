@@ -575,6 +575,37 @@ class LiteJESD204BLinkTX(Module):
 
 # Link RX ------------------------------------------------------------------------------------------
 
+class LiteJESD204BLinkRXDapath(Module):
+    def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
+        self.sink = Record(link_layout(data_width))
+        self.source = Record([("data", data_width)])
+
+        # # #
+
+        # Alignment
+        align_replacer = AlignReplacer(data_width)
+        self.submodules.align_replacer = align_replacer
+
+        # Deframing
+        deframer = Deframer(data_width,
+            octets_per_frame,
+            frames_per_multiframe)
+        self.submodules.deframer = deframer
+
+        # Descrambling
+        descrambler = Descrambler(data_width)
+        self.submodules.descrambler = descrambler
+
+        # Flow
+        self.latency = align_replacer.latency + deframer.latency + descrambler.latency
+        self.comb += [
+            align_replacer.sink.eq(self.sink),
+            deframer.sink.eq(align_replacer.source),
+            descrambler.sink.eq(deframer.source),
+            self.source.eq(descrambler.source)
+        ]
+
+
 @ResetInserter()
 class LiteJESD204BLinkRX(Module):
     # WORK IN PROGRESS - UNTESTED
@@ -590,39 +621,38 @@ class LiteJESD204BLinkRX(Module):
 
         # # #
 
-        # Control (ALIGN + CGS + ILAS)
+        # Aligner
         aligner = Aligner(data_width)
-        cgs = CGSChecker(data_width)
-        ilas = ilas = ILASChecker(data_width,
-                                  jesd_settings.octets_per_lane,
-                                  jesd_settings.transport.k,
-                                  jesd_settings.get_configuration_data(n))
         self.submodules.aligner = aligner
+
+        # Code Group Synchronization
+        cgs = CGSChecker(data_width)
         self.submodules.cgs = cgs
+
+        # Initial Lane Alignment Sequence
+        ilas = ilas = ILASChecker(data_width,
+            jesd_settings.octets_per_lane,
+            jesd_settings.transport.k,
+            jesd_settings.get_configuration_data(n))
         self.submodules.ilas = ilas
 
         # Datapath
-        descrambler = Descrambler(data_width)
-        deframer = Deframer(data_width, jesd_settings.octets_per_frame, jesd_settings.transport.k)
-        align_replacer = AlignReplacer(data_width)
-        self.submodules += descrambler, deframer, align_replacer
-        self.comb += [
-            source.eq(descrambler.source),
-            descrambler.sink.eq(deframer.source),
-            deframer.sink.eq(align_replacer.source)
-        ]
+        datapath = LiteJESD204BLinkRXDapath(data_width,
+            jesd_settings.octets_per_frame,
+            jesd_settings.transport.k)
+        self.submodules.datapath = datapath
+        self.comb += source.eq(datapath.source)
 
-        # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
-
+        # Flow
         self.comb += [
             aligner.sink.eq(sink),
             cgs.sink.eq(aligner.source),
             ilas.sink.eq(aligner.source),
-            align_replacer.sink.eq(aligner.source),
+            datapath.sink.eq(aligner.source),
         ]
 
-        # Code Group Synchronization
+        # FSM
+        self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
         fsm.act("RECEIVE-CGS",
             ilas.reset.eq(1),
             descrambler.reset.eq(1),
@@ -631,7 +661,6 @@ class LiteJESD204BLinkRX(Module):
                 NextState("WAIT-ILAS")
             )
         )
-        # Initial Lane Alignment Sequence
         fsm.act("WAIT-ILAS",
             self.jsync.eq(1),
             ilas.reset.eq(1),
@@ -653,8 +682,6 @@ class LiteJESD204BLinkRX(Module):
                 NextState("RECEIVE-DATA")
             )
         )
-
-        # Data
         fsm.act("RECEIVE-DATA",
             self.jsync.eq(1),
             self.ready.eq(1),
