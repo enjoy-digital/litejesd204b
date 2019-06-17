@@ -192,8 +192,8 @@ class AlignInserter(Module):
             ]
 
 
-class AlignRemover(Module):
-    """Alignment Character Remover
+class AlignReplacer(Module):
+    """Alignment Character Replacer
     cf section 5.3.3.4.3
     """
     def __init__(self, data_width):
@@ -495,12 +495,12 @@ class LiteJESD204BLinkTX(Module):
         # Datapath
         scrambler = Scrambler(data_width)
         framer = Framer(data_width, jesd_settings.octets_per_frame, jesd_settings.transport.k)
-        alignment = AlignInserter(data_width)
-        self.submodules += scrambler, framer, alignment
+        align_inserter = AlignInserter(data_width)
+        self.submodules += scrambler, framer, align_inserter
         self.comb += [
             scrambler.sink.eq(sink),
             framer.sink.eq(scrambler.source),
-            alignment.sink.eq(framer.source)
+            align_inserter.sink.eq(framer.source)
         ]
 
         jsync = Signal()
@@ -544,7 +544,7 @@ class LiteJESD204BLinkTX(Module):
         fsm.act("SEND-DATA",
             ilas.reset.eq(1),
             self.ready.eq(1),
-            source.eq(alignment.source),
+            source.eq(align_inserter.source),
         )
 
 
@@ -579,12 +579,12 @@ class LiteJESD204BLinkRX(Module):
         # Datapath
         descrambler = Descrambler(data_width)
         deframer = Deframer(data_width, jesd_settings.octets_per_frame, jesd_settings.transport.k)
-        alignment = AlignRemover(data_width)
-        self.submodules += descrambler, deframer, alignment
+        align_replacer = AlignReplacer(data_width)
+        self.submodules += descrambler, deframer, align_replacer
         self.comb += [
             source.eq(descrambler.source),
             descrambler.sink.eq(deframer.source),
-            deframer.sink.eq(alignment.source)
+            deframer.sink.eq(align_replacer.source)
         ]
 
         # FSM
@@ -594,7 +594,7 @@ class LiteJESD204BLinkRX(Module):
             aligner.sink.eq(sink),
             cgs.sink.eq(aligner.source),
             ilas.sink.eq(aligner.source),
-            alignment.sink.eq(aligner.source),
+            align_replacer.sink.eq(aligner.source),
         ]
 
         # Code Group Synchronization
