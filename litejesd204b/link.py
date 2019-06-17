@@ -549,8 +549,8 @@ class LiteJESD204BLinkTX(Module):
         self.submodules.fsm = fsm = FSM(reset_state="SEND-CGS")
         fsm.act("SEND-CGS",
             ilas.reset.eq(1),
-            scrambler.reset.eq(1),
-            framer.reset.eq(1),
+            datapath.scrambler.reset.eq(1),
+            datapath.framer.reset.eq(1),
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
             # start ILAS on first LMFC after jsync is asserted
@@ -559,7 +559,7 @@ class LiteJESD204BLinkTX(Module):
             )
         )
         fsm.act("SEND-ILAS",
-            framer.reset.eq(1),
+            datapath.framer.reset.eq(1),
             source.data.eq(ilas.source.data),
             source.ctrl.eq(ilas.source.ctrl),
             If(ilas.source.last,
@@ -567,9 +567,8 @@ class LiteJESD204BLinkTX(Module):
             )
         )
         fsm.act("SEND-DATA",
-            ilas.reset.eq(1),
             self.ready.eq(1),
-            source.eq(align_inserter.source),
+            source.eq(datapath.source),
         )
 
 
@@ -655,8 +654,8 @@ class LiteJESD204BLinkRX(Module):
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
         fsm.act("RECEIVE-CGS",
             ilas.reset.eq(1),
-            descrambler.reset.eq(1),
-            deframer.reset.eq(1),
+            datapath.deframer.reset.eq(1),
+            datapath.descrambler.reset.eq(1),
             If(cgs.valid,
                 NextState("WAIT-ILAS")
             )
@@ -664,8 +663,8 @@ class LiteJESD204BLinkRX(Module):
         fsm.act("WAIT-ILAS",
             self.jsync.eq(1),
             ilas.reset.eq(1),
-            descrambler.reset.eq(1),
-            deframer.reset.eq(1),
+            datapath.deframer.reset.eq(1),
+            datapath.descrambler.reset.eq(1),
             If(~cgs.valid,
                 ilas.reset.eq(0),
                 NextState("RECEIVE-ILAS")
@@ -673,8 +672,8 @@ class LiteJESD204BLinkRX(Module):
         )
         fsm.act("RECEIVE-ILAS",
             self.jsync.eq(1),
-            descrambler.reset.eq(1),
-            deframer.reset.eq(1),
+            datapath.deframer.reset.eq(1),
+            datapath.descrambler.reset.eq(1),
             #If(~ilas.valid,
             #    NextState("RECEIVE-CGS")
             #),
@@ -685,7 +684,6 @@ class LiteJESD204BLinkRX(Module):
         fsm.act("RECEIVE-DATA",
             self.jsync.eq(1),
             self.ready.eq(1),
-            ilas.reset.eq(1),
             If(cgs.valid,
                 NextState("RECEIVE-CGS")
             )
