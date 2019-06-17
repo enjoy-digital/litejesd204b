@@ -4,32 +4,11 @@ import random
 from migen import *
 
 from litejesd204b.link import link_layout
-from litejesd204b.link import Scrambler, Framer, AlignInserter
+from litejesd204b.link import LiteJESD204BLinkTXDapath
 
 from test.model.common import Control
 from test.model.link import scramble_lanes
 from test.model.link import insert_alignment_characters
-
-
-class LinkTXDatapath(Module):
-    def __init__(self, data_width, octets_per_frame=2, frames_per_multiframe=4):
-        self.sink = sink = Record([("data", data_width)])
-        self.source = source = Record(link_layout(data_width))
-
-        scrambler = Scrambler(data_width)
-        framer = Framer(data_width,
-                        octets_per_frame,
-                        frames_per_multiframe)
-        inserter = AlignInserter(data_width)
-        self.submodules += scrambler, framer, inserter
-        self.comb += [
-            scrambler.sink.eq(sink),
-            framer.reset.eq(~scrambler.valid),
-            framer.sink.eq(scrambler.source),
-            inserter.sink.eq(framer.source),
-            source.eq(inserter.source)
-        ]
-        self.latency = scrambler.latency + framer.latency + inserter.latency
 
 
 class TestLink(unittest.TestCase):
@@ -41,7 +20,9 @@ class TestLink(unittest.TestCase):
         output_lanes = insert_alignment_characters(frames_per_multiframe=4,
                                                    scrambled=True,
                                                    lanes=output_lanes)
-        link = ResetInserter()(LinkTXDatapath(data_width))
+        link = ResetInserter()(LiteJESD204BLinkTXDapath(data_width,
+            octets_per_frame=2,
+            frames_per_multiframe=4))
         link.output_lane = []
 
         octets_per_cycle = data_width//8

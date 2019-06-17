@@ -203,7 +203,7 @@ class AlignReplacer(Module):
 
         # # #
 
-        # recopy data and set ctrl to 0
+        # recopy scrambler data and set ctrl to 0
         self.comb += source.eq(sink)
         for i in range(data_width//8):
             self.comb += source.ctrl.eq(0)
@@ -469,6 +469,38 @@ class ILASChecker(ILAS, Module):
 
 # Link TX ------------------------------------------------------------------------------------------
 
+class LiteJESD204BLinkTXDapath(Module):
+    def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
+        self.sink = Record([("data", data_width)])
+        self.source = Record(link_layout(data_width))
+
+        # # #
+
+        # Scrambling
+        scrambler = Scrambler(data_width)
+        self.submodules.scrambler = scrambler
+
+        # Framing
+        framer = Framer(data_width,
+            octets_per_frame,
+            frames_per_multiframe)
+        self.submodules.framer = framer
+
+        # Alignment
+        align_inserter = AlignInserter(data_width)
+        self.submodules.align_inserter = align_inserter
+
+        # Flow
+        self.latency = scrambler.latency + framer.latency + align_inserter.latency
+        self.comb += [
+            scrambler.sink.eq(self.sink),
+            framer.reset.eq(~scrambler.valid),
+            framer.sink.eq(scrambler.source),
+            align_inserter.sink.eq(framer.source),
+            self.source.eq(align_inserter.source)
+        ]
+
+
 @ResetInserter()
 class LiteJESD204BLinkTX(Module):
     """Link TX layer
@@ -483,26 +515,25 @@ class LiteJESD204BLinkTX(Module):
 
         # # #
 
-        # Control (CGS + ILAS)
+        # Code Group Synchronization
         cgs = CGSGenerator(data_width)
-        ilas = ILASGenerator(data_width,
-                             jesd_settings.octets_per_lane,
-                             jesd_settings.transport.k,
-                             jesd_settings.get_configuration_data(n))
         self.submodules.cgs = cgs
+
+        # Initial Lane Alignment Sequence
+        ilas = ILASGenerator(data_width,
+            jesd_settings.octets_per_lane,
+            jesd_settings.transport.k,
+            jesd_settings.get_configuration_data(n))
         self.submodules.ilas = ilas
 
         # Datapath
-        scrambler = Scrambler(data_width)
-        framer = Framer(data_width, jesd_settings.octets_per_frame, jesd_settings.transport.k)
-        align_inserter = AlignInserter(data_width)
-        self.submodules += scrambler, framer, align_inserter
-        self.comb += [
-            scrambler.sink.eq(sink),
-            framer.sink.eq(scrambler.source),
-            align_inserter.sink.eq(framer.source)
-        ]
+        datapath = LiteJESD204BLinkTXDapath(data_width,
+            jesd_settings.octets_per_frame,
+            jesd_settings.transport.k)
+        self.submodules.datapath = datapath
+        self.comb += datapath.sink.eq(sink)
 
+        # Sync/SysRef
         jsync = Signal()
         jref = Signal()
         jref_d = Signal()
@@ -516,8 +547,6 @@ class LiteJESD204BLinkTX(Module):
 
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="SEND-CGS")
-
-        # Code Group Synchronization
         fsm.act("SEND-CGS",
             ilas.reset.eq(1),
             scrambler.reset.eq(1),
@@ -529,8 +558,6 @@ class LiteJESD204BLinkTX(Module):
                 NextState("SEND-ILAS")
             )
         )
-
-        # Initial Lane Alignment Sequence
         fsm.act("SEND-ILAS",
             framer.reset.eq(1),
             source.data.eq(ilas.source.data),
@@ -539,8 +566,6 @@ class LiteJESD204BLinkTX(Module):
                 NextState("SEND-DATA")
             )
         )
-
-        # Data
         fsm.act("SEND-DATA",
             ilas.reset.eq(1),
             self.ready.eq(1),
