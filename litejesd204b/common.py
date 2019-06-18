@@ -144,6 +144,8 @@ class JESD204BSettings:
         cd.s = self.transport.s - 1
         cd.cs = self.transport.cs
 
+        cd.scr = 1
+
         octets = cd.get_octets()
         chksum = cd.get_checksum()
         return octets[:-1] + [chksum]
