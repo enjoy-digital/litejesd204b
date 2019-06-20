@@ -8,6 +8,7 @@ from migen.genlib.io import DifferentialInput, DifferentialOutput
 from migen.genlib.fifo import SyncFIFO
 
 from litex.soc.interconnect.csr import *
+from litex.soc.cores.frequency_meter import FrequencyMeter
 
 from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BTransportRX,
@@ -119,7 +120,7 @@ class LiteJESD204BCoreTX(Module):
 # Core TX Control ----------------------------------------------------------------------------------
 
 class LiteJESD204BCoreTXControl(Module, AutoCSR):
-    def __init__(self, core):
+    def __init__(self, core, sys_clk_freq):
         self.enable = CSRStorage()
         self.ready = CSRStatus()
 
@@ -162,6 +163,9 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
             )
         self.comb += self.restart_count.status.eq(restart_count)
 
+        # clocks measurements
+        self.submodules.devclk_freq = FrequencyMeter(sys_clk_freq, clk=ClockSignal("jesd_tx"))
+        self.submodules.sysref_freq = FrequencyMeter(sys_clk_freq, clk=core.jref)
 
 # Core RX ------------------------------------------------------------------------------------------
 
@@ -277,7 +281,7 @@ class LiteJESD204BCoreRX(Module):
 # Core RX Control ----------------------------------------------------------------------------------
 
 class LiteJESD204BCoreRXControl(Module, AutoCSR):
-    def __init__(self, core):
+    def __init__(self, core, sys_clk_freq):
         self.enable = CSRStorage()
         self.ready = CSRStatus()
 
@@ -297,3 +301,7 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
             self.ready.status.eq(core.ready)
         ]
         self.specials += MultiReg(core.jsync, self.jsync.status)
+
+        # clocks measurements
+        self.submodules.devclk_freq = FrequencyMeter(sys_clk_freq, clk=ClockSignal("jesd_rx"))
+        self.submodules.sysref_freq = FrequencyMeter(sys_clk_freq, clk=core.jref)
