@@ -46,7 +46,6 @@ LiteDRAM is already used in commercial and open-source designs:
 
 [> Possible improvements
 ------------------------
-- add support for RX (ADC)
 - add support for non scrambled mode
 - add support for Altera PHYs
 - add support for Lattice PHYs

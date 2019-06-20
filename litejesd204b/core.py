@@ -170,7 +170,6 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 # Core RX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreRX(Module):
-    # WORK IN PROGRESS - UNTESTED
     def __init__(self, phys, jesd_settings, converter_data_width):
         self.enable = Signal()
         self.jsync = Signal()
