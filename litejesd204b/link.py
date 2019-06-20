@@ -676,6 +676,16 @@ class LiteJESD204BLinkRX(Module):
             datapath.sink.eq(aligner.source),
         ]
 
+        # Sync/SysRef
+        jref = Signal()
+        jref_d = Signal()
+        jref_rising = Signal()
+        self.sync += [
+            jref.eq(self.jref),
+            jref_d.eq(jref)
+        ]
+        self.comb += jref_rising.eq(jref & ~jref_d)
+
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
         fsm.act("RECEIVE-CGS",
@@ -683,7 +693,7 @@ class LiteJESD204BLinkRX(Module):
             ilas.reset.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
-            If(cgs.valid,
+            If(cgs.valid & jref_rising,
                 NextState("WAIT-ILAS")
             )
         )
