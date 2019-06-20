@@ -4,7 +4,7 @@ from operator import and_
 from migen import *
 from migen.genlib.cdc import MultiReg, ElasticBuffer
 from migen.genlib.misc import WaitTimer
-from migen.genlib.io import DifferentialInput
+from migen.genlib.io import DifferentialInput, DifferentialOutput
 from migen.genlib.fifo import SyncFIFO
 
 from litex.soc.interconnect.csr import *
@@ -252,6 +252,15 @@ class LiteJESD204BCoreRX(Module):
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
 
+    def register_jsync(self, jsync):
+        self.jsync_registered = True
+        if isinstance(jsync, Signal):
+            self.comb += jsync.eq(self.jsync)
+        elif isinstance(jsync, Record):
+            self.specials += DifferentialOutput(self.jsync, jsync.p, jsync.n)
+        else:
+            raise ValueError
+
     def register_jref(self, jref):
         self.jref_registered = True
         if isinstance(jref, Signal):
@@ -262,6 +271,7 @@ class LiteJESD204BCoreRX(Module):
             raise ValueError
 
     def do_finalize(self):
+        assert hasattr(self, "jsync_registered")
         assert hasattr(self, "jref_registered")
 
 # Core RX Control ----------------------------------------------------------------------------------
