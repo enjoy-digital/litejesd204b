@@ -224,13 +224,13 @@ class LiteJESD204BCoreRX(Module):
                 phy.rx_align.eq(link.align)
             ]
 
-            align_fifo = SyncFIFO(len(phy.source.data), 32) # FIXME: determine depth
-            align_fifo = ResetInserter()(align_fifo)
-            self.submodules += align_fifo
+            skew_fifo = SyncFIFO(len(phy.source.data), 32) # FIXME: determine depth
+            skew_fifo = ResetInserter()(skew_fifo)
+            self.submodules += skew_fifo
             self.comb += [
-                align_fifo.reset.eq(link_reset),
-                align_fifo.we.eq(1),
-                align_fifo.re.eq(ready),
+                skew_fifo.reset.eq(link_reset),
+                skew_fifo.we.eq(1),
+                skew_fifo.re.eq(ready),
             ]
 
             # connect data
@@ -240,8 +240,8 @@ class LiteJESD204BCoreRX(Module):
                 ebuf.din[len(phy.source.data):].eq(phy.source.ctrl),
                 link.sink.data.eq(ebuf.dout[:len(phy.source.data)]),
                 link.sink.ctrl.eq(ebuf.dout[len(phy.source.data):]),
-                align_fifo.din.eq(link.source.data),
-                lane.eq(align_fifo.dout)
+                skew_fifo.din.eq(link.source.data),
+                lane.eq(skew_fifo.dout)
             ]
 
             # connect control
