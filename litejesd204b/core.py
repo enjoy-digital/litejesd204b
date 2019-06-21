@@ -61,7 +61,7 @@ class LiteJESD204BCoreTX(Module):
         link_reset = Signal()
         self.comb += link_reset.eq(~reduce(and_, [phy.tx_init.done for phy in phys]) | self.restart)
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
-            phy_name = "phy{}".format(n if not hasattr(phy, "n") else phy.n)
+            phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_tx"
 
             ebuf = ElasticBuffer(len(phy.sink.data) + len(phy.source.ctrl), 4, "jesd_tx", phy_cd)
@@ -210,7 +210,7 @@ class LiteJESD204BCoreRX(Module):
         link_reset = Signal()
         self.comb += link_reset.eq(~reduce(and_, [phy.rx_init.done for phy in phys]) | self.restart)
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
-            phy_name = "phy{}".format(n if not hasattr(phy, "n") else phy.n)
+            phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
 
             ebuf = ElasticBuffer(len(phy.source.data) + len(phy.source.ctrl), 4, phy_cd, "jesd_rx")
