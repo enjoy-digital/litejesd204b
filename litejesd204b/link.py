@@ -492,6 +492,32 @@ class ILASChecker(ILAS, Module):
         # done
         self.comb += self.done.eq(counter == len(self.data_words))
 
+# Local Multiframe Clock ---------------------------------------------------------------------------
+
+class LMFC(Module):
+    def __init__(self, octets_per_frame, frames_per_multiframe, load=0):
+        ticks = octets_per_frame*frames_per_multiframe//4
+        load = (ticks + load)%ticks
+        assert load >= 0
+        self.jref = jref = Signal()
+        self.count = count = Signal(max=ticks)
+        self.zero = zero = Signal()
+
+        # # #
+
+        _jref = Signal()
+        _jref_d = Signal()
+        self.sync += [
+            _jref.eq(jref),
+            _jref_d.eq(jref),
+            If(_jref & ~_jref_d,
+                count.eq(load)
+            ).Else(
+                count.eq(count + 1)
+            )
+        ]
+        self.comb += zero.eq(count == 0)
+
 # Link TX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BLinkTXDapath(Module):
@@ -558,17 +584,16 @@ class LiteJESD204BLinkTX(Module):
         self.submodules.datapath = datapath
         self.comb += datapath.sink.eq(sink)
 
-        # Sync/SysRef
+        # Sync
         jsync = Signal()
-        jref = Signal()
-        jref_d = Signal()
-        jref_rising = Signal()
-        self.sync += [
-            jsync.eq(self.jsync),
-            jref.eq(self.jref),
-            jref_d.eq(jref)
-        ]
-        self.comb += jref_rising.eq(jref & ~jref_d)
+        self.sync += jsync.eq(self.jsync)
+
+        # LMFC
+        self.submodules.lmfc = lmfc = LMFC(
+            jesd_settings.octets_per_frame,
+            jesd_settings.transport.k,
+            load=1 + 4) # jref + ebuf latency
+        self.comb += lmfc.jref.eq(self.jref)
 
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="SEND-CGS")
@@ -578,8 +603,8 @@ class LiteJESD204BLinkTX(Module):
             datapath.framer.reset.eq(1),
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
-            # start ILAS on first LMFC after jsync is asserted
-            If(jsync & jref_rising,
+            # Start ILAS on first LMFC after jsync is asserted
+            If(lmfc.zero & jsync,
                 NextState("SEND-ILAS")
             )
         )
@@ -675,15 +700,16 @@ class LiteJESD204BLinkRX(Module):
             datapath.sink.eq(aligner.source),
         ]
 
-        # Sync/SysRef
-        jref = Signal()
-        jref_d = Signal()
-        jref_rising = Signal()
-        self.sync += [
-            jref.eq(self.jref),
-            jref_d.eq(jref)
-        ]
-        self.comb += jref_rising.eq(jref & ~jref_d)
+        # Sync
+        jsync = Signal()
+        self.sync += jsync.eq(self.jsync)
+
+        # LMFC
+        self.submodules.lmfc = lmfc = LMFC(
+            jesd_settings.octets_per_frame,
+            jesd_settings.transport.k,
+            load=-(1 + 4)) # jref + ebuf latency
+        self.comb += lmfc.jref.eq(self.jref)
 
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
@@ -692,16 +718,17 @@ class LiteJESD204BLinkRX(Module):
             ilas.reset.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
-            If(cgs.valid & jref_rising,
-                NextState("WAIT-ILAS")
+            # Assert jsync in first LMFC after CGS
+            If(lmfc.zero & cgs.valid,
+                NextState("ASSERT-SYNC")
             )
         )
-        fsm.act("WAIT-ILAS",
+        fsm.act("ASSERT-SYNC",
             self.jsync.eq(1),
             ilas.reset.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
-            If(~cgs.valid & ilas.start.valid,
+            If(ilas.start.valid,
                 ilas.reset.eq(0),
                 NextState("RECEIVE-ILAS")
             )
