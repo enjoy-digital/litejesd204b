@@ -20,7 +20,6 @@ from litejesd204b.link import LiteJESD204BLinkTX, LiteJESD204BLinkRX
 
 class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
-        self.phys = phys
         self.enable = Signal()
         self.jsync = Signal()
         self.jref = Signal()
@@ -89,7 +88,6 @@ class LiteJESD204BCoreTX(Module):
             ]
 
             # connect control
-            self.comb += phy.tx_restart.eq(self.restart & (self.prbs_config == 0))
             self.specials += MultiReg(self.prbs_config, phy.tx_prbs_config, phy_cd)
 
         ready = Signal()
@@ -130,8 +128,6 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 
         self.jsync = CSRStatus()
 
-        self.phys_ready = CSRStatus(len(core.phys))
-
         self.restart_count_clear = CSR()
         self.restart_count = CSRStatus(8)
 
@@ -146,10 +142,6 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
             self.ready.status.eq(core.ready)
         ]
         self.specials += MultiReg(core.jsync, self.jsync.status)
-
-        # phy status
-        for i in range(len(core.phys)):
-            self.comb += self.phys_ready.status[i].eq(core.phys[i].tx_init.done)
 
         # restart monitoring
 
@@ -178,7 +170,6 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 
 class LiteJESD204BCoreRX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
-        self.phys = phys
         self.enable = Signal()
         self.jsync = Signal()
         self.jref = Signal()
@@ -256,7 +247,6 @@ class LiteJESD204BCoreRX(Module):
             ]
 
             # connect control
-            self.comb += phy.rx_restart.eq(self.restart & (self.prbs_config == 0))
             self.specials += MultiReg(self.prbs_config, phy.rx_prbs_config, phy_cd)
 
         self.comb += self.jsync.eq(reduce(and_, [link.jsync for link in links]))
@@ -297,8 +287,6 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
 
         self.jsync = CSRStatus()
 
-        self.phys_ready = CSRStatus(len(core.phys))
-
         # # #
 
         # core control/status
@@ -310,9 +298,6 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
             self.ready.status.eq(core.ready)
         ]
         self.specials += MultiReg(core.jsync, self.jsync.status)
-
-        for i in range(len(core.phys)):
-            self.comb += self.phys_ready.status[i].eq(core.phys[i].rx_init.done)
 
         # clocks measurements
         self.submodules.devclk_freq = FrequencyMeter(sys_clk_freq, clk=ClockSignal("jesd_rx"))
