@@ -30,7 +30,6 @@ class LiteJESD204BCoreTX(Module):
         self.ready = Signal()
         self.restart = Signal()
 
-        self.prbs_config = Signal(4)
         self.stpl_enable = Signal()
 
         self.sink = Record([("converter"+str(i), converter_data_width)
@@ -91,9 +90,6 @@ class LiteJESD204BCoreTX(Module):
                 phy.sink.ctrl.eq(ebuf.dout[len(phy.sink.data):])
             ]
 
-            # connect control
-            self.specials += MultiReg(self.prbs_config, phy.tx_prbs_config, phy_cd)
-
         ready = Signal()
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
@@ -127,7 +123,6 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         self.enable = CSRStorage()
         self.ready = CSRStatus()
 
-        self.prbs_config = CSRStorage(4)
         self.stpl_enable = CSRStorage()
 
         self.jsync = CSRStatus()
@@ -140,7 +135,6 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         # core control/status
         self.comb += [
             core.enable.eq(self.enable.storage),
-            core.prbs_config.eq(self.prbs_config.storage),
             core.stpl_enable.eq(self.stpl_enable.storage),
 
             self.ready.status.eq(core.ready)
@@ -180,7 +174,6 @@ class LiteJESD204BCoreRX(Module):
         self.ready = Signal()
         self.restart = Signal()
 
-        self.prbs_config = Signal(4)
         self.stpl_enable = Signal()
 
         self.source = Record([("converter"+str(i), converter_data_width)
@@ -250,9 +243,6 @@ class LiteJESD204BCoreRX(Module):
                 lane.eq(skew_fifo.dout)
             ]
 
-            # connect control
-            self.specials += MultiReg(self.prbs_config, phy.rx_prbs_config, phy_cd)
-
         self.comb += self.jsync.eq(reduce(and_, [link.jsync for link in links]))
         self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
         self.specials += MultiReg(ready, self.ready)
@@ -286,7 +276,6 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
         self.enable = CSRStorage()
         self.ready = CSRStatus()
 
-        self.prbs_config = CSRStorage(4)
         self.stpl_enable = CSRStorage()
 
         self.jsync = CSRStatus()
@@ -296,7 +285,6 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
         # core control/status
         self.comb += [
             core.enable.eq(self.enable.storage),
-            core.prbs_config.eq(self.prbs_config.storage),
             core.stpl_enable.eq(self.stpl_enable.storage),
 
             self.ready.status.eq(core.ready)
