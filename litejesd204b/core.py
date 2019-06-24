@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2016 Robert Jordens <jordens@gmail.com>
+# License: BSD
+
 from functools import reduce
 from operator import and_
 

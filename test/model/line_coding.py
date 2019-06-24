@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from litex.soc.cores.code_8b10b import disparity
 
 from test.model.common import Control

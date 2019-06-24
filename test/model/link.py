@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from litejesd204b.common import control_characters
 
 from test.model.common import Control
