@@ -737,10 +737,10 @@ class LiteJESD204BLinkRX(Module):
             self.jsync.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
-            If(ilas_check & ~ilas.valid,
-                NextState("RECEIVE-CGS")
-            ).Elif(ilas.done,
+            If(ilas.done,
                 NextState("RECEIVE-DATA")
+            ).Elif(ilas_check & ~ilas.valid,
+                NextState("RECEIVE-CGS")
             )
         )
         fsm.act("RECEIVE-DATA",
