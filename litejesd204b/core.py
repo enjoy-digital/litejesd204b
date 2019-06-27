@@ -167,7 +167,7 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
 # Core RX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreRX(Module):
-    def __init__(self, phys, jesd_settings, converter_data_width):
+    def __init__(self, phys, jesd_settings, converter_data_width, ilas_check=True):
         self.enable = Signal()
         self.jsync = Signal()
         self.jref = Signal()
@@ -213,7 +213,7 @@ class LiteJESD204BCoreRX(Module):
             ebuf = ElasticBuffer(len(phy.source.data) + len(phy.source.ctrl), 4, phy_cd, "jesd_rx")
             setattr(self.submodules, "ebuf{}".format(n), ebuf)
 
-            link = LiteJESD204BLinkRX(len(phy.source.data), jesd_settings, n)
+            link = LiteJESD204BLinkRX(len(phy.source.data), jesd_settings, n, ilas_check)
             link = ClockDomainsRenamer("jesd_rx")(link)
             self.submodules += link
             links.append(link)

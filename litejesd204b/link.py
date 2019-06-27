@@ -662,7 +662,7 @@ class LiteJESD204BLinkRXDapath(Module):
 class LiteJESD204BLinkRX(Module):
     """Link RX layer
     """
-    def __init__(self, data_width, jesd_settings, n=0, ilas_check=False):
+    def __init__(self, data_width, jesd_settings, n=0, ilas_check=True):
         self.jsync = Signal() # output
         self.jref = Signal()  # input
         self.ready = Signal() # output
