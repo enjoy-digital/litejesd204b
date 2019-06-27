@@ -498,12 +498,11 @@ class ILASChecker(ILAS, Module):
 # Local Multiframe Clock ---------------------------------------------------------------------------
 
 class LMFC(Module):
-    def __init__(self, octets_per_frame, frames_per_multiframe, load=0):
-        ticks = octets_per_frame*frames_per_multiframe//4
-        load = (ticks + load)%ticks
+    def __init__(self, lmfc_cycles, load=0):
+        load = (lmfc_cycles + load)%lmfc_cycles
         assert load >= 0
         self.jref = jref = Signal()
-        self.count = count = Signal(max=ticks)
+        self.count = count = Signal(max=lmfc_cycles)
         self.zero = zero = Signal()
 
         # # #
@@ -593,8 +592,7 @@ class LiteJESD204BLinkTX(Module):
 
         # LMFC
         self.submodules.lmfc = lmfc = LMFC(
-            jesd_settings.octets_per_frame,
-            jesd_settings.transport.k,
+            jesd_settings.lmfc_cycles,
             load=1 + 4) # jref + ebuf latency
         self.comb += lmfc.jref.eq(self.jref)
 
@@ -709,8 +707,7 @@ class LiteJESD204BLinkRX(Module):
 
         # LMFC
         self.submodules.lmfc = lmfc = LMFC(
-            jesd_settings.octets_per_frame,
-            jesd_settings.transport.k,
+            jesd_settings.lmfc_cycles,
             load=-(1 + 4)) # jref + ebuf latency
         self.comb += lmfc.jref.eq(self.jref)
 

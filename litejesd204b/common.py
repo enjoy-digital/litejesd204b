@@ -125,6 +125,7 @@ class JESD204BSettings:
                                  self.nibbles_per_word)//2
         self.octets_per_lane = (self.octets_per_frame*
                                 self.nconverters)//self.nlanes
+        self.lmfc_cycles = int(self.octets_per_frame*self.transport.k//4)
 
     def get_configuration_data(self, lid=0):
         cd = JESD204BConfigurationData()
