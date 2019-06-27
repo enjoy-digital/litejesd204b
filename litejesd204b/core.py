@@ -223,7 +223,7 @@ class LiteJESD204BCoreRX(Module):
                 phy.rx_align.eq(link.align)
             ]
 
-            skew_fifo = SyncFIFO(len(phy.source.data), 32) # FIXME: determine depth
+            skew_fifo = SyncFIFO(len(phy.source.data), jesd_settings.lmfc_cycles)
             skew_fifo = ResetInserter()(skew_fifo)
             self.submodules += skew_fifo
             self.comb += [
