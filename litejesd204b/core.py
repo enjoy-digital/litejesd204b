@@ -59,11 +59,6 @@ class LiteJESD204BCoreTX(Module):
             )
 
         self.links = links = []
-        link_reset = Signal()
-        self.specials += MultiReg(
-            ~reduce(and_, [phy.tx_init.done for phy in phys]) | self.restart,
-            link_reset,
-            "jesd_tx")
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_tx"
@@ -76,7 +71,7 @@ class LiteJESD204BCoreTX(Module):
             self.submodules += link
             links.append(link)
             self.comb += [
-                link.reset.eq(link_reset),
+                link.reset.eq(self.restart),
                 link.jsync.eq(self.jsync),
                 link.jref.eq(self.jref)
             ]
@@ -198,11 +193,6 @@ class LiteJESD204BCoreRX(Module):
             )
 
         self.links = links = []
-        link_reset = Signal()
-        self.specials += MultiReg(
-            ~reduce(and_, [phy.rx_init.done for phy in phys]) | self.restart,
-            link_reset,
-            "jesd_rx")
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
@@ -215,7 +205,7 @@ class LiteJESD204BCoreRX(Module):
             self.submodules += link
             links.append(link)
             self.comb += [
-                link.reset.eq(link_reset),
+                link.reset.eq(self.restart),
                 link.jref.eq(self.jref),
                 phy.rx_align.eq(link.align)
             ]
@@ -225,7 +215,7 @@ class LiteJESD204BCoreRX(Module):
             skew_fifo = ResetInserter()(skew_fifo)
             self.submodules += skew_fifo
             self.comb += [
-                skew_fifo.reset.eq(link_reset),
+                skew_fifo.reset.eq(~link.ready),
                 skew_fifo.we.eq(1),
                 skew_fifo.re.eq(self.ready),
             ]
