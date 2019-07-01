@@ -39,7 +39,7 @@ class LiteJESD204BCoreTX(Module):
 
         # restart when disabled or on re-synchronization request
         jsync = Signal()
-        self.specials += MultiReg(self.jsync, jsync, "sys")
+        self.specials += MultiReg(self.jsync, jsync, "jesd_tx")
         self.comb += self.restart.eq(~self.enable | (self.ready & ~jsync))
 
         # transport layer
@@ -51,10 +51,8 @@ class LiteJESD204BCoreTX(Module):
         stpl = LiteJESD204BSTPLGenerator(jesd_settings, converter_data_width)
         stpl = ClockDomainsRenamer("jesd_tx")(stpl)
         self.submodules += stpl
-        stpl_enable = Signal()
-        self.specials += MultiReg(self.stpl_enable, stpl_enable)
         self.comb += \
-            If(stpl_enable,
+            If(self.stpl_enable,
                 transport.sink.eq(stpl.source)
             ).Else(
                 transport.sink.eq(self.sink)
@@ -62,7 +60,10 @@ class LiteJESD204BCoreTX(Module):
 
         self.links = links = []
         link_reset = Signal()
-        self.comb += link_reset.eq(~reduce(and_, [phy.tx_init.done for phy in phys]) | self.restart)
+        self.specials += MultiReg(
+            ~reduce(and_, [phy.tx_init.done for phy in phys]) | self.restart,
+            link_reset,
+            "jesd_tx")
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_tx"
@@ -90,9 +91,7 @@ class LiteJESD204BCoreTX(Module):
                 phy.sink.ctrl.eq(ebuf.dout[len(phy.sink.data):])
             ]
 
-        ready = Signal()
-        self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
-        self.specials += MultiReg(ready, self.ready)
+        self.sync.jesd_tx += self.ready.eq(reduce(and_, [link.ready for link in links]))
 
     def register_jsync(self, jsync):
         self.jsync_registered = True
@@ -133,13 +132,12 @@ class LiteJESD204BCoreTXControl(Module, AutoCSR):
         # # #
 
         # core control/status
-        self.comb += [
-            core.enable.eq(self.enable.storage),
-            core.stpl_enable.eq(self.stpl_enable.storage),
-
-            self.ready.status.eq(core.ready)
+        self.specials += [
+            MultiReg(self.enable.storage, core.enable, "jesd_tx"),
+            MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd_tx"),
+            MultiReg(core.ready, self.ready.status, "sys"),
+            MultiReg(core.jsync, self.jsync.status, "sys")
         ]
-        self.specials += MultiReg(core.jsync, self.jsync.status)
 
         # restart monitoring
 
@@ -181,8 +179,6 @@ class LiteJESD204BCoreRX(Module):
 
         # # #
 
-        ready = Signal()
-
         self.comb += self.restart.eq(~self.enable)
 
         # transport layer
@@ -194,10 +190,8 @@ class LiteJESD204BCoreRX(Module):
         stpl = LiteJESD204BSTPLChecker(jesd_settings, converter_data_width)
         stpl = ClockDomainsRenamer("jesd_rx")(stpl)
         self.submodules += stpl
-        stpl_enable = Signal()
-        self.specials += MultiReg(self.stpl_enable, stpl_enable)
         self.comb += \
-            If(stpl_enable,
+            If(self.stpl_enable,
                 stpl.sink.eq(transport.source)
             ).Else(
                 self.source.eq(transport.source)
@@ -205,7 +199,10 @@ class LiteJESD204BCoreRX(Module):
 
         self.links = links = []
         link_reset = Signal()
-        self.comb += link_reset.eq(~reduce(and_, [phy.rx_init.done for phy in phys]) | self.restart)
+        self.specials += MultiReg(
+            ~reduce(and_, [phy.rx_init.done for phy in phys]) | self.restart,
+            link_reset,
+            "jesd_rx")
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
@@ -224,12 +221,13 @@ class LiteJESD204BCoreRX(Module):
             ]
 
             skew_fifo = SyncFIFO(len(phy.source.data), jesd_settings.lmfc_cycles)
+            skew_fifo = ClockDomainsRenamer("jesd_rx")(skew_fifo)
             skew_fifo = ResetInserter()(skew_fifo)
             self.submodules += skew_fifo
             self.comb += [
                 skew_fifo.reset.eq(link_reset),
                 skew_fifo.we.eq(1),
-                skew_fifo.re.eq(ready),
+                skew_fifo.re.eq(self.ready),
             ]
 
             # connect data
@@ -243,9 +241,10 @@ class LiteJESD204BCoreRX(Module):
                 lane.eq(skew_fifo.dout)
             ]
 
-        self.comb += self.jsync.eq(reduce(and_, [link.jsync for link in links]))
-        self.comb += ready.eq(reduce(and_, [link.ready for link in links]))
-        self.specials += MultiReg(ready, self.ready)
+        self.sync.jesd_rx += [
+            self.jsync.eq(reduce(and_, [link.jsync for link in links])),
+            self.ready.eq(reduce(and_, [link.ready for link in links])),
+        ]
 
     def register_jsync(self, jsync):
         self.jsync_registered = True
@@ -283,13 +282,12 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
         # # #
 
         # core control/status
-        self.comb += [
-            core.enable.eq(self.enable.storage),
-            core.stpl_enable.eq(self.stpl_enable.storage),
-
-            self.ready.status.eq(core.ready)
+        self.specials += [
+            MultiReg(self.enable.storage, core.enable, "jesd_rx"),
+            MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd_rx"),
+            MultiReg(core.ready, self.ready.status, "sys"),
+            MultiReg(core.jsync, self.jsync.status, "sys")
         ]
-        self.specials += MultiReg(core.jsync, self.jsync.status)
 
         # clocks measurements
         self.submodules.devclk_freq = FrequencyMeter(sys_clk_freq, clk=ClockSignal("jesd_rx"))
