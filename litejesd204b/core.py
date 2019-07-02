@@ -12,7 +12,6 @@ from migen.genlib.io import DifferentialInput, DifferentialOutput
 from migen.genlib.fifo import SyncFIFO
 
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.frequency_meter import FrequencyMeter
 
 from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BTransportRX,
@@ -110,53 +109,6 @@ class LiteJESD204BCoreTX(Module):
         assert hasattr(self, "jsync_registered")
         assert hasattr(self, "jref_registered")
 
-# Core TX Control ----------------------------------------------------------------------------------
-
-class LiteJESD204BCoreTXControl(Module, AutoCSR):
-    def __init__(self, core, sys_clk_freq):
-        self.enable = CSRStorage()
-        self.ready = CSRStatus()
-
-        self.stpl_enable = CSRStorage()
-
-        self.jsync = CSRStatus()
-
-        self.restart_count_clear = CSR()
-        self.restart_count = CSRStatus(8)
-
-        # # #
-
-        # core control/status
-        self.specials += [
-            MultiReg(self.enable.storage, core.enable, "jesd_tx"),
-            MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd_tx"),
-            MultiReg(core.ready, self.ready.status, "sys"),
-            MultiReg(core.jsync, self.jsync.status, "sys")
-        ]
-
-        # restart monitoring
-
-        # restart is a slow signal so we simply pass it to sys_clk and
-        # count rising edges
-        restart = Signal()
-        restart_d = Signal()
-        restart_count = Signal(8)
-        self.specials += MultiReg(core.restart, restart)
-        self.sync += \
-            If(self.restart_count_clear.re,
-                restart_count.eq(0)
-            ).Elif(restart & ~restart_d,
-                # don't overflow when max is reached
-                If(restart_count != (2**8-1),
-                    restart_count.eq(restart_count + 1)
-                )
-            )
-        self.comb += self.restart_count.status.eq(restart_count)
-
-        # clocks measurements
-        self.submodules.devclk_freq = FrequencyMeter(sys_clk_freq, clk=ClockSignal("jesd_tx"))
-        self.submodules.sysref_freq = FrequencyMeter(sys_clk_freq, clk=core.jref)
-
 # Core RX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreRX(Module):
@@ -210,7 +162,7 @@ class LiteJESD204BCoreRX(Module):
                 phy.rx_align.eq(link.align)
             ]
 
-            skew_fifo = SyncFIFO(len(phy.source.data), jesd_settings.lmfc_cycles)
+            skew_fifo = SyncFIFO(len(phy.source.data), 2*jesd_settings.lmfc_cycles)
             skew_fifo = ClockDomainsRenamer("jesd_rx")(skew_fifo)
             skew_fifo = ResetInserter()(skew_fifo)
             self.submodules += skew_fifo
@@ -258,10 +210,10 @@ class LiteJESD204BCoreRX(Module):
         assert hasattr(self, "jsync_registered")
         assert hasattr(self, "jref_registered")
 
-# Core RX Control ----------------------------------------------------------------------------------
+# Core Control ----------------------------------------------------------------------------------
 
-class LiteJESD204BCoreRXControl(Module, AutoCSR):
-    def __init__(self, core, sys_clk_freq):
+class LiteJESD204BCoreControl(Module, AutoCSR):
+    def __init__(self, core, sys_clk_freq, cd):
         self.enable = CSRStorage()
         self.ready = CSRStatus()
 
@@ -271,14 +223,23 @@ class LiteJESD204BCoreRXControl(Module, AutoCSR):
 
         # # #
 
-        # core control/status
         self.specials += [
-            MultiReg(self.enable.storage, core.enable, "jesd_rx"),
-            MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd_rx"),
-            MultiReg(core.ready, self.ready.status, "sys"),
-            MultiReg(core.jsync, self.jsync.status, "sys")
+            MultiReg(self.enable.storage, core.enable, cd),
+            MultiReg(self.stpl_enable.storage, core.stpl_enable, cd),
+            MultiReg(core.ready, self.ready.status, "sys")
         ]
 
-        # clocks measurements
-        self.submodules.devclk_freq = FrequencyMeter(sys_clk_freq, clk=ClockSignal("jesd_rx"))
-        self.submodules.sysref_freq = FrequencyMeter(sys_clk_freq, clk=core.jref)
+        jsync_timer = WaitTimer(int(1e-3*sys_clk_freq))
+        self.submodules += jsync_timer
+        self.specials += MultiReg(core.jsync, jsync_timer.wait, "sys")
+        self.comb += self.jsync.status.eq(jsync_timer.done)
+
+
+class LiteJESD204BCoreTXControl(LiteJESD204BCoreControl):
+    def __init__(self, core, sys_clk_freq):
+        LiteJESD204BCoreControl.__init__(self, core, sys_clk_freq, "jesd_tx")
+
+
+class LiteJESD204BCoreRXControl(LiteJESD204BCoreControl):
+    def __init__(self, core, sys_clk_freq):
+        LiteJESD204BCoreControl.__init__(self, core, sys_clk_freq, "jesd_rx")
