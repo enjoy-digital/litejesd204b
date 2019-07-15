@@ -12,12 +12,90 @@ from migen.genlib.io import DifferentialInput, DifferentialOutput
 from migen.genlib.fifo import SyncFIFO
 
 from litex.soc.interconnect.csr import *
+from litex.soc.interconnect import stream
 
 from litejesd204b.transport import (LiteJESD204BTransportTX,
                                     LiteJESD204BTransportRX,
                                     LiteJESD204BSTPLGenerator,
                                     LiteJESD204BSTPLChecker)
 from litejesd204b.link import LiteJESD204BLinkTX, LiteJESD204BLinkRX
+
+# Clock Domain Crossing ----------------------------------------------------------------------------
+
+class LiteJESD204BTXCDC(Module):
+    def __init__(self, phy, phy_cd):
+        assert len(phy.sink.data) in [16, 32]
+        self.sink   =   sink = stream.Endpoint([("data", 32), ("ctrl", 4)])
+        self.source = source = stream.Endpoint([("data", len(phy.sink.data)), ("ctrl", len(phy.sink.ctrl))])
+
+        # # #
+
+        use_ebuf = (len(phy.sink.data) == 32)
+
+        if use_ebuf:
+            ebuf = ElasticBuffer(len(phy.sink.data) + len(phy.source.ctrl), 4, "jesd", phy_cd)
+            self.submodules.ebuf = ebuf
+            self.comb += [
+                sink.ready.eq(1),
+                ebuf.din[:32].eq(sink.data),
+                ebuf.din[32:].eq(sink.ctrl),
+                source.valid.eq(1),
+                source.data.eq(ebuf.dout[:32]),
+                source.ctrl.eq(ebuf.dout[32:])
+            ]
+        else:
+            cdc = stream.AsyncFIFO([("data", 32), ("ctrl", 4)], 4)
+            cdc = ClockDomainsRenamer({"write": "jesd", "read": phy_cd})(cdc)
+            self.submodules += cdc
+            converter = stream.StrideConverter(
+                [("data", 32), ("ctrl", 4)],
+                [("data", len(phy.sink.data)), ("ctrl", len(phy.sink.ctrl))],
+                reverse=False)
+            converter = ClockDomainsRenamer(phy_cd)(converter)
+            self.submodules += converter
+            self.comb += [
+                sink.connect(cdc.sink),
+                cdc.source.connect(converter.sink),
+                converter.source.connect(source)
+            ]
+
+
+class LiteJESD204BRXCDC(Module):
+    def __init__(self, phy, phy_cd):
+        assert len(phy.source.data) in [16, 32]
+        self.sink   =   sink = stream.Endpoint([("data", len(phy.sink.data)), ("ctrl", len(phy.sink.ctrl))])
+        self.source = source = stream.Endpoint([("data", 32), ("ctrl", 4)])
+
+        # # #
+
+        use_ebuf = (len(phy.source.data) == 32)
+
+        if use_ebuf:
+            ebuf = ElasticBuffer(len(phy.source.data) + len(phy.source.ctrl), 4, phy_cd, "jesd")
+            self.submodules.ebuf = ebuf
+            self.comb += [
+                sink.ready.eq(1),
+                ebuf.din[:32].eq(sink.data),
+                ebuf.din[32:].eq(sink.ctrl),
+                source.valid.eq(1),
+                source.data.eq(ebuf.dout[:32]),
+                source.ctrl.eq(ebuf.dout[32:])
+            ]
+        else:
+            converter = stream.StrideConverter(
+                [("data", len(phy.sink.data)), ("ctrl", len(phy.sink.ctrl))],
+                [("data", 32), ("ctrl", 4)],
+                reverse=False)
+            converter = ClockDomainsRenamer(phy_cd)(converter)
+            self.submodules += converter
+            cdc = stream.AsyncFIFO([("data", 32), ("ctrl", 4)], 4)
+            cdc = ClockDomainsRenamer({"write": phy_cd, "read": "jesd"})(cdc)
+            self.submodules += cdc
+            self.comb += [
+                sink.connect(converter.sink),
+                converter.source.connect(cdc.sink),
+                cdc.source.connect(source)
+            ]
 
 # Core TX ------------------------------------------------------------------------------------------
 
@@ -62,10 +140,10 @@ class LiteJESD204BCoreTX(Module):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_tx"
 
-            ebuf = ElasticBuffer(len(phy.sink.data) + len(phy.source.ctrl), 4, "jesd", phy_cd)
-            setattr(self.submodules, "ebuf{}".format(n), ebuf)
+            cdc = LiteJESD204BTXCDC(phy, phy_cd)
+            setattr(self.submodules, "cdc"+str(n), cdc)
 
-            link = LiteJESD204BLinkTX(len(phy.sink.data), jesd_settings, n)
+            link = LiteJESD204BLinkTX(32, jesd_settings, n)
             link = ClockDomainsRenamer("jesd")(link)
             self.submodules += link
             links.append(link)
@@ -78,11 +156,10 @@ class LiteJESD204BCoreTX(Module):
             # connect data
             self.comb += [
                 link.sink.data.eq(lane),
-                ebuf.din[:len(phy.sink.data)].eq(link.source.data),
-                ebuf.din[len(phy.sink.data):].eq(link.source.ctrl),
-                phy.sink.valid.eq(1),
-                phy.sink.data.eq(ebuf.dout[:len(phy.sink.data)]),
-                phy.sink.ctrl.eq(ebuf.dout[len(phy.sink.data):])
+                cdc.sink.valid.eq(1),
+                cdc.sink.data.eq(link.source.data),
+                cdc.sink.ctrl.eq(link.source.ctrl),
+                cdc.source.connect(phy.sink)
             ]
 
         self.sync.jesd += self.ready.eq(reduce(and_, [link.ready for link in links]))
@@ -149,10 +226,10 @@ class LiteJESD204BCoreRX(Module):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
 
-            ebuf = ElasticBuffer(len(phy.source.data) + len(phy.source.ctrl), 4, phy_cd, "jesd")
-            setattr(self.submodules, "ebuf{}".format(n), ebuf)
+            cdc = LiteJESD204BRXCDC(phy, phy_cd)
+            setattr(self.submodules, "cdc"+str(n), cdc)
 
-            link = LiteJESD204BLinkRX(len(phy.source.data), jesd_settings, n, ilas_check)
+            link = LiteJESD204BLinkRX(32, jesd_settings, n, ilas_check)
             link = ClockDomainsRenamer("jesd")(link)
             self.submodules += link
             links.append(link)
@@ -174,11 +251,10 @@ class LiteJESD204BCoreRX(Module):
 
             # connect data
             self.comb += [
-                phy.source.ready.eq(1),
-                ebuf.din[:len(phy.source.data)].eq(phy.source.data),
-                ebuf.din[len(phy.source.data):].eq(phy.source.ctrl),
-                link.sink.data.eq(ebuf.dout[:len(phy.source.data)]),
-                link.sink.ctrl.eq(ebuf.dout[len(phy.source.data):]),
+                phy.source.connect(cdc.sink),
+                link.sink.data.eq(cdc.source.data),
+                link.sink.ctrl.eq(cdc.source.ctrl),
+                cdc.source.ready.eq(1),
                 skew_fifo.din.eq(link.source.data),
                 lane.eq(skew_fifo.dout)
             ]
