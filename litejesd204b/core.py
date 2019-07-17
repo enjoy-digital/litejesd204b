@@ -63,7 +63,7 @@ class LiteJESD204BTXCDC(Module):
 class LiteJESD204BRXCDC(Module):
     def __init__(self, phy, phy_cd):
         assert len(phy.source.data) in [16, 32]
-        self.sink   =   sink = stream.Endpoint([("data", len(phy.sink.data)), ("ctrl", len(phy.sink.ctrl))])
+        self.sink   =   sink = stream.Endpoint([("data", len(phy.source.data)), ("ctrl", len(phy.source.ctrl))])
         self.source = source = stream.Endpoint([("data", 32), ("ctrl", 4)])
 
         # # #
@@ -83,7 +83,7 @@ class LiteJESD204BRXCDC(Module):
             ]
         else:
             converter = stream.StrideConverter(
-                [("data", len(phy.sink.data)), ("ctrl", len(phy.sink.ctrl))],
+                [("data", len(phy.source.data)), ("ctrl", len(phy.source.ctrl))],
                 [("data", 32), ("ctrl", 4)],
                 reverse=False)
             converter = ClockDomainsRenamer(phy_cd)(converter)
