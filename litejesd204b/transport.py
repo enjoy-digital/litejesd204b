@@ -158,6 +158,7 @@ class LiteJESD204BSTPLGenerator(Module):
     def __init__(self, jesd_settings, converter_data_width, random=True):
         self.source = Record([("converter"+str(i), converter_data_width)
             for i in range(jesd_settings.nconverters)])
+        self.errors = Signal(32) # unused
 
         # # #
 

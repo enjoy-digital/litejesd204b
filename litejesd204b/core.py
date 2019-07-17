@@ -127,7 +127,7 @@ class LiteJESD204BCoreTX(Module):
         # stpl
         stpl = LiteJESD204BSTPLGenerator(jesd_settings, converter_data_width)
         stpl = ClockDomainsRenamer("jesd")(stpl)
-        self.submodules += stpl
+        self.submodules.stpl = stpl
         self.comb += \
             If(self.stpl_enable,
                 transport.sink.eq(stpl.source)
@@ -213,7 +213,7 @@ class LiteJESD204BCoreRX(Module):
         # stpl
         stpl = LiteJESD204BSTPLChecker(jesd_settings, converter_data_width)
         stpl = ClockDomainsRenamer("jesd")(stpl)
-        self.submodules += stpl
+        self.submodules.stpl = stpl
         self.comb += \
             If(self.stpl_enable,
                 stpl.sink.eq(transport.source)
@@ -294,6 +294,7 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         self.ready = CSRStatus()
 
         self.stpl_enable = CSRStorage()
+        self.stpl_errors = CSRStatus(32)
 
         self.jsync = CSRStatus()
 
@@ -302,6 +303,7 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         self.specials += [
             MultiReg(self.enable.storage, core.enable, "jesd"),
             MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd"),
+            MultiReg(core.stpl.errors, self.stpl_errors.status, "sys"),
             MultiReg(core.ready, self.ready.status, "sys")
         ]
 
