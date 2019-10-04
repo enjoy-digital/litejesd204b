@@ -28,6 +28,7 @@ PHY:
  - PRBS7/PRBS15/PRBS31 to check link integrity.
  - 8B/10B encoding
  - 32 bits interface
+ - Artix7 support
  - Kintex7 support (CPLL up to 5Gbps, QPLL for higher linerates)
  - Kintex Ultrascale support (CPLL up to 6.25Gbps, QPLL for higher linerates)
 Core:
@@ -49,7 +50,6 @@ LiteDRAM is already used in commercial and open-source designs:
 - add support for non scrambled mode
 - add support for Altera PHYs
 - add support for Lattice PHYs
-- add support for others Xilinx transceivers
 - ... See below Support and consulting :)
 
 If you want to support these features, please contact us at florent [AT]
