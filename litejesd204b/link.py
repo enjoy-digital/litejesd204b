@@ -35,16 +35,16 @@ class Scrambler(Module):
     cf section 5.2.3
     """
     def __init__(self, data_width, seed=0x7f80):
-        self.sink = sink = Record([("data", data_width)])
-        self.source = source = Record([("data", data_width)])
-        self.valid = Signal()
+        self.sink    = sink   = Record([("data", data_width)])
+        self.source  = source = Record([("data", data_width)])
+        self.valid   = Signal()
         self.latency = 1
 
         # # #
 
-        state = Signal(15, reset=seed)
+        state    = Signal(15, reset=seed)
         feedback = Signal(data_width)
-        full = Signal(data_width+15)
+        full     = Signal(data_width+15)
 
         self.comb += [
             full.eq(Cat(feedback, state)),
@@ -66,16 +66,16 @@ class Descrambler(Scrambler):
     cf section 5.2.3
     """
     def __init__(self, data_width, seed=0x7f80):
-        self.sink = sink = Record([("data", data_width)])
-        self.source = source = Record([("data", data_width)])
-        self.valid = Signal()
+        self.sink    = sink   = Record([("data", data_width)])
+        self.source  = source = Record([("data", data_width)])
+        self.valid   = Signal()
         self.latency = 1
 
         # # #
 
-        state = Signal(15, reset=seed)
+        state    = Signal(15, reset=seed)
         feedback = Signal(data_width)
-        full = Signal(data_width+15)
+        full     = Signal(data_width+15)
 
         self.comb += [
             full.eq(Cat(swizzle(sink.data, data_width), state)),
@@ -98,14 +98,14 @@ class Framer(Module):
     """Framer
     """
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
-        self.sink = sink = Record([("data", data_width)])
-        self.source = source = Record(link_layout(data_width))
+        self.sink    = sink   = Record([("data", data_width)])
+        self.source  = source = Record(link_layout(data_width))
         self.latency = 0
 
         # # #
 
-        frame_width = octets_per_frame*8
-        frames_per_clock = data_width//frame_width
+        frame_width           = octets_per_frame*8
+        frames_per_clock      = data_width//frame_width
         clocks_per_multiframe = frames_per_multiframe//frames_per_clock
 
         # at least a frame per clock
@@ -141,14 +141,14 @@ class Deframer(Module):
     """Deframer
     """
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
-        self.sink = sink = Record(link_layout(data_width))
-        self.source = source = Record([("data", data_width)])
+        self.sink    = sink   = Record(link_layout(data_width))
+        self.source  = source = Record([("data", data_width)])
         self.latency = 0
 
         # # #
 
-        frame_width = octets_per_frame*8
-        frames_per_clock = data_width//frame_width
+        frame_width           = octets_per_frame*8
+        frames_per_clock      = data_width//frame_width
         clocks_per_multiframe = frames_per_multiframe//frames_per_clock
 
         # at least a frame per clock
@@ -170,8 +170,8 @@ class AlignInserter(Module):
     cf section 5.3.3.4.3
     """
     def __init__(self, data_width):
-        self.sink = sink = Record(link_layout(data_width))
-        self.source = source = Record(link_layout(data_width))
+        self.sink    = sink   = Record(link_layout(data_width))
+        self.source  = source = Record(link_layout(data_width))
         self.latency = 0
 
         # # #
@@ -200,8 +200,8 @@ class AlignReplacer(Module):
     cf section 5.3.3.4.3
     """
     def __init__(self, data_width):
-        self.sink = sink = Record(link_layout(data_width))
-        self.source = source = Record(link_layout(data_width))
+        self.sink    = sink   = Record(link_layout(data_width))
+        self.source  = source = Record(link_layout(data_width))
         self.latency = 0
 
         # # #
@@ -215,8 +215,8 @@ class AlignReplacer(Module):
 class Aligner(Module):
     def __init__(self, data_width):
         assert data_width == 32
-        self.sink = sink = Record(link_layout(data_width))
-        self.source = source = Record(link_layout(data_width))
+        self.sink    = sink   = Record(link_layout(data_width))
+        self.source  = source = Record(link_layout(data_width))
         self.latency = 1
 
         # # #
@@ -291,7 +291,7 @@ class CGSChecker(Module):
     """Code Group Synchronization
     """
     def __init__(self, data_width):
-        self.sink = sink = Record(link_layout(data_width))
+        self.sink  = sink  = Record(link_layout(data_width))
         self.valid = valid = Signal()
 
         # # #
@@ -415,7 +415,7 @@ class ILASStartChecker(Module):
     """Code Group Synchronization
     """
     def __init__(self, data_width):
-        self.sink = sink = Record(link_layout(data_width))
+        self.sink  = sink  = Record(link_layout(data_width))
         self.valid = valid = Signal()
 
         # # #
@@ -441,8 +441,8 @@ class ILASChecker(ILAS, Module):
                  frames_per_multiframe,
                  configuration_data,
                  with_counter=True):
-        self.sink = sink = Record(link_layout(data_width))
-        self.done = done = Signal()
+        self.sink  = sink  = Record(link_layout(data_width))
+        self.done  = done  = Signal()
         self.valid = valid = Signal()
 
         # # #
@@ -460,11 +460,11 @@ class ILASChecker(ILAS, Module):
             configuration_data,
             with_counter)
 
-        data_lut = Memory(data_width, len(self.data_words), init=self.data_words)
+        data_lut  = Memory(data_width, len(self.data_words), init=self.data_words)
         data_port = data_lut.get_port(async_read=True)
         self.specials += data_lut, data_port
 
-        ctrl_lut = Memory(data_width//8, len(self.ctrl_words), init=self.ctrl_words)
+        ctrl_lut  = Memory(data_width//8, len(self.ctrl_words), init=self.ctrl_words)
         ctrl_port = ctrl_lut.get_port(async_read=True)
         self.specials += ctrl_lut, ctrl_port
 
@@ -501,13 +501,13 @@ class LMFC(Module):
     def __init__(self, lmfc_cycles, load=0):
         load = (lmfc_cycles + load)%lmfc_cycles
         assert load >= 0
-        self.jref = jref = Signal()
+        self.jref  = jref  = Signal()
         self.count = count = Signal(max=lmfc_cycles)
-        self.zero = zero = Signal()
+        self.zero  = zero  = Signal()
 
         # # #
 
-        _jref = Signal()
+        _jref   = Signal()
         _jref_d = Signal()
         self.sync += [
             _jref.eq(jref),
@@ -524,7 +524,7 @@ class LMFC(Module):
 
 class LiteJESD204BLinkTXDapath(Module):
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
-        self.sink = Record([("data", data_width)])
+        self.sink   = Record([("data", data_width)])
         self.source = Record(link_layout(data_width))
 
         # # #
@@ -560,10 +560,10 @@ class LiteJESD204BLinkTX(Module):
     """
     def __init__(self, data_width, jesd_settings, n=0):
         self.jsync = Signal() # input
-        self.jref = Signal()  # input
+        self.jref  = Signal() # input
         self.ready = Signal() # output
 
-        self.sink = sink = Record([("data", data_width)])
+        self.sink   = sink   = Record([("data", data_width)])
         self.source = source = Record(link_layout(data_width))
 
         # # #
@@ -622,12 +622,11 @@ class LiteJESD204BLinkTX(Module):
             source.eq(datapath.source),
         )
 
-
 # Link RX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BLinkRXDapath(Module):
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
-        self.sink = Record(link_layout(data_width))
+        self.sink   = Record(link_layout(data_width))
         self.source = Record([("data", data_width)])
 
         # # #
@@ -662,11 +661,11 @@ class LiteJESD204BLinkRX(Module):
     """
     def __init__(self, data_width, jesd_settings, n=0, ilas_check=True):
         self.jsync = Signal() # output
-        self.jref = Signal()  # input
+        self.jref  = Signal() # input
         self.ready = Signal() # output
         self.align = Signal() # output
 
-        self.sink = sink = Record(link_layout(data_width))
+        self.sink   = sink   = Record(link_layout(data_width))
         self.source = source = Record([("data", data_width)])
 
         # # #

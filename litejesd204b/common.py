@@ -1,4 +1,4 @@
-# This file is Copyright (c)2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from math import ceil
@@ -17,9 +17,9 @@ control_characters = {
 
 class Field:
     def __init__(self, octet, offset, width):
-        self.octet = octet
+        self.octet  = octet
         self.offset = offset
-        self.width = width
+        self.width  = width
 
 
 configuration_data_length = 14
@@ -85,24 +85,24 @@ class JESD204BConfigurationData:
 
 class JESD204BTransportSettings:
     def __init__(self, f, s, k, cs):
-        self.f = f # octets/(lane and frame)
-        self.s = s # samples/(converter and frame)
-        self.k = k # frames/multiframe
+        self.f  = f  # octets/(lane and frame)
+        self.s  = s  # samples/(converter and frame)
+        self.k  = k  # frames/multiframe
         self.cs = cs # control bits/sample
 
 
 class JESD204BPhysicalSettings:
     def __init__(self, l, m, n, np):
-        self.l = l # lanes
-        self.m = m # converters
-        self.n = n # bits/converter
+        self.l  = l  # lanes
+        self.m  = m  # converters
+        self.n  = n  # bits/converter
         self.np = np # bits/sample
 
         # only support subclass 1
         self.subclassv = 0b001
-        self.adjcnt = 0
-        self.adjdir = 0
-        self.phadj = 0
+        self.adjcnt    = 0
+        self.adjdir    = 0
+        self.phadj     = 0
 
         # jesd204b revision
         self.jesdv = 0b001
@@ -110,22 +110,22 @@ class JESD204BPhysicalSettings:
 
 class JESD204BSettings:
     def __init__(self, phy_settings, transport_settings, did, bid):
-        self.phy = phy_settings
+        self.phy       = phy_settings
         self.transport = transport_settings
-        self.did = did
-        self.bid = bid
+        self.did       = did
+        self.bid       = bid
 
         # compute internal settings
-        self.nconverters = phy_settings.m
-        self.nlanes = phy_settings.l
+        self.nconverters       = phy_settings.m
+        self.nlanes            = phy_settings.l
         self.samples_per_frame = transport_settings.s
 
         self.nibbles_per_word = ceil(phy_settings.np//4)
         self.octets_per_frame = (self.samples_per_frame*
                                  self.nibbles_per_word)//2
-        self.octets_per_lane = (self.octets_per_frame*
-                                self.nconverters)//self.nlanes
-        self.lmfc_cycles = int(self.octets_per_frame*self.transport.k//4)
+        self.octets_per_lane  = (self.octets_per_frame*
+                                 self.nconverters)//self.nlanes
+        self.lmfc_cycles      = int(self.octets_per_frame*self.transport.k//4)
 
     def get_configuration_data(self, lid=0):
         cd = JESD204BConfigurationData()
@@ -133,19 +133,19 @@ class JESD204BSettings:
         cd.bid = self.bid
         cd.lid = lid
 
-        cd.l = self.phy.l - 1
-        cd.m = self.phy.m - 1
-        cd.n = self.phy.n - 1
-        cd.np = self.phy.np - 1
+        cd.l         = self.phy.l - 1
+        cd.m         = self.phy.m - 1
+        cd.n         = self.phy.n - 1
+        cd.np        = self.phy.np - 1
         cd.subclassv = self.phy.subclassv
-        cd.adjcnt = self.phy.adjcnt
-        cd.adjdir = self.phy.adjdir
-        cd.phadj = self.phy.phadj
-        cd.jesdv = self.phy.jesdv
+        cd.adjcnt    = self.phy.adjcnt
+        cd.adjdir    = self.phy.adjdir
+        cd.phadj     = self.phy.phadj
+        cd.jesdv     = self.phy.jesdv
 
-        cd.f = self.transport.f - 1
-        cd.k = self.transport.k - 1
-        cd.s = self.transport.s - 1
+        cd.f  = self.transport.f - 1
+        cd.k  = self.transport.k - 1
+        cd.s  = self.transport.s - 1
         cd.cs = self.transport.cs
 
         cd.scr = 1

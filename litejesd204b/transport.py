@@ -19,14 +19,14 @@ class LiteJESD204BTransportTX(Module):
     cf section 5.1.3
     """
     def __init__(self, jesd_settings, converter_data_width):
-        # compute parameters
+        # Compute parameters
         samples_per_clock = converter_data_width//jesd_settings.phy.n
         samples_per_frame = jesd_settings.transport.s
-        lane_data_width = (samples_per_clock*
-                           jesd_settings.phy.np*
-                           jesd_settings.nconverters)//jesd_settings.nlanes
+        lane_data_width   = (samples_per_clock*
+                             jesd_settings.phy.np*
+                             jesd_settings.nconverters)//jesd_settings.nlanes
 
-        # endpoints
+        # Endpoints
         self.sink = Record([("converter"+str(i), converter_data_width)
             for i in range(jesd_settings.nconverters)])
         self.source = Record([("lane"+str(i), lane_data_width)
@@ -35,9 +35,9 @@ class LiteJESD204BTransportTX(Module):
         # # #
 
         current_sample = 0
-        current_octet = 0
+        current_octet  = 0
         while current_sample < samples_per_clock:
-            # frame's samples
+            # Frame's samples
             frame_samples = []
             for j in range(jesd_settings.nconverters):
                 for i in range(samples_per_frame):
@@ -48,10 +48,10 @@ class LiteJESD204BTransportTX(Module):
                         (current_sample+i+1)*jesd_settings.phy.n])
                     frame_samples.append(sample)
 
-            # frame's words
+            # Frame's words
             frame_words = frame_samples # no control bits
 
-            # frame's nibbles
+            # Frame's nibbles
             frame_nibbles = []
             for word in frame_words:
                 for i in reversed(range(jesd_settings.nibbles_per_word)):
@@ -59,7 +59,7 @@ class LiteJESD204BTransportTX(Module):
                     self.comb += nibble.eq(word[4*i:4*(i+1)])
                     frame_nibbles.append(nibble)
 
-            # frame's octets
+            # Frame's octets
             frame_octets = []
             for i in range(len(frame_nibbles)//2):
                 octet = Signal(8)
@@ -67,7 +67,7 @@ class LiteJESD204BTransportTX(Module):
                                           frame_nibbles[2*i]))
                 frame_octets.append(octet)
 
-            # lanes' octets for a frame
+            # Lanes' octets for a frame
             for i in range(jesd_settings.nlanes):
                 frame_lane_octets = frame_octets[
                     i*jesd_settings.octets_per_lane:
@@ -91,14 +91,14 @@ class LiteJESD204BTransportRX(Module):
     cf section 5.1.3
     """
     def __init__(self, jesd_settings, converter_data_width):
-        # compute parameters
+        # Compute parameters
         samples_per_clock = converter_data_width//jesd_settings.phy.n
         samples_per_frame = jesd_settings.transport.s
-        lane_data_width = (samples_per_clock*
-                           jesd_settings.phy.np*
-                           jesd_settings.nconverters)//jesd_settings.nlanes
+        lane_data_width   = (samples_per_clock*
+                             jesd_settings.phy.np*
+                             jesd_settings.nconverters)//jesd_settings.nlanes
 
-        # endpoints
+        # Endpoints
         self.sink = Record([("lane"+str(i), lane_data_width)
             for i in range(jesd_settings.nlanes)])
         self.source = Record([("converter"+str(i), converter_data_width)
@@ -109,7 +109,7 @@ class LiteJESD204BTransportRX(Module):
         current_sample = 0
         current_octet = 0
         while current_sample < samples_per_clock:
-            # frame's octets
+            # Frame's octets
             frame_octets = []
             for i in range(jesd_settings.nlanes):
                 frame_lane_octets = []
@@ -120,13 +120,13 @@ class LiteJESD204BTransportRX(Module):
                         8*(current_octet+j+1)])
                 frame_octets += frame_lane_octets
 
-            # frame's nibbles
+            # Frame's nibbles
             frame_nibbles = []
             for octet in frame_octets:
                 for j in reversed(range(2)):
                     frame_nibbles.append(octet[4*j:4*(j+1)])
 
-            # frame's words
+            # Frame's words
             frame_words = []
             for j in range(jesd_settings.nconverters):
                 for i in range(samples_per_frame):
@@ -135,10 +135,10 @@ class LiteJESD204BTransportRX(Module):
                         self.comb += word[4*k:4*(k+1)].eq(frame_nibbles.pop())
                     frame_words.append(word)
 
-            # frame's samples
+            # Frame's samples
             frame_samples = frame_words # no control bits
 
-            # converters' samples for a frame
+            # Converters' samples for a frame
             for j in range(jesd_settings.nconverters):
                 for i in range(samples_per_frame):
                     converter_data = getattr(self.source, "converter"+str(j))
@@ -147,7 +147,7 @@ class LiteJESD204BTransportRX(Module):
                         (current_sample+i+1)*jesd_settings.phy.n].eq(frame_samples.pop())
 
             current_sample += samples_per_frame
-            current_octet += jesd_settings.octets_per_lane
+            current_octet  += jesd_settings.octets_per_lane
 
 # STPL Generator (TX) ------------------------------------------------------------------------------
 

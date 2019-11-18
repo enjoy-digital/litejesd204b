@@ -14,10 +14,8 @@ from migen.genlib.fifo import SyncFIFO
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
-from litejesd204b.transport import (LiteJESD204BTransportTX,
-                                    LiteJESD204BTransportRX,
-                                    LiteJESD204BSTPLGenerator,
-                                    LiteJESD204BSTPLChecker)
+from litejesd204b.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
+from litejesd204b.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
 from litejesd204b.link import LiteJESD204BLinkTX, LiteJESD204BLinkRX
 
 # Clock Domain Crossing ----------------------------------------------------------------------------
@@ -101,10 +99,10 @@ class LiteJESD204BRXCDC(Module):
 
 class LiteJESD204BCoreTX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width):
-        self.enable = Signal()
-        self.jsync = Signal()
-        self.jref = Signal()
-        self.ready = Signal()
+        self.enable  = Signal()
+        self.jsync   = Signal()
+        self.jref    = Signal()
+        self.ready   = Signal()
         self.restart = Signal()
 
         self.stpl_enable = Signal()
@@ -138,7 +136,7 @@ class LiteJESD204BCoreTX(Module):
         self.links = links = []
         for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
-            phy_cd = phy_name + "_tx"
+            phy_cd   = phy_name + "_tx"
 
             cdc = LiteJESD204BTXCDC(phy, phy_cd)
             setattr(self.submodules, "cdc"+str(n), cdc)
@@ -190,10 +188,10 @@ class LiteJESD204BCoreTX(Module):
 
 class LiteJESD204BCoreRX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width, ilas_check=True):
-        self.enable = Signal()
-        self.jsync = Signal()
-        self.jref = Signal()
-        self.ready = Signal()
+        self.enable  = Signal()
+        self.jsync   = Signal()
+        self.jref    = Signal()
+        self.ready   = Signal()
         self.restart = Signal()
 
         self.stpl_enable = Signal()
@@ -290,13 +288,13 @@ class LiteJESD204BCoreRX(Module):
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
     def __init__(self, core, sys_clk_freq):
-        self.enable = CSRStorage()
-        self.ready = CSRStatus()
+        self.enable      = CSRStorage()
+        self.ready       = CSRStatus()
 
         self.stpl_enable = CSRStorage()
         self.stpl_errors = CSRStatus(32)
 
-        self.jsync = CSRStatus()
+        self.jsync       = CSRStatus()
 
         # # #
 
