@@ -112,10 +112,16 @@ class LiteJESD204BCoreTX(Module):
 
         # # #
 
-        # restart when disabled or on re-synchronization request
+        # Restart when disabled...
+        self.comb += If(~self.enable, self.restart.eq(1))
+
+        # ... or on re-synchronization request from the DAC.
         jsync = Signal()
+        jsync_timer = ClockDomainsRenamer("jesd")(WaitTimer(256))
+        self.submodules += jsync_timer
+        self.comb += jsync_timer.wait.eq(~jsync)
         self.specials += MultiReg(self.jsync, jsync, "jesd")
-        self.comb += self.restart.eq(~self.enable | (self.ready & ~jsync))
+        self.comb += If(self.ready & jsync_timer.done, self.restart.eq(1))
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings, converter_data_width)
@@ -201,7 +207,8 @@ class LiteJESD204BCoreRX(Module):
 
         # # #
 
-        self.comb += self.restart.eq(~self.enable)
+        # Restart when disabled.
+        self.comb += If(~self.enable, self.restart.eq(1))
 
         # transport layer
         transport = LiteJESD204BTransportRX(jesd_settings, converter_data_width)
