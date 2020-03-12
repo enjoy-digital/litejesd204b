@@ -483,24 +483,24 @@ class LMFC(Module):
     def __init__(self, lmfc_cycles, load=0):
         load = (lmfc_cycles + load)%lmfc_cycles
         assert load >= 0
-        self.jref  = jref  = Signal()
-        self.count = count = Signal(max=lmfc_cycles)
-        self.zero  = zero  = Signal()
+        self.jref  = Signal()
+        self.count = Signal(max=lmfc_cycles, reset_less=True)
+        self.zero  = Signal(reset_less=True)
 
         # # #
 
-        _jref   = Signal()
-        _jref_d = Signal()
+        _jref   = Signal(reset_less=True)
+        _jref_d = Signal(reset_less=True)
         self.sync += [
-            _jref.eq(jref),
-            _jref_d.eq(jref),
+            _jref.eq(self.jref),
+            _jref_d.eq(_jref),
             If(_jref & ~_jref_d,
-                count.eq(load)
+                self.count.eq(load)
             ).Else(
-                count.eq(count + 1)
+                self.count.eq(self.count + 1)
             )
         ]
-        self.comb += zero.eq(count == 0)
+        self.comb += self.zero.eq(self.count == 0)
 
 # Link TX ------------------------------------------------------------------------------------------
 
