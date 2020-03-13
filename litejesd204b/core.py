@@ -226,7 +226,8 @@ class LiteJESD204BCoreRX(Module):
                 self.source.eq(transport.source)
             )
 
-        self.links = links = []
+        self.links      = links      = []
+        self.skew_fifos = skew_fifos = []
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
@@ -247,6 +248,7 @@ class LiteJESD204BCoreRX(Module):
             skew_fifo = SyncFIFO(32, 2*jesd_settings.lmfc_cycles)
             skew_fifo = ClockDomainsRenamer("jesd")(skew_fifo)
             skew_fifo = ResetInserter()(skew_fifo)
+            skew_fifos.append(skew_fifo)
             self.submodules += skew_fifo
             self.comb += [
                 skew_fifo.reset.eq(~link.ready),
@@ -305,6 +307,8 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
 
         # # #
 
+        self.core = core
+
         self.specials += [
             MultiReg(self.enable.storage, core.enable, "jesd"),
             MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd"),
@@ -316,3 +320,45 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         self.submodules += jsync_timer
         self.specials += MultiReg(core.jsync, jsync_timer.wait, "sys")
         self.comb += self.jsync.status.eq(jsync_timer.done)
+
+    def add_advanced_controls(self):
+        self.jsync_toggles = CSRStatus(32)
+        self.lmfc_load     = CSRStorage(
+            size  = len(self.core.links[0].lmfc.load),
+            reset = self.core.links[0].lmfc.load.reset)
+        if isinstance(self.core, LiteJESD204BCoreRX):
+            for n in range(len(self.core.skew_fifos)):
+                csr = CSRStatus(len(self.core.skew_fifos[n].level),
+                    name="skew_fifo{}_level".format(n))
+                setattr(self, "skew_fifo{}_level".format(n), csr)
+
+        # # #
+
+        # JSYNC toggles
+        jsync         = Signal()
+        jsync_d       = Signal()
+        jsync_toggle  = Signal()
+        jsync_toggles = Signal(32)
+        self.specials += MultiReg(self.core.jsync, jsync)
+        self.sync += jsync_d.eq(jsync)
+        self.comb += jsync_toggle.eq(jsync ^ jsync_d)
+        self.sync += [
+            If(~self.enable.storage,
+                jsync_toggles.eq(0)
+            ).Elif(jsync_toggle,
+                If(jsync_toggles != (2**32-1),
+                    jsync_toggles.eq(jsync_toggles + 1)
+                )
+            )
+        ]
+        self.comb += self.jsync_toggles.status.eq(jsync_toggles)
+
+        # LMFC load on SYSREF
+        for n in range(len(self.core.links)):
+            self.comb += self.core.links[n].lmfc.load.eq(self.lmfc_load.storage)
+
+        # Skew FIFOs level (RX only)
+        if isinstance(self.core, LiteJESD204BCoreRX):
+            for n in range(len(self.core.skew_fifos)):
+                csr_status = getattr(self, "skew_fifo{}_level".format(n))
+                self.specials += MultiReg(self.core.skew_fifos[n].level, csr_status.status)

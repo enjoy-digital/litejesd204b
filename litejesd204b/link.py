@@ -483,6 +483,7 @@ class LMFC(Module):
     def __init__(self, lmfc_cycles, load=0):
         load = (lmfc_cycles + load)%lmfc_cycles
         assert load >= 0
+        self.load  = Signal(max=lmfc_cycles, reset=load)
         self.jref  = Signal()
         self.count = Signal(max=lmfc_cycles, reset_less=True)
         self.zero  = Signal(reset_less=True)
@@ -495,7 +496,7 @@ class LMFC(Module):
             _jref.eq(self.jref),
             _jref_d.eq(_jref),
             If(_jref & ~_jref_d,
-                self.count.eq(load)
+                self.count.eq(self.load)
             ).Else(
                 self.count.eq(self.count + 1)
             )
