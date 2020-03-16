@@ -330,9 +330,6 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         self.stpl_enable = CSRStorage()
         self.stpl_errors = CSRStatus(32)
         self.jsync       = CSRStatus()
-        self.lmfc        = CSRStorage(fields=[
-            CSRField("load", size=len(core.lmfc.load), reset=core.lmfc.load.reset)
-        ])
 
         # # #
 
@@ -344,41 +341,4 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
             MultiReg(core.stpl.errors, self.stpl_errors.status, "sys"),
             MultiReg(core.ready, self.ready.status, "sys"),
             MultiReg(core.jsync, self.jsync.status, "sys"),
-            MultiReg(self.lmfc.fields.load, core.lmfc.load, "jesd"),
         ]
-
-    def add_advanced_controls(self):
-        self.jsync_toggles = CSRStatus(32)
-
-        if isinstance(self.core, LiteJESD204BCoreRX):
-            for n in range(len(self.core.skew_fifos)):
-                csr = CSRStatus(len(self.core.skew_fifos[n].level),
-                    name="skew_fifo{}_level".format(n))
-                setattr(self, "skew_fifo{}_level".format(n), csr)
-
-        # # #
-
-        # JSYNC toggles
-        jsync         = Signal()
-        jsync_d       = Signal()
-        jsync_toggle  = Signal()
-        jsync_toggles = Signal(32)
-        self.specials += MultiReg(self.core.jsync, jsync)
-        self.sync += jsync_d.eq(jsync)
-        self.comb += jsync_toggle.eq(jsync ^ jsync_d)
-        self.sync += [
-            If(~self.enable.storage,
-                jsync_toggles.eq(0)
-            ).Elif(jsync_toggle,
-                If(jsync_toggles != (2**32-1),
-                    jsync_toggles.eq(jsync_toggles + 1)
-                )
-            )
-        ]
-        self.comb += self.jsync_toggles.status.eq(jsync_toggles)
-
-        # Skew FIFOs level (RX only)
-        if isinstance(self.core, LiteJESD204BCoreRX):
-            for n in range(len(self.core.skew_fifos)):
-                csr_status = getattr(self, "skew_fifo{}_level".format(n))
-                self.specials += MultiReg(self.core.skew_fifos[n].level, csr_status.status)
