@@ -273,7 +273,7 @@ class LiteJESD204BCoreRX(Module):
                 phy.rx_align.eq(link.align)
             ]
 
-            skew_fifo = SyncFIFO(32, 2*jesd_settings.lmfc_cycles)
+            skew_fifo = SyncFIFO(32, jesd_settings.lmfc_cycles)
             skew_fifo = ClockDomainsRenamer("jesd")(skew_fifo)
             skew_fifo = ResetInserter()(skew_fifo)
             skew_fifos.append(skew_fifo)
