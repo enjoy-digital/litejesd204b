@@ -103,7 +103,6 @@ class LiteJESD204BCoreTX(Module):
         self.jsync   = Signal()
         self.jref    = Signal()
         self.ready   = Signal()
-        self.restart = Signal()
 
         self.stpl_enable = Signal()
 
@@ -111,17 +110,6 @@ class LiteJESD204BCoreTX(Module):
             for i in range(jesd_settings.nconverters)])
 
         # # #
-
-        # Restart when disabled...
-        self.comb += If(~self.enable, self.restart.eq(1))
-
-        # ... or on re-synchronization request from the DAC.
-        jsync = Signal()
-        jsync_timer = ClockDomainsRenamer("jesd")(WaitTimer(256))
-        self.submodules += jsync_timer
-        self.comb += jsync_timer.wait.eq(~jsync)
-        self.specials += MultiReg(self.jsync, jsync, "jesd")
-        self.comb += If(self.ready & jsync_timer.done, self.restart.eq(1))
 
         # transport layer
         transport = LiteJESD204BTransportTX(jesd_settings, converter_data_width)
@@ -152,7 +140,7 @@ class LiteJESD204BCoreTX(Module):
             self.submodules += link
             links.append(link)
             self.comb += [
-                link.reset.eq(self.restart),
+                link.reset.eq(~self.enable),
                 link.jsync.eq(self.jsync),
                 link.jref.eq(self.jref)
             ]
@@ -198,7 +186,6 @@ class LiteJESD204BCoreRX(Module):
         self.jsync   = Signal()
         self.jref    = Signal()
         self.ready   = Signal()
-        self.restart = Signal()
 
         self.stpl_enable = Signal()
 
@@ -206,9 +193,6 @@ class LiteJESD204BCoreRX(Module):
             for i in range(jesd_settings.nconverters)])
 
         # # #
-
-        # Restart when disabled.
-        self.comb += If(~self.enable, self.restart.eq(1))
 
         # transport layer
         transport = LiteJESD204BTransportRX(jesd_settings, converter_data_width)
@@ -240,7 +224,7 @@ class LiteJESD204BCoreRX(Module):
             self.submodules += link
             links.append(link)
             self.comb += [
-                link.reset.eq(self.restart),
+                link.reset.eq(~self.enable),
                 link.jref.eq(self.jref),
                 phy.rx_align.eq(link.align)
             ]

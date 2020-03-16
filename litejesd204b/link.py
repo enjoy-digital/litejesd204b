@@ -4,6 +4,7 @@
 from collections import namedtuple
 
 from migen import *
+from migen.genlib.misc import WaitTimer
 
 from litejesd204b.common import control_characters
 
@@ -572,6 +573,9 @@ class LiteJESD204BLinkTX(Module):
         # Sync
         jsync = Signal()
         self.sync += jsync.eq(self.jsync)
+        jsync_timer = WaitTimer(4) # distinguish errors reporting / re-synchronization requests.
+        self.submodules += jsync_timer
+        self.comb += jsync_timer.wait.eq(~jsync)
 
         # LMFC
         self.submodules.lmfc = lmfc = LMFC(
@@ -603,6 +607,9 @@ class LiteJESD204BLinkTX(Module):
         fsm.act("SEND-DATA",
             self.ready.eq(1),
             source.eq(datapath.source),
+            If(jsync_timer.done,
+                NextState("SEND-CGS")
+            ),
         )
 
 # Link RX ------------------------------------------------------------------------------------------
