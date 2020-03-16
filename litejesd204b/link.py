@@ -478,32 +478,6 @@ class ILASChecker(ILAS, Module):
         # done
         self.comb += self.done.eq(counter == len(self.data_words))
 
-# Local Multiframe Clock ---------------------------------------------------------------------------
-
-class LMFC(Module):
-    def __init__(self, lmfc_cycles, load=0):
-        load = (lmfc_cycles + load)%lmfc_cycles
-        assert load >= 0
-        self.load  = Signal(max=lmfc_cycles, reset=load)
-        self.jref  = Signal()
-        self.count = Signal(max=lmfc_cycles, reset_less=True)
-        self.zero  = Signal(reset_less=True)
-
-        # # #
-
-        _jref   = Signal(reset_less=True)
-        _jref_d = Signal(reset_less=True)
-        self.sync += [
-            _jref.eq(self.jref),
-            _jref_d.eq(_jref),
-            If(_jref & ~_jref_d,
-                self.count.eq(self.load)
-            ).Else(
-                self.count.eq(self.count + 1)
-            )
-        ]
-        self.comb += self.zero.eq(self.count == 0)
-
 # Link TX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BLinkTXDapath(Module):
@@ -543,9 +517,10 @@ class LiteJESD204BLinkTX(Module):
     """Link TX layer
     """
     def __init__(self, data_width, jesd_settings, n=0):
-        self.jsync = Signal() # input
-        self.jref  = Signal() # input
-        self.ready = Signal() # output
+        self.jsync     = Signal() # input
+        self.jref      = Signal() # input
+        self.lmfc_zero = Signal() # input
+        self.ready     = Signal() # output
 
         self.sink   = sink   = Record([("data", data_width)])
         self.source = source = Record(link_layout(data_width))
@@ -575,12 +550,6 @@ class LiteJESD204BLinkTX(Module):
         self.submodules += jsync_timer
         self.comb += jsync_timer.wait.eq(~self.jsync)
 
-        # LMFC
-        self.submodules.lmfc = lmfc = LMFC(
-            jesd_settings.lmfc_cycles,
-            load=1 + 4) # jref + ebuf latency
-        self.comb += lmfc.jref.eq(self.jref)
-
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="SEND-CGS")
         fsm.act("SEND-CGS",
@@ -590,7 +559,7 @@ class LiteJESD204BLinkTX(Module):
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
             # Start ILAS on first LMFC after jsync is asserted
-            If(lmfc.zero & self.jsync,
+            If(self.lmfc_zero & self.jsync,
                 NextState("SEND-ILAS")
             )
         )
@@ -648,10 +617,11 @@ class LiteJESD204BLinkRX(Module):
     """Link RX layer
     """
     def __init__(self, data_width, jesd_settings, n=0, ilas_check=True):
-        self.jsync = Signal() # output
-        self.jref  = Signal() # input
-        self.ready = Signal() # output
-        self.align = Signal() # output
+        self.jsync     = Signal() # output
+        self.jref      = Signal() # input
+        self.lmfc_zero = Signal() # input
+        self.ready     = Signal() # output
+        self.align     = Signal() # output
 
         self.sink   = sink   = Record(link_layout(data_width))
         self.source = source = Record([("data", data_width)])
@@ -688,12 +658,6 @@ class LiteJESD204BLinkRX(Module):
             datapath.sink.eq(aligner.source),
         ]
 
-        # LMFC
-        self.submodules.lmfc = lmfc = LMFC(
-            jesd_settings.lmfc_cycles,
-            load=-(1 + 4)) # jref + ebuf latency
-        self.comb += lmfc.jref.eq(self.jref)
-
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="RECEIVE-CGS")
         fsm.act("RECEIVE-CGS",
@@ -702,7 +666,7 @@ class LiteJESD204BLinkRX(Module):
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
             # Assert jsync in first LMFC after CGS
-            If(lmfc.zero & cgs.valid,
+            If(self.lmfc_zero & cgs.valid,
                 NextState("ASSERT-SYNC")
             )
         )
