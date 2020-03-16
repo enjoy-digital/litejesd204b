@@ -571,11 +571,9 @@ class LiteJESD204BLinkTX(Module):
         self.comb += datapath.sink.eq(sink)
 
         # Sync
-        jsync = Signal()
-        self.sync += jsync.eq(self.jsync)
         jsync_timer = WaitTimer(4) # distinguish errors reporting / re-synchronization requests.
         self.submodules += jsync_timer
-        self.comb += jsync_timer.wait.eq(~jsync)
+        self.comb += jsync_timer.wait.eq(~self.jsync)
 
         # LMFC
         self.submodules.lmfc = lmfc = LMFC(
@@ -592,7 +590,7 @@ class LiteJESD204BLinkTX(Module):
             source.data.eq(cgs.source.data),
             source.ctrl.eq(cgs.source.ctrl),
             # Start ILAS on first LMFC after jsync is asserted
-            If(lmfc.zero & jsync,
+            If(lmfc.zero & self.jsync,
                 NextState("SEND-ILAS")
             )
         )

@@ -158,12 +158,14 @@ class LiteJESD204BCoreTX(Module):
 
     def register_jsync(self, jsync):
         self.jsync_registered = True
+        _jsync = Signal()
         if isinstance(jsync, Signal):
-            self.comb += self.jsync.eq(jsync)
+            self.comb += _jsync.eq(jsync)
         elif isinstance(jsync, Record):
-            self.specials += DifferentialInput(jsync.p, jsync.n, self.jsync)
+            self.specials += DifferentialInput(jsync.p, jsync.n, _jsync)
         else:
             raise ValueError
+        self.specials += MultiReg(_jsync, self.jsync, "jesd")
 
     def register_jref(self, jref):
         self.jref_registered = True
