@@ -690,10 +690,6 @@ class LiteJESD204BLinkRX(Module):
             datapath.sink.eq(aligner.source),
         ]
 
-        # Sync
-        jsync = Signal()
-        self.sync += jsync.eq(self.jsync)
-
         # LMFC
         self.submodules.lmfc = lmfc = LMFC(
             jesd_settings.lmfc_cycles,
