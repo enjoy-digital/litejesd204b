@@ -302,10 +302,7 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
             MultiReg(core.ready, self.ready.status, "sys")
         ]
 
-        jsync_timer = WaitTimer(int(1e-3*sys_clk_freq))
-        self.submodules += jsync_timer
-        self.specials += MultiReg(core.jsync, jsync_timer.wait, "sys")
-        self.comb += self.jsync.status.eq(jsync_timer.done)
+        self.specials += MultiReg(core.jsync, self.jsync.status)
 
     def add_advanced_controls(self):
         self.jsync_toggles = CSRStatus(32)
