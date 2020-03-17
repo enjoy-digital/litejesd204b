@@ -296,7 +296,9 @@ class LiteJESD204BCoreRX(Module):
 
         self.sync.jesd += [
             self.jsync.eq(reduce(and_, [link.jsync for link in links])),
-            self.ready.eq(reduce(and_, [link.ready for link in links])),
+            If(lmfc.zero,
+                self.ready.eq(reduce(and_, [link.ready for link in links]))
+            ),
         ]
 
     def register_jsync(self, jsync):
@@ -329,8 +331,9 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
             CSRField("enable", size=1),
         ])
         self.status      = CSRStatus(fields=[
-            CSRField("ready",  size=1),
-            CSRField("sync_n", size=1),
+            CSRField("ready",     size=1, offset=0),
+            CSRField("sync_n",    size=1, offset=1),
+            CSRField("skew_fifo", size=8, offset=8),
         ])
         self.stpl_enable = CSRStorage()
         self.stpl_errors = CSRStatus(32)
@@ -348,3 +351,5 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
             MultiReg(core.ready,       self.status.fields.ready,  "sys"),
             MultiReg(core.jsync,       self.status.fields.sync_n, "sys"),
         ]
+        if hasattr(core, "skew_fifos"):
+            self.specials += MultiReg(core.skew_fifos[0].level, self.status.fields.skew_fifo)
