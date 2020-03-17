@@ -325,20 +325,26 @@ class LiteJESD204BCoreRX(Module):
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
     def __init__(self, core, sys_clk_freq):
-        self.enable      = CSRStorage()
-        self.ready       = CSRStatus()
+        self.control     = CSRStorage(fields=[
+            CSRField("enable", size=1),
+        ])
+        self.status      = CSRStatus(fields=[
+            CSRField("ready",  size=1),
+            CSRField("sync_n", size=1),
+        ])
         self.stpl_enable = CSRStorage()
         self.stpl_errors = CSRStatus(32)
-        self.jsync       = CSRStatus()
+        self.lmfc        = CSRStorage(fields=[
+            CSRField("load_on_sysref", size=len(core.lmfc.load), reset=core.lmfc.load.reset),
+        ])
 
         # # #
 
-        self.core = core
-
         self.specials += [
-            MultiReg(self.enable.storage, core.enable, "jesd"),
-            MultiReg(self.stpl_enable.storage, core.stpl_enable, "jesd"),
-            MultiReg(core.stpl.errors, self.stpl_errors.status, "sys"),
-            MultiReg(core.ready, self.ready.status, "sys"),
-            MultiReg(core.jsync, self.jsync.status, "sys"),
+            MultiReg(self.control.fields.enable,      core.enable,      "jesd"),
+            MultiReg(self.stpl_enable.storage,        core.stpl_enable, "jesd"),
+            MultiReg(self.lmfc.fields.load_on_sysref, core.lmfc.load,   "jesd"),
+            MultiReg(core.stpl.errors, self.stpl_errors.status,   "sys"),
+            MultiReg(core.ready,       self.status.fields.ready,  "sys"),
+            MultiReg(core.jsync,       self.status.fields.sync_n, "sys"),
         ]
