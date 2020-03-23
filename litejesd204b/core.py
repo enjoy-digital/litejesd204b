@@ -328,17 +328,22 @@ class LiteJESD204BCoreRX(Module):
 class LiteJESD204BCoreControl(Module, AutoCSR):
     def __init__(self, core, sys_clk_freq):
         self.control     = CSRStorage(fields=[
-            CSRField("enable", size=1),
+            CSRField("enable", size=1, description="JESD Core enable control, " +
+                "``0`` Disabled / ``1``: Enabled."),
         ])
         self.status      = CSRStatus(fields=[
-            CSRField("ready",     size=1, offset=0),
-            CSRField("sync_n",    size=1, offset=1),
-            CSRField("skew_fifo", size=8, offset=8),
+            CSRField("ready",     size=1, offset=0, description="JESD Core ready status, " +
+                "``0``: at least one of the link(s) is not synchronized / " +
+                "``1``: all the link(s) are synchronized."),
+            CSRField("sync_n",    size=1, offset=1, description="JESD SYNC~ status"),
+            CSRField("skew_fifo", size=8, offset=8, description="JESD Skew FIFO level (RX only)"),
         ])
-        self.stpl_enable = CSRStorage()
-        self.stpl_errors = CSRStatus(32)
+        self.stpl_enable = CSRStorage(description="STPL test enable, " +
+            "``0`` Disabled / ``1``: Enabled.")
+        self.stpl_errors = CSRStatus(32, description="STPL test errors.")
         self.lmfc        = CSRStorage(fields=[
-            CSRField("load_on_sysref", size=len(core.lmfc.load), reset=core.lmfc.load.reset),
+            CSRField("load_on_sysref", size=len(core.lmfc.load), reset=core.lmfc.load.reset,
+                description="LMFC reload value on SYSREF rising edge."),
         ])
 
         # # #
