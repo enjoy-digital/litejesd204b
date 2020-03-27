@@ -327,23 +327,31 @@ class LiteJESD204BCoreRX(Module):
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
     def __init__(self, core, sys_clk_freq):
-        self.control     = CSRStorage(fields=[
-            CSRField("enable", size=1, description="JESD Core enable control, " +
-                "``0`` Disabled / ``1``: Enabled."),
+        self.control = CSRStorage(fields=[
+            CSRField("enable", size=1, values=[
+                ("``0b0``", "JESD core disabled."),
+                ("``0b1``", "JESD core enabled.")
+            ])
         ])
-        self.status      = CSRStatus(fields=[
-            CSRField("ready",     size=1, offset=0, description="JESD Core ready status, " +
-                "``0``: at least one of the link(s) is not synchronized / " +
-                "``1``: all the link(s) are synchronized."),
-            CSRField("sync_n",    size=1, offset=1, description="JESD SYNC~ status"),
-            CSRField("skew_fifo", size=8, offset=8, description="JESD Skew FIFO level (RX only)"),
+        self.status = CSRStatus(fields=[
+            CSRField("ready", size=1, offset=0, values=[
+                ("``0b0``", "JESD core not ready, all links are not synchronized."),
+                ("``0b1``", "JESD core ready, all links are synchronized.")
+            ]),
+            CSRField("sync_n",    size=1, offset=1, description="JESD ``SYNC~`` status."),
+            CSRField("skew_fifo", size=8, offset=8, description="JESD Skew FIFO level (``RX only``)."),
         ])
-        self.stpl_enable = CSRStorage(description="STPL test enable, " +
-            "``0`` Disabled / ``1``: Enabled.")
+        self.stpl_enable = CSRStorage(fields=[
+            CSRField("enable", size=1, offset=0, values=[
+                ("``0b0``", "STPL test disabled."),
+                ("``0b1``", "STPL test enabled.")
+            ])
+        ])
         self.stpl_errors = CSRStatus(32, description="STPL test errors.")
         self.lmfc        = CSRStorage(fields=[
-            CSRField("load_on_sysref", size=len(core.lmfc.load), reset=core.lmfc.load.reset,
-                description="LMFC reload value on SYSREF rising edge."),
+            CSRField("load_on_sysref", size=len(core.lmfc.load),
+                reset       = core.lmfc.load.reset,
+                description = "LMFC reload value on SYSREF rising edge."),
         ])
 
         # # #
