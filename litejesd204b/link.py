@@ -54,6 +54,7 @@ class Scrambler(Module):
                         swizzle(sink.data, data_width))
         ]
 
+        source.data.reset_less = True
         self.sync += [
             self.valid.eq(1),
             source.data.eq(swizzle(feedback, data_width)),
@@ -85,6 +86,7 @@ class Descrambler(Scrambler):
                         full[0:32])
         ]
 
+        source.data.reset_less = True
         self.sync += [
             self.valid.eq(1),
             source.data.eq(swizzle(feedback, data_width)),
@@ -224,8 +226,8 @@ class Aligner(Module):
 
         alignment = Signal(2)
 
-        last_data = Signal(32)
-        last_ctrl = Signal(4)
+        last_data = Signal(32, reset_less=True)
+        last_ctrl = Signal(4,  reset_less=True)
 
         # Register last data/ctrl
         self.sync += [
