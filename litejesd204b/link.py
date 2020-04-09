@@ -313,7 +313,7 @@ class ILAS:
         octets = []
         for i in range(4):
             if with_counter:
-                multiframe = [i*octets_per_multiframe + j
+                multiframe = [(i*octets_per_multiframe + j) & 0xff
                     for j in range(octets_per_multiframe)]
             else:
                 multiframe = [0]*octets_per_multiframe
