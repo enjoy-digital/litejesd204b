@@ -8,8 +8,9 @@ from operator import and_
 from migen import *
 from migen.genlib.cdc import MultiReg, ElasticBuffer
 from migen.genlib.misc import WaitTimer
-from migen.genlib.io import DifferentialInput, DifferentialOutput
 from migen.genlib.fifo import SyncFIFO
+
+from litex.build.io import DifferentialInput, DifferentialOutput
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
