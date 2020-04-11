@@ -1,13 +1,18 @@
-     __   _ __         _____________  ___  ___  ____ ___
-    / /  (_) /____ __ / / __/ __/ _ \|_  |/ _ \/ / // _ )
-   / /__/ / __/ -_) // / _/_\ \/ // / __// // /_  _/ _  |
-  /____/_/\__/\__/\___/___/___/____/____/\___/ /_//____/
+```
+                             __   _ __         _____________  ___  ___  ____ ___
+                            / /  (_) /____ __ / / __/ __/ _ \|_  |/ _ \/ / // _ )
+                           / /__/ / __/ -_) // / _/_\ \/ // / __// // /_  _/ _  |
+                          /____/_/\__/\__/\___/___/___/____/____/\___/ /_//____/
 
-             Copyright 2016-2019 / EnjoyDigital
-             Copyright 2016-2018 / M-Labs Ltd
+                                     Copyright 2016-2020 / EnjoyDigital
+                                     Copyright 2016-2018 / M-Labs Ltd
 
-    A small footprint and configurable JESD204B core
-                powered by Migen & LiteX
+                            A small footprint and configurable JESD204B core
+                                        powered by Migen & LiteX
+```
+
+[![](https://travis-ci.com/enjoy-digital/litejesd204b.svg?branch=master)](https://travis-ci.com/enjoy-digital/litejesd204b) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+
 
 [> Intro
 --------
@@ -31,6 +36,7 @@ PHY:
  - Artix7 support
  - Kintex7 support (CPLL up to 5Gbps, QPLL for higher linerates)
  - Kintex Ultrascale support (CPLL up to 6.25Gbps, QPLL for higher linerates)
+
 Core:
  Link:
   - Scrambling to reduce EMI
@@ -57,23 +63,34 @@ enjoy-digital.fr.
 
 [> Getting started
 ------------------
-0. Install Python 3.5+ and FPGA vendor's development tools.
+1. Install Python 3.6+ and FPGA vendor's development tools.
+2. Install Migen/LiteX and the LiteX's cores:
 
-1. Install Migen/LiteX and the LiteX's cores:
-  wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
-  ./litex_setup.py init install
+```sh
+$ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+$ chmod +x litex_setup.py
+$ ./litex_setup.py init install --user (--user to install to user directory)
+```
   Later, if you need to update all repositories:
-  ./litex_setup.py update
+```sh
+$ ./litex_setup.py update
+```
 
-2. TODO: add/describe examples
+
+3. TODO: add/describe examples
 
 [> Tests
 --------
 Unit tests are available in ./test/.
 To run all the unit tests:
-  ./setup.py test
+```sh
+$ ./setup.py test
+```
+
 Tests can also be run individually:
-  python3 -m unittest test.test_name
+```sh
+$ python3 -m unittest test.test_name
+```
 
 [> License
 ----------
