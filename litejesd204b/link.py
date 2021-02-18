@@ -338,6 +338,10 @@ class ILAS:
             data_words.append(data_word)
             ctrl_words.append(ctrl_word)
 
+        #print("ILAs datas/ctrls:")
+        #for data, ctrl in zip(data_words, ctrl_words):
+        #    print(f"data: 0x{data:08x}, ctrl: 0x{ctrl:02x}")
+
         assert len(data_words) == (octets_per_frame*frames_per_multiframe*4//octets_per_clock)
 
 @ResetInserter()
