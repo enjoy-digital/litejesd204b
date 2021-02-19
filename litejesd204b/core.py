@@ -128,7 +128,7 @@ class LMFC(Module):
 # Core TX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreTX(Module):
-    def __init__(self, phys, jesd_settings, converter_data_width):
+    def __init__(self, phys, jesd_settings, converter_data_width, stpl_random=True):
         self.enable  = Signal()
         self.jsync   = Signal()
         self.jref    = Signal()
@@ -147,7 +147,7 @@ class LiteJESD204BCoreTX(Module):
         self.submodules.transport = transport
 
         # STPL
-        stpl = LiteJESD204BSTPLGenerator(jesd_settings, converter_data_width)
+        stpl = LiteJESD204BSTPLGenerator(jesd_settings, converter_data_width, random=stpl_random)
         stpl = ClockDomainsRenamer("jesd")(stpl)
         self.submodules.stpl = stpl
         self.comb += \
@@ -221,7 +221,7 @@ class LiteJESD204BCoreTX(Module):
 # Core RX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreRX(Module):
-    def __init__(self, phys, jesd_settings, converter_data_width, ilas_check=True):
+    def __init__(self, phys, jesd_settings, converter_data_width, ilas_check=True, stpl_random=True):
         self.enable  = Signal()
         self.jsync   = Signal()
         self.jref    = Signal()
@@ -240,7 +240,7 @@ class LiteJESD204BCoreRX(Module):
         self.submodules.transport = transport
 
         # STPL
-        stpl = LiteJESD204BSTPLChecker(jesd_settings, converter_data_width)
+        stpl = LiteJESD204BSTPLChecker(jesd_settings, converter_data_width, stpl_random)
         stpl = ClockDomainsRenamer("jesd")(stpl)
         self.submodules.stpl = stpl
         self.comb += \
