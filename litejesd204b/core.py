@@ -330,12 +330,12 @@ class LiteJESD204BCoreRX(Module):
 # Core Control ----------------------------------------------------------------------------------
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
-    def __init__(self, core, sys_clk_freq):
+    def __init__(self, core, sys_clk_freq, default_enable=0, default_stpl_enable=0):
         self.control = CSRStorage(fields=[
             CSRField("enable", size=1, values=[
                 ("``0b0``", "JESD core disabled."),
                 ("``0b1``", "JESD core enabled.")
-            ])
+            ], reset=default_enable)
         ])
         self.status = CSRStatus(fields=[
             CSRField("ready", size=1, offset=0, values=[
@@ -349,7 +349,7 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
             CSRField("enable", size=1, offset=0, values=[
                 ("``0b0``", "STPL test disabled."),
                 ("``0b1``", "STPL test enabled.")
-            ])
+            ], reset=default_stpl_enable)
         ])
         self.stpl_errors = CSRStatus(32, description="STPL test errors.")
         self.lmfc        = CSRStorage(fields=[
