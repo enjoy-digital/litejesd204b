@@ -39,6 +39,7 @@ class Scrambler(Module):
     cf section 5.2.3
     """
     def __init__(self, data_width, seed=0x7f80):
+        self.enable  = Signal(reset=1)
         self.sink    = sink   = Record([("data", data_width)])
         self.source  = source = Record([("data", data_width)])
         self.valid   = Signal()
@@ -60,8 +61,12 @@ class Scrambler(Module):
         source.data.reset_less = True
         self.sync += [
             self.valid.eq(1),
-            source.data.eq(swizzle(feedback, data_width)),
-            state.eq(full)
+            state.eq(full),
+            If(self.enable,
+                source.data.eq(swizzle(feedback, data_width))
+            ).Else(
+                source.data.eq(sink.data)
+            )
         ]
 
 
@@ -71,6 +76,7 @@ class Descrambler(Scrambler):
     cf section 5.2.3
     """
     def __init__(self, data_width, seed=0x7f80):
+        self.enable  = Signal(reset=1)
         self.sink    = sink   = Record([("data", data_width)])
         self.source  = source = Record([("data", data_width)])
         self.valid   = Signal()
@@ -92,8 +98,12 @@ class Descrambler(Scrambler):
         source.data.reset_less = True
         self.sync += [
             self.valid.eq(1),
-            source.data.eq(swizzle(feedback, data_width)),
-            state.eq(full)
+            state.eq(full),
+            If(self.enable,
+                source.data.eq(swizzle(feedback, data_width))
+            ).Else(
+                source.data.eq(sink.data)
+            )
         ]
 
 
@@ -174,29 +184,39 @@ class AlignInserter(Module):
     cf section 5.3.3.4.3
     """
     def __init__(self, data_width):
-        self.sink    = sink   = Record(link_layout(data_width))
-        self.source  = source = Record(link_layout(data_width))
+        self.scrambling = Signal(reset=1)
+        self.sink       = sink   = Record(link_layout(data_width))
+        self.source     = source = Record(link_layout(data_width))
         self.latency = 0
 
         # # #
 
         self.comb += source.eq(sink)
 
+        data_last = [Signal(8) for i in range(data_width//8)]
+
         for i in range(data_width//8):
+            data = sink.data[8*i:8*(i+1)]
             self.comb += [
-                # Last scrambled octet in a multiframe equals "A" control character
-                If(sink.data[8*i:8*(i+1)] == control_characters["A"],
-                    If(sink.multiframe_last[i],
-                        source.ctrl[i].eq(1)
+                # With    Scrambling : If last octet in a multiframe equals "A" control character.
+                # Without Scrambling : If last octet in a multiframe equals previous octet.
+                If(sink.multiframe_last[i],
+                    If(( self.scrambling & (data == control_characters["A"])) |
+                       (~self.scrambling & (data == data_last[i])),
+                        source.ctrl[i].eq(1),
+                        source.data[8*i:8*(i+1)].eq(control_characters["A"]),
                     )
-                # Last scrambled octet in a frame but not at the end of a
-                # multiframe equals "F" control character
-                ).Elif(sink.data[8*i:8*(i+1)] == control_characters["F"],
-                    If(sink.frame_last[i] & ~sink.multiframe_last[i],
-                        source.ctrl[i].eq(1)
+                # With    Scrambling : If last octet in a frame (not at a end of multiframe) equals "F" control character.
+                # Without Scrambling : If last octet in a frame (not at a end of multiframe) equals previous octet.
+                ).Elif(sink.frame_last[i],
+                    If(( self.scrambling & (data == control_characters["F"])) |
+                       (~self.scrambling & (data == data_last[i])),
+                        source.ctrl[i].eq(1),
+                        source.data[8*i:8*(i+1)].eq(control_characters["F"]),
                     )
                 )
             ]
+            self.sync += data_last[i].eq(data)
 
 
 class AlignReplacer(Module):
@@ -204,17 +224,37 @@ class AlignReplacer(Module):
     cf section 5.3.3.4.3
     """
     def __init__(self, data_width):
-        self.sink    = sink   = Record(link_layout(data_width))
-        self.source  = source = Record(link_layout(data_width))
+        self.scrambling = Signal(reset=1)
+        self.sink       = sink   = Record(link_layout(data_width))
+        self.source     = source = Record(link_layout(data_width))
         self.latency = 0
 
         # # #
 
-        # Recopy scrambler data and set ctrl to 0
         self.comb += source.eq(sink)
-        for i in range(data_width//8):
-            self.comb += source.ctrl.eq(0)
 
+        data_last = [Signal(8) for i in range(data_width//8)]
+
+        for i in range(data_width//8):
+            data = sink.data[8*i:8*(i+1)]
+            self.comb += [
+                If(self.scrambling,
+                    # No Replacement, just set ctrl to 0.
+                    source.ctrl[i].eq(0)
+                ).Else(
+                    # If "A" control character, replace with last octet.
+                    If(sink.ctrl[i] & (sink.data[8*i:8*(i+1)] == control_characters["A"]),
+                        source.ctrl[i].eq(0),
+                        source.data[8*i:8*(i+1)].eq(data_last[i])
+                    ),
+                    # If "A" control character, replace with last octet.
+                    If(sink.ctrl[i] & (sink.data[8*i:8*(i+1)] == control_characters["F"]),
+                        source.ctrl[i].eq(0),
+                        source.data[8*i:8*(i+1)].eq(data_last[i])
+                    )
+                )
+            ]
+            self.sync += data_last[i].eq(data)
 
 class Aligner(Module):
     def __init__(self, data_width):
@@ -469,16 +509,15 @@ class LiteJESD204BLinkTXDapath(Module):
         # # #
 
         # Scrambling
-        scrambler = Scrambler(data_width)
-        self.submodules.scrambler = scrambler
+        self.submodules.scrambler = scrambler = Scrambler(data_width)
 
         # Framing
         framer = Framer(data_width, octets_per_frame, frames_per_multiframe)
         self.submodules.framer = framer
 
         # Alignment
-        align_inserter = AlignInserter(data_width)
-        self.submodules.align_inserter = align_inserter
+        self.submodules.align_inserter = align_inserter = AlignInserter(data_width)
+        self.comb += align_inserter.scrambling.eq(scrambler.enable)
 
         # Flow
         self.latency = scrambler.latency + framer.latency + align_inserter.latency
@@ -567,8 +606,7 @@ class LiteJESD204BLinkRXDapath(Module):
         # # #
 
         # Alignment
-        align_replacer = AlignReplacer(data_width)
-        self.submodules.align_replacer = align_replacer
+        self.submodules.align_replacer = align_replacer = AlignReplacer(data_width)
 
         # Deframing
         deframer = Deframer(data_width,
@@ -577,8 +615,8 @@ class LiteJESD204BLinkRXDapath(Module):
         self.submodules.deframer = deframer
 
         # Descrambling
-        descrambler = Descrambler(data_width)
-        self.submodules.descrambler = descrambler
+        self.submodules.descrambler = descrambler = Descrambler(data_width)
+        self.comb += align_replacer.scrambling.eq(descrambler.enable)
 
         # Flow
         self.latency = align_replacer.latency + deframer.latency + descrambler.latency

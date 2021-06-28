@@ -112,11 +112,12 @@ class JESD204BPhysicalSettings:
 
 
 class JESD204BSettings:
-    def __init__(self, phy_settings, transport_settings, did, bid):
-        self.phy       = phy_settings
-        self.transport = transport_settings
-        self.did       = did
-        self.bid       = bid
+    def __init__(self, phy_settings, transport_settings, did, bid, scrambling=True):
+        self.phy        = phy_settings
+        self.transport  = transport_settings
+        self.did        = did
+        self.bid        = bid
+        self.scrambling = scrambling
 
         # compute internal settings
         self.nconverters       = phy_settings.m
@@ -151,7 +152,7 @@ class JESD204BSettings:
         cd.s  = self.transport.s - 1
         cd.cs = self.transport.cs
 
-        cd.scr = 1
+        cd.scr = int(self.scrambling)
 
         octets = cd.get_octets()
         chksum = cd.get_checksum()

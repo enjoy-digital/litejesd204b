@@ -128,7 +128,7 @@ class LMFC(Module):
 # Core TX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreTX(Module):
-    def __init__(self, phys, jesd_settings, converter_data_width, stpl_random=True):
+    def __init__(self, phys, jesd_settings, converter_data_width, scrambling=True, stpl_random=True):
         self.enable  = Signal()
         self.jsync   = Signal()
         self.jref    = Signal()
@@ -178,6 +178,7 @@ class LiteJESD204BCoreTX(Module):
             links.append(link)
             self.comb += [
                 link.reset.eq(~self.enable),
+                link.datapath.scrambler.enable.eq(int(scrambling)),
                 link.jsync.eq(self.jsync),
                 link.jref.eq(self.jref),
                 link.lmfc_zero.eq(self.lmfc.zero),
@@ -221,7 +222,7 @@ class LiteJESD204BCoreTX(Module):
 # Core RX ------------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreRX(Module):
-    def __init__(self, phys, jesd_settings, converter_data_width, ilas_check=True, stpl_random=True):
+    def __init__(self, phys, jesd_settings, converter_data_width, scrambling=True, ilas_check=True, stpl_random=True):
         self.enable  = Signal()
         self.jsync   = Signal()
         self.jref    = Signal()
@@ -272,6 +273,7 @@ class LiteJESD204BCoreRX(Module):
             links.append(link)
             self.comb += [
                 link.reset.eq(~self.enable),
+                link.datapath.descrambler.enable.eq(int(scrambling)),
                 link.jref.eq(self.jref),
                 link.lmfc_zero.eq(self.lmfc.zero),
                 phy.rx_align.eq(link.align)
