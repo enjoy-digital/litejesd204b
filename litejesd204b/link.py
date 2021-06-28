@@ -113,6 +113,7 @@ class Descrambler(Scrambler):
 class Framer(Module):
     """Framer"""
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
+        self.enable  = Signal(reset=1)
         self.sink    = sink   = Record([("data", data_width)])
         self.source  = source = Record(link_layout(data_width))
         self.latency = 0
@@ -136,18 +137,16 @@ class Framer(Module):
                 frame_last |= (1<<i)
 
         counter = Signal(8)
-        self.sync += \
-            If(source.multiframe_last != 0,
-                counter.eq(0)
-            ).Else(
-                counter.eq(counter+1)
-            )
+        self.sync += counter.eq(counter+1)
+        self.sync += If(source.multiframe_last != 0, counter.eq(0))
 
         self.comb += [
             source.data.eq(sink.data),
-            source.frame_last.eq(frame_last),
-            If(counter == (clocks_per_multiframe-1),
-                source.multiframe_last.eq(1<<(data_width//8)-1)
+            If(self.enable,
+                source.frame_last.eq(frame_last),
+                If(counter == (clocks_per_multiframe-1),
+                    source.multiframe_last.eq(1<<(data_width//8)-1)
+                )
             )
         ]
 
@@ -173,9 +172,7 @@ class Deframer(Module):
         assert frames_per_multiframe%frames_per_clock == 0
 
         # FIXME: start on multiframe boundary?
-        self.comb += [
-            source.data.eq(sink.data),
-        ]
+        self.comb += source.data.eq(sink.data)
 
 # Alignment ----------------------------------------------------------------------------------------
 
@@ -561,6 +558,7 @@ class LiteJESD204BLinkTX(Module):
             jesd_settings.transport.k)
         self.submodules.datapath = datapath
         self.comb += datapath.sink.eq(sink)
+        self.comb += datapath.framer.enable.eq(int(jesd_settings.framing))
 
         # Sync
         jsync_timer = WaitTimer(4) # Distinguish errors reporting / re-synchronization requests.

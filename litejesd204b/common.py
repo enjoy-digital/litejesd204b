@@ -112,11 +112,12 @@ class JESD204BPhysicalSettings:
 
 
 class JESD204BSettings:
-    def __init__(self, phy_settings, transport_settings, did, bid, scrambling=True):
+    def __init__(self, phy_settings, transport_settings, did, bid, framing=True, scrambling=True):
         self.phy        = phy_settings
         self.transport  = transport_settings
         self.did        = did
         self.bid        = bid
+        self.framing    = framing
         self.scrambling = scrambling
 
         # compute internal settings
