@@ -4,7 +4,7 @@
                            / /__/ / __/ -_) // / _/_\ \/ // / __// // /_  _/ _  |
                           /____/_/\__/\__/\___/___/___/____/____/\___/ /_//____/
 
-                                     Copyright 2016-2020 / EnjoyDigital
+                                     Copyright 2016-2022 / EnjoyDigital
                                      Copyright 2016-2018 / M-Labs Ltd
 
                             A small footprint and configurable JESD204B core
