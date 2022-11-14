@@ -10,7 +10,7 @@ import random
 from migen import *
 
 from litejesd204b.link import link_layout
-from litejesd204b.link import LiteJESD204BLinkTXDapath, LiteJESD204BLinkRXDapath
+from litejesd204b.link import LiteJESD204BLinkTXDatapath, LiteJESD204BLinkRXDatapath
 
 from test.model.common import Control
 from test.model.link import scramble_lanes, descramble_lanes
@@ -32,7 +32,7 @@ class TestLink(unittest.TestCase):
         output_lanes = insert_alignment_characters(frames_per_multiframe=4,
                                                    scrambled=True,
                                                    lanes=output_lanes)
-        link = ResetInserter()(LiteJESD204BLinkTXDapath(data_width,
+        link = ResetInserter()(LiteJESD204BLinkTXDatapath(data_width,
             octets_per_frame=2,
             frames_per_multiframe=4))
         link.output_lane = []
@@ -88,11 +88,11 @@ class TestLink(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                tx = ResetInserter()(LiteJESD204BLinkTXDapath(data_width,
+                tx = ResetInserter()(LiteJESD204BLinkTXDatapath(data_width,
                     octets_per_frame=2,
                     frames_per_multiframe=4))
                 self.submodules.tx = tx
-                rx = ResetInserter()(LiteJESD204BLinkRXDapath(data_width,
+                rx = ResetInserter()(LiteJESD204BLinkRXDatapath(data_width,
                     octets_per_frame=2,
                     frames_per_multiframe=4))
                 self.submodules.rx = rx

@@ -498,7 +498,7 @@ class ILASChecker(ILAS, Module):
 
 # Link TX ------------------------------------------------------------------------------------------
 
-class LiteJESD204BLinkTXDapath(Module):
+class LiteJESD204BLinkTXDatapath(Module):
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
         self.sink   = Record([("data", data_width)])
         self.source = Record(link_layout(data_width))
@@ -553,7 +553,7 @@ class LiteJESD204BLinkTX(Module):
         self.submodules.ilas = ilas
 
         # Datapath
-        datapath = LiteJESD204BLinkTXDapath(data_width,
+        datapath = LiteJESD204BLinkTXDatapath(data_width,
             jesd_settings.octets_per_frame,
             jesd_settings.transport.k)
         self.submodules.datapath = datapath
@@ -596,7 +596,7 @@ class LiteJESD204BLinkTX(Module):
 
 # Link RX ------------------------------------------------------------------------------------------
 
-class LiteJESD204BLinkRXDapath(Module):
+class LiteJESD204BLinkRXDatapath(Module):
     def __init__(self, data_width, octets_per_frame, frames_per_multiframe):
         self.sink   = Record(link_layout(data_width))
         self.source = Record([("data", data_width)])
@@ -657,7 +657,7 @@ class LiteJESD204BLinkRX(Module):
         self.submodules.ilas = ilas
 
         # Datapath
-        datapath = LiteJESD204BLinkRXDapath(data_width,
+        datapath = LiteJESD204BLinkRXDatapath(data_width,
             jesd_settings.octets_per_frame,
             jesd_settings.transport.k)
         self.submodules.datapath = datapath
