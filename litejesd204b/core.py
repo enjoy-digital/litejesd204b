@@ -195,7 +195,7 @@ class LiteJESD204BCoreTX(Module):
 
         self.sync.jesd += self.ready.eq(reduce(and_, [link.ready for link in links]))
 
-    def register_jsync(self, jsync):
+    def register_jsync(self, jsync, polarity=0b0):
         self.jsync_registered = True
         _jsync = Signal()
         if isinstance(jsync, Signal):
@@ -204,7 +204,7 @@ class LiteJESD204BCoreTX(Module):
             self.specials += DifferentialInput(jsync.p, jsync.n, _jsync)
         else:
             raise ValueError
-        self.specials += MultiReg(_jsync, self.jsync, "jesd")
+        self.specials += MultiReg({0b0:_jsync, 0b1:~_jsync}[polarity], self.jsync, "jesd")
 
     def register_jref(self, jref):
         self.jref_registered = True
@@ -307,12 +307,14 @@ class LiteJESD204BCoreRX(Module):
             ),
         ]
 
-    def register_jsync(self, jsync):
+    def register_jsync(self, jsync, polarity=0b1):
         self.jsync_registered = True
+        _jsync = Signal()
+        self.comb += _jsync.eq({0b0: self.jsync, 0b1:~self.jsync}[polarity])
         if isinstance(jsync, Signal):
-            self.comb += jsync.eq(self.jsync)
+            self.comb += jsync.eq(_jsync)
         elif isinstance(jsync, Record):
-            self.specials += DifferentialOutput(self.jsync, jsync.p, jsync.n)
+            self.specials += DifferentialOutput(_jsync, jsync.p, jsync.n)
         else:
             raise ValueError
 
