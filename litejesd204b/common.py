@@ -67,9 +67,15 @@ configuration_data_fields = {
 
 
 class JESD204BConfigurationData:
-    def __init__(self):
-        for k in configuration_data_fields.keys():
-            setattr(self, k, 0)
+    def __init__(self, octets=[]):
+        if octets == []:
+            octets = [0]*configuration_data_length
+        self.from_octets(octets)
+
+    def from_octets(self, octets):
+        for name, field in configuration_data_fields.items():
+            field_value = (octets[field.octet] >> field.offset) & (2**field.width-1)
+            setattr(self, name, field_value)
 
     def get_octets(self):
         octets = [0]*configuration_data_length
