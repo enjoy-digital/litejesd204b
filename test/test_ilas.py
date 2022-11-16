@@ -60,6 +60,22 @@ def ilas_ctrls_reference():
 
 
 class TestILAS(unittest.TestCase):
+    def test_config_data(self):
+        # Create settings/octets reference.
+        ps = JESD204BPhysicalSettings(l=4, m=4, n=14, np=16)
+        ts = JESD204BTransportSettings(f=2, s=1, k=32, cs=2)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x55, bid=0xa)
+        ref_octets = jesd_settings.get_configuration_data(debug=False)
+
+        # Create config data from reference octets.
+        config_data = JESD204BConfigurationData(octets=ref_octets)
+
+        # Re-generate octets from config data.
+        config_octets = config_data.get_octets()
+
+        # Verify that octets are identical.
+        self.assertEqual(ref_octets, config_octets)
+
     def test_ilas_generator(self):
         ps = JESD204BPhysicalSettings(l=4, m=4, n=14, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=32, cs=2)
