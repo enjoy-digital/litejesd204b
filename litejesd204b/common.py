@@ -84,6 +84,14 @@ class JESD204BConfigurationData:
             checksum += getattr(self, name) & (2**field.width-1)
         return checksum % 256
 
+    def __repr__(self):
+        keys = configuration_data_fields.keys()
+        r = ""
+        length = max([len(k) for k in keys])
+        for k in keys:
+            r += f"{k}{' '*(length-len(k))} : {getattr(self, k):2d} / 0x{getattr(self, k):0x}\n"
+        return r
+
 # Settings -----------------------------------------------------------------------------------------
 
 class JESD204BTransportSettings:
@@ -132,7 +140,7 @@ class JESD204BSettings:
                                  self.nconverters)//self.nlanes
         self.lmfc_cycles      = int(self.octets_per_frame*self.transport.k//4)
 
-    def get_configuration_data(self, lid=0):
+    def get_configuration_data(self, lid=0, debug=False):
         cd = JESD204BConfigurationData()
         cd.did = self.did
         cd.bid = self.bid
@@ -157,6 +165,10 @@ class JESD204BSettings:
 
         octets = cd.get_octets()
         chksum = cd.get_checksum()
+
+        if debug:
+            print(cd)
+
         return octets[:-1] + [chksum]
 
     def get_configuration_checksum(self, lid=0):
