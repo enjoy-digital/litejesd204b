@@ -172,6 +172,8 @@ class JESD204BSettings:
         octets = cd.get_octets()
         chksum = cd.get_checksum()
 
+        cd.chksum = chksum
+
         if debug:
             print(cd)
 
