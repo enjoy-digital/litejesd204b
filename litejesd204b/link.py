@@ -630,11 +630,12 @@ class LiteJESD204BLinkRXDatapath(Module):
 class LiteJESD204BLinkRX(Module):
     """Link RX layer"""
     def __init__(self, data_width, jesd_settings, n=0, ilas_check=True):
-        self.jsync     = Signal() # Output
-        self.jref      = Signal() # Input
-        self.lmfc_zero = Signal() # Input
-        self.ready     = Signal() # Output
-        self.align     = Signal() # Output
+        self.jsync      = Signal() # Output
+        self.jref       = Signal() # Input
+        self.lmfc_zero  = Signal() # Input
+        self.ready      = Signal() # Output
+        self.align      = Signal() # Output
+        self.ilas_check = Signal(reset=int(ilas_check))
 
         self.sink   = sink   = Record(link_layout(data_width))
         self.source = source = Record([("data", data_width)])
@@ -699,7 +700,7 @@ class LiteJESD204BLinkRX(Module):
             datapath.descrambler.reset.eq(1),
             If(ilas.done,
                 NextState("RECEIVE-DATA")
-            ).Elif(ilas_check & ~ilas.valid,
+            ).Elif(self.ilas_check & ~ilas.valid,
                 NextState("RECEIVE-CGS")
             )
         )

@@ -223,11 +223,12 @@ class LiteJESD204BCoreTX(Module):
 
 class LiteJESD204BCoreRX(Module):
     def __init__(self, phys, jesd_settings, converter_data_width, scrambling=True, ilas_check=True, stpl_random=True):
-        self.enable  = Signal()
-        self.jsync   = Signal()
-        self.jref    = Signal()
-        self.ready   = Signal()
+        self.enable = Signal()
+        self.jsync  = Signal()
+        self.jref   = Signal()
+        self.ready  = Signal()
 
+        self.ilas_check  = Signal(reset=int(ilas_check))
         self.stpl_enable = Signal()
 
         self.source = Record([("converter"+str(i), converter_data_width)
@@ -267,12 +268,13 @@ class LiteJESD204BCoreRX(Module):
             cdc = LiteJESD204BRXCDC(phy, phy_cd)
             setattr(self.submodules, "cdc"+str(n), cdc)
 
-            link = LiteJESD204BLinkRX(32, jesd_settings, n, ilas_check)
+            link = LiteJESD204BLinkRX(32, jesd_settings, n)
             link = ClockDomainsRenamer("jesd")(link)
             self.submodules += link
             links.append(link)
             self.comb += [
                 link.reset.eq(~self.enable),
+                link.ilas_check.eq(self.ilas_check),
                 link.datapath.descrambler.enable.eq(int(scrambling)),
                 link.jref.eq(self.jref),
                 link.lmfc_zero.eq(self.lmfc.zero),
@@ -334,12 +336,16 @@ class LiteJESD204BCoreRX(Module):
 # Core Control ----------------------------------------------------------------------------------
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
-    def __init__(self, core, sys_clk_freq, default_enable=0, default_stpl_enable=0):
+    def __init__(self, core, sys_clk_freq, default_enable=0, default_ilas_check_disable=0, default_stpl_enable=0):
         self.control = CSRStorage(fields=[
             CSRField("enable", size=1, values=[
                 ("``0b0``", "JESD core disabled."),
                 ("``0b1``", "JESD core enabled.")
-            ], reset=default_enable)
+            ], reset=default_enable),
+            CSRField("ilas_check_disable", size=1, offset=8, values=[
+                ("``0b0``", "Enable  RX ILAS Check."),
+                ("``0b1``", "Disable RX ILAS Check.")
+            ], reset=default_ilas_check_disable)
         ])
         self.status = CSRStatus(fields=[
             CSRField("ready", size=1, offset=0, values=[
@@ -374,3 +380,5 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         ]
         if hasattr(core, "skew_fifos"):
             self.specials += MultiReg(core.skew_fifos[0].level, self.status.fields.skew_fifo)
+        if hasattr(core, "ilas_check"):
+            self.comb += core.ilas_check.eq(~self.control.fields.ilas_check_disable)
