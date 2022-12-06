@@ -309,7 +309,7 @@ class LiteJESD204BCoreRX(Module):
             ),
         ]
 
-    def register_jsync(self, jsync, polarity=0b1):
+    def register_jsync(self, jsync, polarity=0b0):
         self.jsync_registered = True
         _jsync = Signal()
         self.comb += _jsync.eq({0b0: self.jsync, 0b1:~self.jsync}[polarity])
