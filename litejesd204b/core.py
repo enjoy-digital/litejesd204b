@@ -7,10 +7,10 @@
 
 from migen import *
 from migen.genlib.cdc import MultiReg, ElasticBuffer
-from migen.genlib.misc import WaitTimer
 from migen.genlib.fifo import SyncFIFO
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.io import DifferentialInput, DifferentialOutput
 

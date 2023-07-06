@@ -7,7 +7,8 @@
 from collections import namedtuple
 
 from migen import *
-from migen.genlib.misc import WaitTimer
+
+from litex.gen.genlib.misc import WaitTimer
 
 from litejesd204b.common import control_characters
 
