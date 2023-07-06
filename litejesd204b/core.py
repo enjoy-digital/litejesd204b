@@ -5,13 +5,12 @@
 # Copyright (c) 2016 Robert Jordens <jordens@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from functools import reduce
-from operator import and_
-
 from migen import *
 from migen.genlib.cdc import MultiReg, ElasticBuffer
 from migen.genlib.misc import WaitTimer
 from migen.genlib.fifo import SyncFIFO
+
+from litex.gen import *
 
 from litex.build.io import DifferentialInput, DifferentialOutput
 
@@ -193,7 +192,7 @@ class LiteJESD204BCoreTX(Module):
                 cdc.source.connect(phy.sink)
             ]
 
-        self.sync.jesd += self.ready.eq(reduce(and_, [link.ready for link in links]))
+        self.sync.jesd += self.ready.eq(Reduce("AND", [link.ready for link in links]))
 
     def register_jsync(self, jsync, polarity=0b0):
         self.jsync_registered = True
@@ -303,9 +302,9 @@ class LiteJESD204BCoreRX(Module):
             ]
 
         self.sync.jesd += [
-            self.jsync.eq(reduce(and_, [link.jsync for link in links])),
+            self.jsync.eq(Reduce("AND", [link.jsync for link in links])),
             If(lmfc.zero,
-                self.ready.eq(reduce(and_, [link.ready for link in links]))
+                self.ready.eq(Reduce("AND", [link.ready for link in links]))
             ),
         ]
 
