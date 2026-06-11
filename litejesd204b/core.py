@@ -258,9 +258,11 @@ class LiteJESD204BCoreRX(Module):
         self.sync.jesd += lmfc.jref.eq(self.jref)
 
         # Links
-        self.links          = links          = []
-        self.skew_fifos     = skew_fifos     = []
-        self.skew_overflows = skew_overflows = []
+        self.links           = links           = []
+        self.skew_fifos      = skew_fifos      = []
+        self.skew_overflows  = skew_overflows  = []
+        self.lane_alignments = lane_alignments = []
+        self.lane_realigns   = lane_realigns   = []
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
@@ -302,6 +304,20 @@ class LiteJESD204BCoreRX(Module):
                     skew_overflow.eq(0)
                 ).Elif(skew_fifo.we & ~skew_fifo.writable,
                     skew_overflow.eq(1)
+                )
+            ]
+
+            # Lane byte alignment diagnostics: current position and a sticky flag set when an
+            # /R/ character is seen at a different position after the lane locked (a would-be
+            # byte rotation, now held off by the aligner).
+            lane_realign = Signal()
+            lane_alignments.append(link.alignment)
+            lane_realigns.append(lane_realign)
+            self.sync.jesd += [
+                If(~link.ready,
+                    lane_realign.eq(0)
+                ).Elif(link.realign,
+                    lane_realign.eq(1)
                 )
             ]
 
@@ -385,6 +401,7 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         if with_lane_status and hasattr(core, "skew_fifos"):
             self.skew_levels    = CSRStatus(32, description="Per-lane Skew FIFO levels, 8-bit per lane, lane0 in bits [7:0] (``RX only``).")
             self.skew_overflows = CSRStatus(8,  description="Per-lane sticky Skew FIFO overflow flags, cleared on link resync (``RX only``).")
+            self.lane_align     = CSRStatus(16, description="Per-lane byte alignment in bits [7:0] (2-bit per lane) and sticky realign flags in bits [11:8], cleared on link resync (``RX only``).")
 
         # # #
 
@@ -405,5 +422,9 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
                     self.specials += MultiReg(level, self.skew_levels.status[8*n:8*(n + 1)])
                 for n, overflow in enumerate(core.skew_overflows[:8]):
                     self.specials += MultiReg(overflow, self.skew_overflows.status[n])
+                for n, alignment in enumerate(core.lane_alignments[:4]):
+                    self.specials += MultiReg(alignment, self.lane_align.status[2*n:2*(n + 1)])
+                for n, realign in enumerate(core.lane_realigns[:4]):
+                    self.specials += MultiReg(realign, self.lane_align.status[8 + n])
         if hasattr(core, "ilas_check"):
             self.comb += core.ilas_check.eq(~self.control.fields.ilas_check_disable)
