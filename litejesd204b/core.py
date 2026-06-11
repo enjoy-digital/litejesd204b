@@ -258,8 +258,9 @@ class LiteJESD204BCoreRX(Module):
         self.sync.jesd += lmfc.jref.eq(self.jref)
 
         # Links
-        self.links      = links      = []
-        self.skew_fifos = skew_fifos = []
+        self.links          = links          = []
+        self.skew_fifos     = skew_fifos     = []
+        self.skew_overflows = skew_overflows = []
         for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
             phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
             phy_cd = phy_name + "_rx"
@@ -280,7 +281,10 @@ class LiteJESD204BCoreRX(Module):
                 phy.rx_align.eq(link.align)
             ]
 
-            skew_fifo = SyncFIFO(32, jesd_settings.lmfc_cycles)
+            # Lanes can become ready up to ~2 multiframes apart (per-lane ILAS end + global
+            # release sampled at lmfc.zero), so a single-multiframe FIFO can silently overflow
+            # and leave that lane permanently offset; keep 4 multiframes of headroom.
+            skew_fifo = SyncFIFO(32, 4*jesd_settings.lmfc_cycles)
             skew_fifo = ClockDomainsRenamer("jesd")(skew_fifo)
             skew_fifo = ResetInserter()(skew_fifo)
             skew_fifos.append(skew_fifo)
@@ -289,6 +293,16 @@ class LiteJESD204BCoreRX(Module):
                 skew_fifo.reset.eq(~link.ready),
                 skew_fifo.we.eq(1),
                 skew_fifo.re.eq(self.ready),
+            ]
+
+            skew_overflow = Signal()
+            skew_overflows.append(skew_overflow)
+            self.sync.jesd += [
+                If(~link.ready,
+                    skew_overflow.eq(0)
+                ).Elif(skew_fifo.we & ~skew_fifo.writable,
+                    skew_overflow.eq(1)
+                )
             ]
 
             # connect data
@@ -335,7 +349,8 @@ class LiteJESD204BCoreRX(Module):
 # Core Control ----------------------------------------------------------------------------------
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
-    def __init__(self, core, sys_clk_freq, default_enable=0, default_ilas_check_disable=0, default_stpl_enable=0):
+    def __init__(self, core, sys_clk_freq, default_enable=0, default_ilas_check_disable=0, default_stpl_enable=0,
+        with_lane_status = False):
         self.control = CSRStorage(fields=[
             CSRField("enable", size=1, values=[
                 ("``0b0``", "JESD core disabled."),
@@ -366,6 +381,10 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
                 reset       = core.lmfc.load.reset,
                 description = "LMFC reload value on SYSREF rising edge."),
         ])
+        # Optional per-lane status CSRs (opt-in to keep the default CSR mapping unchanged).
+        if with_lane_status and hasattr(core, "skew_fifos"):
+            self.skew_levels    = CSRStatus(32, description="Per-lane Skew FIFO levels, 8-bit per lane, lane0 in bits [7:0] (``RX only``).")
+            self.skew_overflows = CSRStatus(8,  description="Per-lane sticky Skew FIFO overflow flags, cleared on link resync (``RX only``).")
 
         # # #
 
@@ -379,5 +398,12 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
         ]
         if hasattr(core, "skew_fifos"):
             self.specials += MultiReg(core.skew_fifos[0].level, self.status.fields.skew_fifo)
+            if with_lane_status:
+                for n, fifo in enumerate(core.skew_fifos[:4]):
+                    level = Signal(8)
+                    self.comb    += level.eq(fifo.level)
+                    self.specials += MultiReg(level, self.skew_levels.status[8*n:8*(n + 1)])
+                for n, overflow in enumerate(core.skew_overflows[:8]):
+                    self.specials += MultiReg(overflow, self.skew_overflows.status[n])
         if hasattr(core, "ilas_check"):
             self.comb += core.ilas_check.eq(~self.control.fields.ilas_check_disable)
