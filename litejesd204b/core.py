@@ -428,3 +428,337 @@ class LiteJESD204BCoreControl(Module, AutoCSR):
                     self.specials += MultiReg(realign, self.lane_align.status[8 + n])
         if hasattr(core, "ilas_check"):
             self.comb += core.ilas_check.eq(~self.control.fields.ilas_check_disable)
+
+# JESD204C -----------------------------------------------------------------------------------------
+#
+# 64b66b variant of the core: the per-lane link beat is one 66-bit block (64-bit
+# data + 2-bit sync header) at linerate/66. There is no SYNC~/CGS/ILAS: lane
+# alignment comes from sync header lock (BlockSync, PHY RX clock domain) and
+# extended multiblock lock, with deterministic latency from the LEMC counter
+# (the LMFC counter clocked at lemc_cycles). The PHY contract is:
+# phy.sink/source = Endpoint([("data", 64), ("header", 2)]), plus phy.rx_slip
+# (RX gearbox slip, PHY RX clock domain).
+
+from litejesd204b.link_204c import LiteJESD204CLinkTX, LiteJESD204CLinkRX
+from litejesd204b.link_204c import BlockSync, link_204c_layout
+
+# Clock Domain Crossing (JESD204C) -----------------------------------------------------------------
+
+class LiteJESD204CTXCDC(Module):
+    def __init__(self, phy, phy_cd):
+        assert len(phy.sink.data) == 64
+        self.sink   =   sink = stream.Endpoint(link_204c_layout())
+        self.source = source = stream.Endpoint(link_204c_layout())
+
+        # # #
+
+        ebuf = ElasticBuffer(66, 4, "jesd", phy_cd)
+        self.submodules.ebuf = ebuf
+        self.comb += [
+            sink.ready.eq(1),
+            ebuf.din[:64].eq(sink.data),
+            ebuf.din[64:].eq(sink.header),
+            source.valid.eq(1),
+            source.data.eq(ebuf.dout[:64]),
+            source.header.eq(ebuf.dout[64:]),
+        ]
+
+
+class LiteJESD204CRXCDC(Module):
+    def __init__(self, phy, phy_cd):
+        assert len(phy.source.data) == 64
+        self.sink   =   sink = stream.Endpoint(link_204c_layout())
+        self.source = source = stream.Endpoint(link_204c_layout())
+
+        # # #
+
+        ebuf = ElasticBuffer(66, 4, phy_cd, "jesd")
+        self.submodules.ebuf = ebuf
+        self.comb += [
+            sink.ready.eq(1),
+            ebuf.din[:64].eq(sink.data),
+            ebuf.din[64:].eq(sink.header),
+            source.valid.eq(1),
+            source.data.eq(ebuf.dout[:64]),
+            source.header.eq(ebuf.dout[64:]),
+        ]
+
+# Core TX (JESD204C) -------------------------------------------------------------------------------
+
+class LiteJESD204CCoreTX(Module):
+    def __init__(self, phys, jesd_settings, converter_data_width, scrambling=True, stpl_random=True):
+        self.enable = Signal()
+        self.jref   = Signal()
+        self.ready  = Signal()
+
+        self.stpl_enable = Signal()
+
+        self.sink = Record([("converter"+str(i), converter_data_width)
+            for i in range(jesd_settings.nconverters)])
+
+        # # #
+
+        # Transport layer (coding agnostic, reused from 204B).
+        transport = LiteJESD204BTransportTX(jesd_settings, converter_data_width)
+        transport = ClockDomainsRenamer("jesd")(transport)
+        self.submodules.transport = transport
+        for lane in transport.source.flatten():
+            assert len(lane) == 64
+
+        # STPL
+        stpl = LiteJESD204BSTPLGenerator(jesd_settings, converter_data_width, random=stpl_random)
+        stpl = ClockDomainsRenamer("jesd")(stpl)
+        self.submodules.stpl = stpl
+        self.comb += \
+            If(self.stpl_enable,
+                transport.sink.eq(stpl.source)
+            ).Else(
+                transport.sink.eq(self.sink)
+            )
+
+        # LEMC (LMFC counter clocked at the extended multiblock period).
+        lmfc = LMFC(jesd_settings.lemc_cycles, load=(1 + 4)) # jref + ebuf latency
+        lmfc = ClockDomainsRenamer("jesd")(lmfc)
+        self.submodules.lmfc = lmfc
+        self.sync.jesd += lmfc.jref.eq(self.jref)
+
+        # Links
+        self.links = links = []
+        for n, (phy, lane) in enumerate(zip(phys, transport.source.flatten())):
+            phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
+            phy_cd   = phy_name + "_tx"
+
+            cdc = LiteJESD204CTXCDC(phy, phy_cd)
+            setattr(self.submodules, "cdc"+str(n), cdc)
+
+            link = LiteJESD204CLinkTX(jesd_settings)
+            link = ClockDomainsRenamer("jesd")(link)
+            self.submodules += link
+            links.append(link)
+            self.comb += [
+                link.reset.eq(~self.enable),
+                link.scrambler.enable.eq(int(scrambling)),
+                link.lemc_zero.eq(lmfc.zero),
+            ]
+
+            # Connect data.
+            self.comb += [
+                link.sink.data.eq(lane),
+                cdc.sink.valid.eq(1),
+                cdc.sink.data.eq(link.source.data),
+                cdc.sink.header.eq(link.source.header),
+                cdc.source.connect(phy.sink),
+            ]
+
+        self.sync.jesd += self.ready.eq(Reduce("AND", [link.ready for link in links]))
+
+    def register_jref(self, jref):
+        self.jref_registered = True
+        if isinstance(jref, Signal):
+            self.comb += self.jref.eq(jref)
+        elif isinstance(jref, Record):
+            self.specials += DifferentialInput(jref.p, jref.n, self.jref)
+        else:
+            raise ValueError
+
+    def do_finalize(self):
+        assert hasattr(self, "jref_registered")
+
+# Core RX (JESD204C) -------------------------------------------------------------------------------
+
+class LiteJESD204CCoreRX(Module):
+    def __init__(self, phys, jesd_settings, converter_data_width, scrambling=True, stpl_random=True):
+        self.enable = Signal()
+        self.jref   = Signal()
+        self.ready  = Signal()
+
+        self.stpl_enable = Signal()
+
+        self.source = Record([("converter"+str(i), converter_data_width)
+            for i in range(jesd_settings.nconverters)])
+
+        # # #
+
+        # Transport layer (coding agnostic, reused from 204B).
+        transport = LiteJESD204BTransportRX(jesd_settings, converter_data_width)
+        transport = ClockDomainsRenamer("jesd")(transport)
+        self.submodules.transport = transport
+        for lane in transport.sink.flatten():
+            assert len(lane) == 64
+
+        # STPL
+        stpl = LiteJESD204BSTPLChecker(jesd_settings, converter_data_width, stpl_random)
+        stpl = ClockDomainsRenamer("jesd")(stpl)
+        self.submodules.stpl = stpl
+        self.comb += \
+            If(self.stpl_enable,
+                stpl.sink.eq(transport.source)
+            ).Else(
+                self.source.eq(transport.source)
+            )
+
+        # LEMC
+        lmfc = LMFC(jesd_settings.lemc_cycles, load=-(1 + 4)) # jref + ebuf latency
+        lmfc = ClockDomainsRenamer("jesd")(lmfc)
+        self.submodules.lmfc = lmfc
+        self.sync.jesd += lmfc.jref.eq(self.jref)
+
+        # Links
+        self.links          = links          = []
+        self.block_syncs    = block_syncs    = []
+        self.skew_fifos     = skew_fifos     = []
+        self.skew_overflows = skew_overflows = []
+        self.lane_starts    = lane_starts    = []
+        all_started = Signal()
+        for n, (phy, lane) in enumerate(zip(phys, transport.sink.flatten())):
+            phy_name = "jesd_phy{}".format(n if not hasattr(phy, "n") else phy.n)
+            phy_cd = phy_name + "_rx"
+
+            # Sync header alignment, in the PHY RX clock domain (drives the gearbox slip).
+            block_sync = BlockSync()
+            block_sync = ClockDomainsRenamer(phy_cd)(block_sync)
+            setattr(self.submodules, "block_sync"+str(n), block_sync)
+            block_syncs.append(block_sync)
+            self.comb += [
+                block_sync.header.eq(phy.source.header),
+                phy.rx_slip.eq(block_sync.slip),
+            ]
+            sh_lock = Signal()
+            self.specials += MultiReg(block_sync.lock, sh_lock, "jesd")
+
+            cdc = LiteJESD204CRXCDC(phy, phy_cd)
+            setattr(self.submodules, "cdc"+str(n), cdc)
+
+            link = LiteJESD204CLinkRX(jesd_settings)
+            link = ClockDomainsRenamer("jesd")(link)
+            self.submodules += link
+            links.append(link)
+            self.comb += [
+                link.reset.eq(~self.enable),
+                link.descrambler.enable.eq(int(scrambling)),
+                link.sh_lock.eq(sh_lock),
+            ]
+
+            # Skew FIFO: starts at the lane's extended multiblock boundary and is
+            # released for all lanes at lemc.zero. If the lanes did not start on
+            # the same extended multiblock (checked at each lane's mid-EMB
+            # position), restart so they re-arm together (ADI-style handshake).
+            started = Signal()
+            lane_starts.append(started)
+            self.sync.jesd += [
+                If(~link.ready,
+                    started.eq(0),
+                ).Elif(link.mid_frame & ~all_started,
+                    started.eq(0),
+                ).Elif(link.frame_start,
+                    started.eq(1),
+                )
+            ]
+
+            skew_fifo = SyncFIFO(64, 4*jesd_settings.lemc_cycles)
+            skew_fifo = ClockDomainsRenamer("jesd")(skew_fifo)
+            skew_fifo = ResetInserter()(skew_fifo)
+            skew_fifos.append(skew_fifo)
+            self.submodules += skew_fifo
+            self.comb += [
+                skew_fifo.reset.eq(~link.ready | (~started & ~link.frame_start)),
+                skew_fifo.we.eq(started | link.frame_start),
+                skew_fifo.re.eq(self.ready),
+            ]
+
+            skew_overflow = Signal()
+            skew_overflows.append(skew_overflow)
+            self.sync.jesd += [
+                If(~link.ready,
+                    skew_overflow.eq(0)
+                ).Elif(skew_fifo.we & ~skew_fifo.writable,
+                    skew_overflow.eq(1)
+                )
+            ]
+
+            # Connect data.
+            self.comb += [
+                phy.source.connect(cdc.sink, omit={"valid", "ready"}),
+                cdc.sink.valid.eq(1),
+                link.sink.data.eq(cdc.source.data),
+                link.sink.header.eq(cdc.source.header),
+                cdc.source.ready.eq(1),
+                skew_fifo.din.eq(link.source.data),
+                lane.eq(skew_fifo.dout),
+            ]
+
+        self.comb += all_started.eq(Reduce("AND", lane_starts))
+        self.sync.jesd += [
+            If(lmfc.zero,
+                self.ready.eq(all_started),
+            ),
+        ]
+
+    def register_jref(self, jref):
+        self.jref_registered = True
+        if isinstance(jref, Signal):
+            self.comb += self.jref.eq(jref)
+        elif isinstance(jref, Record):
+            self.specials += DifferentialInput(jref.p, jref.n, self.jref)
+        else:
+            raise ValueError
+
+    def do_finalize(self):
+        assert hasattr(self, "jref_registered")
+
+# Core Control (JESD204C) --------------------------------------------------------------------------
+
+class LiteJESD204CCoreControl(Module, AutoCSR):
+    def __init__(self, core, sys_clk_freq, default_enable=0, default_stpl_enable=0):
+        self.control = CSRStorage(fields=[
+            CSRField("enable", size=1, values=[
+                ("``0b0``", "JESD core disabled."),
+                ("``0b1``", "JESD core enabled.")
+            ], reset=default_enable),
+        ])
+        self.status = CSRStatus(fields=[
+            CSRField("ready", size=1, offset=0, values=[
+                ("``0b0``", "JESD core not ready, all links are not synchronized."),
+                ("``0b1``", "JESD core ready, all links are synchronized.")
+            ]),
+            CSRField("skew_fifo", size=8, offset=8, description="JESD Skew FIFO level (``RX only``)."),
+        ])
+        self.stpl_enable = CSRStorage(fields=[
+            CSRField("enable", size=1, offset=0, values=[
+                ("``0b0``", "STPL test disabled."),
+                ("``0b1``", "STPL test enabled.")
+            ], reset=default_stpl_enable)
+        ])
+        self.stpl_errors = CSRStatus(32, description="STPL test errors.")
+        self.lmfc        = CSRStorage(fields=[
+            CSRField("load_on_sysref", size=len(core.lmfc.load),
+                reset       = core.lmfc.load.reset,
+                description = "LEMC reload value on SYSREF rising edge."),
+        ])
+        self.lane_status = CSRStatus(fields=[
+            CSRField("sh_lock",  size=8, offset=0, description="Per-lane sync header lock (``RX only``)."),
+            CSRField("emb_lock", size=8, offset=8, description="Per-lane extended multiblock lock (``RX only``)."),
+        ])
+        self.crc_errors = CSRStatus(32, description="Accumulated CRC-12 errors, all lanes (``RX only``).")
+
+        # # #
+
+        self.specials += [
+            MultiReg(self.control.fields.enable,      core.enable,      "jesd"),
+            MultiReg(self.stpl_enable.storage,        core.stpl_enable, "jesd"),
+            MultiReg(self.lmfc.fields.load_on_sysref, core.lmfc.load,   "jesd"),
+            MultiReg(core.stpl.errors, self.stpl_errors.status,  "sys"),
+            MultiReg(core.ready,       self.status.fields.ready, "sys"),
+        ]
+        if hasattr(core, "skew_fifos"): # RX only.
+            self.specials += MultiReg(core.skew_fifos[0].level, self.status.fields.skew_fifo)
+            for n, block_sync in enumerate(core.block_syncs[:8]):
+                self.specials += MultiReg(block_sync.lock, self.lane_status.fields.sh_lock[n])
+            for n, link in enumerate(core.links[:8]):
+                self.specials += MultiReg(link.ready, self.lane_status.fields.emb_lock[n])
+            # CRC error accumulation (jesd domain), then resynchronized.
+            crc_errors = Signal(32, reset_less=True)
+            crc_error_pulses = Signal(max=len(core.links) + 1)
+            self.comb += crc_error_pulses.eq(Reduce("ADD", [link.crc_error for link in core.links]))
+            self.sync.jesd += crc_errors.eq(crc_errors + crc_error_pulses)
+            self.specials += MultiReg(crc_errors, self.crc_errors.status, "sys")

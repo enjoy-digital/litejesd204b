@@ -181,3 +181,33 @@ class JESD204BSettings:
 
     def get_configuration_checksum(self, lid=0):
         return self.get_configuration_data(lid)[-1]
+
+
+class JESD204CSettings(JESD204BSettings):
+    """JESD204C settings.
+
+    Same physical/transport parameters as JESD204B plus E, the number of
+    multiblocks (32 blocks of 8 octets per lane) per extended multiblock. The
+    link beat is one 66-bit block (64-bit payload); `lemc_cycles` is the
+    extended multiblock period in link beats and replaces `lmfc_cycles` for
+    the deterministic latency counter.
+    """
+    def __init__(self, phy_settings, transport_settings, did, bid, e=1, scrambling=True):
+        JESD204BSettings.__init__(self, phy_settings, transport_settings, did, bid,
+            framing    = False,      # No 204B character framing/alignment in 64b66b.
+            scrambling = scrambling, # Scrambling is mandatory in 204C (debug only).
+        )
+        self.e = e
+
+        # JESD204C revision.
+        self.phy.jesdv = 0b010
+
+        self.octets_per_block      = 8
+        self.blocks_per_multiblock = 32
+
+        # Frames must align with the multiblock structure.
+        octets_per_multiblock = self.octets_per_block*self.blocks_per_multiblock
+        assert octets_per_multiblock % self.octets_per_frame == 0
+
+        # Link beats (66-bit blocks) per extended multiblock.
+        self.lemc_cycles = e*self.blocks_per_multiblock
