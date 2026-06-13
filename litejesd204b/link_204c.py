@@ -215,6 +215,8 @@ class SyncWordRX(Module):
         self.mid_emb     = Signal() # Mid extended multiblock position strobe.
         self.crc12       = Signal(12)
         self.cmd         = Signal(7)
+        self.state       = Signal(2)        # 0=INIT, 1=HUNT, 2=LOCK (diagnostic).
+        self.eomb_seen   = Signal()         # Sticky: an EoMB was ever detected (diagnostic).
 
         # # #
 
@@ -250,16 +252,20 @@ class SyncWordRX(Module):
             invalid_eomb.eq((sh_count[0:5] == 0) & ~eomb),
         ]
 
+        # Sticky EoMB-seen diagnostic.
+        self.sync += If(eomb, self.eomb_seen.eq(1))
+
         self.submodules.fsm = fsm = FSM(reset_state="INIT")
         fsm.act("INIT",
+            self.state.eq(0),
             If(eoemb & self.sh_lock,
                 NextValue(emb_vcount, 0),
                 NextValue(emb_icount, 0),
-                NextValue(sh_count,   1), # Block 0 of the new EMB is next.
                 NextState("HUNT"),
             )
         )
         fsm.act("HUNT",
+            self.state.eq(1),
             If(~self.sh_lock | invalid_eomb | invalid_eoemb,
                 NextState("INIT"),
             ).Elif((sh_count == 0) & eoemb,
@@ -270,6 +276,7 @@ class SyncWordRX(Module):
             )
         )
         fsm.act("LOCK",
+            self.state.eq(2),
             self.emb_lock.eq(1),
             self.valid_eomb.eq(eomb & (sh_count[0:5] == 0)),
             self.valid_eoemb.eq(eoemb & (sh_count == 0)),
@@ -281,14 +288,18 @@ class SyncWordRX(Module):
                 NextValue(emb_icount, emb_icount + 1),
             )
         )
-        # Block counter, modulo extended multiblock.
+        # Block counter, modulo extended multiblock — single driver. While
+        # hunting for the first EoEMB (INIT) it is parked at 1, so that the
+        # first block after the INIT->HUNT transition (the block following the
+        # triggering EoEMB) is sh_count==1 and the next EoEMB lands exactly at
+        # sh_count==0 after a full extended-multiblock wrap.
         self.sync += [
-            If(~fsm.ongoing("INIT"),
-                If(sh_count == (beats_per_emb - 1),
-                    sh_count.eq(0),
-                ).Else(
-                    sh_count.eq(sh_count + 1),
-                )
+            If(fsm.ongoing("INIT"),
+                sh_count.eq(1),
+            ).Elif(sh_count == (beats_per_emb - 1),
+                sh_count.eq(0),
+            ).Else(
+                sh_count.eq(sh_count + 1),
             )
         ]
 

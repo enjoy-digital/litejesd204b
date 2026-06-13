@@ -740,6 +740,10 @@ class LiteJESD204CCoreControl(Module, AutoCSR):
             CSRField("emb_lock", size=8, offset=8, description="Per-lane extended multiblock lock (``RX only``)."),
         ])
         self.crc_errors = CSRStatus(32, description="Accumulated CRC-12 errors, all lanes (``RX only``).")
+        self.emb_debug  = CSRStatus(fields=[
+            CSRField("state",     size=8, offset=0, description="Per-lane EMB FSM state (2-bit/lane: 0=INIT,1=HUNT,2=LOCK) for lanes 0-3 (``RX only``)."),
+            CSRField("eomb_seen", size=8, offset=8, description="Per-lane sticky EoMB-detected flag (``RX only``)."),
+        ])
 
         # # #
 
@@ -756,6 +760,10 @@ class LiteJESD204CCoreControl(Module, AutoCSR):
                 self.specials += MultiReg(block_sync.lock, self.lane_status.fields.sh_lock[n])
             for n, link in enumerate(core.links[:8]):
                 self.specials += MultiReg(link.ready, self.lane_status.fields.emb_lock[n])
+            # EMB FSM diagnostics (per lane: 2-bit state + sticky EoMB-seen).
+            for n, link in enumerate(core.links[:4]):
+                self.specials += MultiReg(link.sync_word.state,     self.emb_debug.fields.state[2*n:2*(n + 1)])
+                self.specials += MultiReg(link.sync_word.eomb_seen, self.emb_debug.fields.eomb_seen[n])
             # CRC error accumulation (jesd domain), then resynchronized.
             crc_errors = Signal(32, reset_less=True)
             crc_error_pulses = Signal(max=len(core.links) + 1)
