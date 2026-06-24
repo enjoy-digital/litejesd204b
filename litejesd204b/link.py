@@ -261,9 +261,13 @@ class Aligner(Module):
         self.source  = source = Record(link_layout(data_width))
         self.latency = 1
 
+        self.hold      = Signal()  # Freeze alignment updates (set once ILAS reception starts).
+        self.alignment = Signal(2) # Current byte alignment (diagnostics).
+        self.realign   = Signal()  # Pulse: /R/ seen at a position != current alignment.
+
         # # #
 
-        alignment = Signal(2)
+        alignment = self.alignment
 
         last_data = Signal(32, reset_less=True)
         last_ctrl = Signal(4,  reset_less=True)
@@ -274,13 +278,29 @@ class Aligner(Module):
             last_ctrl.eq(sink.ctrl)
         ]
 
-        # Alignment detection
+        # Alignment detection. Updates are held once ILAS reception has started: the position is
+        # then locked by the first /R/, and a spurious decode hit during ILAS/DATA must not be
+        # allowed to permanently byte-rotate the lane.
+        detected       = Signal(2)
+        detected_valid = Signal()
         for i in range(4):
-            self.sync += [
+            self.comb += [
                 If(sink.ctrl[i] & (sink.data[8*i:8*(i+1)] == control_characters["R"]),
-                    alignment.eq(i)
+                    detected_valid.eq(1),
+                    detected.eq(i),
                 )
             ]
+        self.sync += [
+            self.realign.eq(0),
+            If(detected_valid,
+                If(~self.hold,
+                    alignment.eq(detected)
+                ),
+                If(detected != alignment,
+                    self.realign.eq(1)
+                ),
+            )
+        ]
 
         # Data selection
         data = Cat(last_data, sink.data)
@@ -637,6 +657,8 @@ class LiteJESD204BLinkRX(Module):
         self.ready      = Signal() # Output
         self.align      = Signal() # Output
         self.ilas_check = Signal(reset=int(ilas_check))
+        self.alignment  = Signal(2) # Output (diagnostics): lane byte alignment.
+        self.realign    = Signal()  # Output (diagnostics): /R/ at unexpected position.
 
         self.sink   = sink   = Record(link_layout(data_width))
         self.source = source = Record([("data", data_width)])
@@ -671,6 +693,8 @@ class LiteJESD204BLinkRX(Module):
             cgs.sink.eq(aligner.source),
             ilas.sink.eq(aligner.source),
             datapath.sink.eq(aligner.source),
+            self.alignment.eq(aligner.alignment),
+            self.realign.eq(aligner.realign),
         ]
 
         # FSM
@@ -697,6 +721,7 @@ class LiteJESD204BLinkRX(Module):
         )
         fsm.act("RECEIVE-ILAS",
             self.jsync.eq(1),
+            aligner.hold.eq(1),
             datapath.deframer.reset.eq(1),
             datapath.descrambler.reset.eq(1),
             If(ilas.done,
@@ -708,6 +733,7 @@ class LiteJESD204BLinkRX(Module):
         fsm.act("RECEIVE-DATA",
             self.jsync.eq(1),
             self.ready.eq(1),
+            aligner.hold.eq(1),
             If(cgs.valid,
                 NextState("RECEIVE-CGS")
             )
