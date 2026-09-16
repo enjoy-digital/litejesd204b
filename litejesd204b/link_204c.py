@@ -4,23 +4,19 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""
-JESD204C (64b66b) link layer.
-
-Each link beat is one 66-bit block: 64 bits of payload + a 2-bit sync header.
-The sync headers convey, one bit per block, a 32-bit sync word per multiblock
-(32 blocks). The sync word carries the end-of-multiblock sequence (00001), the
-CRC-12 of the previous multiblock, the command channel bits and the
-end-of-extended-multiblock (EoEMB) marker. There is no CGS/ILAS/SYNC~: lane
-alignment is achieved from sync header lock (per lane, in the PHY RX clock
-domain) and extended multiblock lock (in the link clock domain), with
-deterministic latency provided by the LEMC counter (LMFC equivalent).
-
-The scrambler/CRC/sync word definitions follow JESD204C with the same
-formulation as ADI's open source JESD204 HDL (interoperability reference).
-"""
-
 from migen import *
+
+# JESD204C (64b66b) link layer.
+#
+# Each link beat is one 66-bit block: 64 bits of payload and a 2-bit sync header. The sync headers
+# convey, one bit per block, a 32-bit sync word per multiblock (32 blocks): the end-of-multiblock
+# sequence (00001), the CRC-12 of the previous multiblock, the command channel bits and the
+# end-of-extended-multiblock (EoEMB) marker. There is no CGS/ILAS/SYNC~: lane alignment comes from
+# sync header lock (per lane, in the PHY RX clock domain) and extended multiblock lock (in the link
+# clock domain), with deterministic latency provided by the LEMC counter (LMFC equivalent).
+#
+# The scrambler, CRC and sync word definitions follow JESD204C with the same formulation as ADI's
+# open source JESD204 HDL (interoperability reference).
 
 # Layout -------------------------------------------------------------------------------------------
 
@@ -33,18 +29,15 @@ def link_204c_layout():
 # Helpers ------------------------------------------------------------------------------------------
 
 def reverse_octets(signal):
-    """Reorder the octets of a 64-bit word (first octet <-> most significant octet)."""
+    """Octets Reorder (first octet <-> most significant octet)"""
     assert len(signal) == 64
     return Cat(*reversed([signal[8*i:8*(i+1)] for i in range(8)]))
 
 # Scrambling ---------------------------------------------------------------------------------------
 
 class Scrambler64b66b(Module):
-    """JESD204C self-synchronous scrambler/descrambler (x^58 + x^39 + 1).
-
-    64-bit parallel implementation, most significant bit processed first.
-    The output is combinational (latency 0); the 58-bit state is registered.
-    The descrambler is self-synchronizing: no seed/reset coordination needed.
+    """Scrambler/Descrambler
+    cf JESD204C 64b66b self-synchronous scrambling (x^58 + x^39 + 1)
     """
     def __init__(self, descramble=False):
         self.enable = Signal(reset=1)
@@ -54,11 +47,14 @@ class Scrambler64b66b(Module):
 
         # # #
 
+        # 64-bit parallel implementation, most significant bit processed first: the output is
+        # combinational (latency 0) and the 58-bit state is registered. The descrambler is
+        # self-synchronizing, no seed/reset coordination is needed.
         state = Signal(58, reset=(1 << 57))
 
         # full = {state, word} with word = data_in (descrambler) or feedback (scrambler).
-        # feedback[j] = full[58+j] ^ full[39+j] (j < 25) ^ data_in[j], computed per bit to
-        # keep the feed-forward bit chain at signal granularity.
+        # feedback[j] = full[58+j] ^ full[39+j] (j < 25) ^ data_in[j], computed per bit to keep the
+        # feed-forward bit chain at signal granularity.
         din = sink.data
         fb  = [Signal(name=f"fb{j}") for j in range(64)]
 
@@ -99,11 +95,8 @@ class Descrambler64b66b(Scrambler64b66b):
 # CRC-12 -------------------------------------------------------------------------------------------
 
 class CRC12(Module):
-    """JESD204C CRC-12, 64 bits per cycle, computed over the scrambled payload.
-
-    `init` restarts the accumulation with the current cycle's data; `value`
-    (registered) then holds the CRC of the completed span on the same cycle
-    `init` is asserted for the next span.
+    """CRC-12
+    cf JESD204C sync word (CRC-12 mode)
     """
     def __init__(self):
         self.init  = Signal()
@@ -112,6 +105,9 @@ class CRC12(Module):
 
         # # #
 
+        # 64 bits per cycle, computed over the scrambled payload. init restarts the accumulation
+        # with the current cycle's data; value (registered) then holds the CRC of the completed span
+        # on the same cycle init is asserted for the next span.
         state = Signal(12)
 
         # full = {init ? 0 : state, feedback}.
@@ -126,8 +122,8 @@ class CRC12(Module):
             return fb[k]
 
         for j in reversed(range(64)):
-            # full[12+j] spans the whole vector (state included); the other tap
-            # slices are bounded to the 64-bit word (zero extended above).
+            # full[12+j] spans the whole vector (state included); the other tap slices are bounded
+            # to the 64-bit word (zero extended above).
             expr = self.data[j] ^ full_bit(12+j)
             for tap in [11, 10, 9, 4, 3]:
                 if tap+j <= 63:
@@ -150,15 +146,8 @@ class CRC12(Module):
 # Sync Word ----------------------------------------------------------------------------------------
 
 class SyncWordTX(Module):
-    """Per-multiblock 32-bit sync word generator (CRC-12 header mode).
-
-    The sync word is loaded on `mb_start` (first block of a multiblock) and
-    shifted out MSB first, one bit per block, encoded in the sync header as
-    {~bit, bit} (sync bit 1 -> header 0b01, sync bit 0 -> header 0b10).
-
-    CRC-12 mode layout (MSB to LSB):
-    {crc[11:9],1, crc[8:6],1, crc[5:3],1, crc[2:0],1, cmd[6:4],1, cmd[3],1,
-     eoemb,1, cmd[2:0], 00001}
+    """Sync Word Generator
+    cf JESD204C sync header stream (CRC-12 mode)
     """
     def __init__(self):
         self.mb_start = Signal()      # First block of a multiblock.
@@ -169,6 +158,9 @@ class SyncWordTX(Module):
 
         # # #
 
+        # The 32-bit sync word is loaded on mb_start (first block of a multiblock) and shifted out
+        # MSB first, one bit per block, encoded in the sync header as {~bit, bit} (sync bit 1 ->
+        # header 0b01, sync bit 0 -> header 0b10).
         sync_word = Signal(32)
         self.sync += [
             If(self.mb_start,
@@ -199,12 +191,8 @@ class SyncWordTX(Module):
 
 
 class SyncWordRX(Module):
-    """Sync word receiver: EoMB/EoEMB detection, EMB lock FSM, CRC-12 extraction.
-
-    EMB lock: INIT -> (EoEMB seen) HUNT -> (4 consecutive EoEMB at the expected
-    extended multiblock spacing) LOCK; mis-positioned EoMB/EoEMB restarts the
-    hunt, and in LOCK an error counter (threshold `thresh_emb_err`) drops the
-    lock. Losing sync header lock (sh_lock=0) forces INIT.
+    """Sync Word Receiver
+    cf JESD204C sync header stream (CRC-12 mode) / extended multiblock alignment
     """
     def __init__(self, beats_per_emb, thresh_emb_err=8):
         self.sh_lock     = Signal()
@@ -255,6 +243,9 @@ class SyncWordRX(Module):
         # Sticky EoMB-seen diagnostic.
         self.sync += If(eomb, self.eomb_seen.eq(1))
 
+        # EMB lock: INIT -> (EoEMB seen) HUNT -> (4 consecutive EoEMB at the expected extended
+        # multiblock spacing) LOCK. A mis-positioned EoMB/EoEMB restarts the hunt; in LOCK an error
+        # counter (threshold thresh_emb_err) drops the lock. Losing sync header lock forces INIT.
         self.submodules.fsm = fsm = FSM(reset_state="INIT")
         fsm.act("INIT",
             self.state.eq(0),
@@ -288,11 +279,10 @@ class SyncWordRX(Module):
                 NextValue(emb_icount, emb_icount + 1),
             )
         )
-        # Block counter, modulo extended multiblock — single driver. While
-        # hunting for the first EoEMB (INIT) it is parked at 1, so that the
-        # first block after the INIT->HUNT transition (the block following the
-        # triggering EoEMB) is sh_count==1 and the next EoEMB lands exactly at
-        # sh_count==0 after a full extended-multiblock wrap.
+        # Block counter, modulo extended multiblock (single driver). While hunting for the first
+        # EoEMB (INIT) it is parked at 1, so that the first block after the INIT->HUNT transition
+        # (the block following the triggering EoEMB) is sh_count==1 and the next EoEMB lands exactly
+        # at sh_count==0 after a full extended-multiblock wrap.
         self.sync += [
             If(fsm.ongoing("INIT"),
                 sh_count.eq(1),
@@ -306,12 +296,8 @@ class SyncWordRX(Module):
 # Block Synchronization (PHY RX clock domain) ------------------------------------------------------
 
 class BlockSync(Module):
-    """Sync header lock state machine, drives the PHY RX gearbox slip.
-
-    HUNT: count consecutive valid sync headers (01 or 10); an invalid header
-    pulses `slip` (one bit position) and masks header evaluation while the
-    gearbox applies it. Lock after 64 consecutive valid headers. In LOCK,
-    `thresh_sh_err` consecutive invalid headers drop the lock.
+    """Block Synchronization
+    cf JESD204C sync header lock (drives the PHY RX gearbox slip)
     """
     def __init__(self, slip_latency=32, thresh_sh_err=16):
         self.header    = Signal(2)
@@ -328,6 +314,9 @@ class BlockSync(Module):
 
         self.comb += valid_header.eq(self.header[0] ^ self.header[1])
 
+        # HUNT: count consecutive valid sync headers (01 or 10); an invalid header pulses slip (one
+        # bit position) and masks header evaluation while the gearbox applies it (SLIP). Lock after
+        # 64 consecutive valid headers; in LOCK, thresh_sh_err consecutive invalid headers drop it.
         self.submodules.fsm = fsm = FSM(reset_state="HUNT")
         fsm.act("HUNT",
             If(valid_header,
@@ -370,16 +359,9 @@ class BlockSync(Module):
 
 @ResetInserter()
 class LiteJESD204CLinkTX(Module):
-    """JESD204C Link TX layer.
-
-    Datapath: octet reorder (MSB first) -> scrambler -> 2 register stages, with
-    the CRC-12 computed over the scrambled data and the sync word generator
-    aligned to the delayed multiblock boundary, so that sync word bit 31
-    accompanies block 0 of each multiblock on the PHY interface.
-
-    Block/multiblock counters free run and (re)align on each `lemc_zero`
-    strobe; alignment is therefore acquired on the first LEMC boundary after
-    reset and `ready` is asserted from that point.
+    """Link TX layer
+    inputs:
+    - jesd_settings: JESD204C settings
     """
     def __init__(self, jesd_settings):
         self.lemc_zero = Signal() # LEMC boundary strobe (jesd domain).
@@ -392,7 +374,14 @@ class LiteJESD204CLinkTX(Module):
 
         e = jesd_settings.e
 
-        # Block/multiblock counters, slaved to LEMC.
+        # Datapath: octet reorder (MSB first) -> scrambler -> 2 register stages, with the CRC-12
+        # computed over the scrambled data and the sync word generator aligned to the delayed
+        # multiblock boundary, so that sync word bit 31 accompanies block 0 of each multiblock on
+        # the PHY interface.
+
+        # Block/multiblock counters, slaved to LEMC: they free run and (re)align on each lemc_zero
+        # strobe, so alignment is acquired on the first LEMC boundary after reset and ready is
+        # asserted from that point.
         blk      = Signal(5)
         mb       = Signal(max=max(e, 2))
         mb_start = Signal()
@@ -457,12 +446,9 @@ class LiteJESD204CLinkTX(Module):
 
 @ResetInserter()
 class LiteJESD204CLinkRX(Module):
-    """JESD204C Link RX layer.
-
-    Sync header stream decoding (EMB lock), CRC-12 checking over the scrambled
-    payload, descrambling and octet reordering. `frame_start` strobes with the
-    first source beat of each extended multiblock (used to start the skew
-    FIFOs); `ready` is the EMB lock.
+    """Link RX layer
+    inputs:
+    - jesd_settings: JESD204C settings
     """
     def __init__(self, jesd_settings):
         self.sh_lock     = Signal() # Sync header lock (from BlockSync, CDC'd).
@@ -477,6 +463,10 @@ class LiteJESD204CLinkRX(Module):
         # # #
 
         e = jesd_settings.e
+
+        # Datapath: sync header stream decoding (EMB lock), CRC-12 checking over the scrambled
+        # payload, descrambling and octet reordering. frame_start strobes with the first source beat
+        # of each extended multiblock (used to start the skew FIFOs); ready is the EMB lock.
 
         # Sync word receiver / EMB lock.
         self.submodules.sync_word = sync_word = SyncWordRX(beats_per_emb=e*32)
@@ -520,7 +510,7 @@ class LiteJESD204CLinkRX(Module):
         self.sync += descrambled.eq(descrambler.source.data)
         self.comb += source.data.eq(reverse_octets(descrambled))
 
-        # First source beat of each extended multiblock: valid_eoemb strobes
-        # when block 0 of the new EMB is at the sink; the datapath is delayed
-        # by one cycle, so that block is at the source one cycle later.
+        # First source beat of each extended multiblock: valid_eoemb strobes when block 0 of the new
+        # EMB is at the sink; the datapath is delayed by one cycle, so that block is at the source
+        # one cycle later.
         self.sync += self.frame_start.eq(sync_word.valid_eoemb)

@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""JESD204C link layer reference models (bit-serial, independent of the HW implementation)."""
+# JESD204C link layer reference models (bit-serial, independent of the hardware implementation).
 
 # Scrambler ----------------------------------------------------------------------------------------
 
@@ -43,14 +43,11 @@ class Descrambler64b66bModel:
 # CRC-12 -------------------------------------------------------------------------------------------
 
 class CRC12Model:
-    """JESD204C CRC-12, 64 bits per step (word-level model of the parallel form).
-
-    full = {state(12), feedback(64)}; feedback[j] = data[j] ^ full[12+j]
-    ^ full[tap+j] for tap in (11, 10, 9, 4, 3) when tap+j <= 63; the registered
-    state folds full as full[11:0] ^ full[10:0]<<1 ^ full[9:0]<<2 ^ full[8:0]<<3
-    ^ full[3:0]<<8 ^ full[2:0]<<9.
-    """
+    """JESD204C CRC-12, 64 bits per step (word-level model of the parallel form)."""
     def __init__(self):
+        # full = {state(12), feedback(64)}; feedback[j] = data[j] ^ full[12+j] ^ full[tap+j] for tap
+        # in (11, 10, 9, 4, 3) when tap+j <= 63; the registered state folds full as full[11:0] ^
+        # full[10:0]<<1 ^ full[9:0]<<2 ^ full[8:0]<<3 ^ full[3:0]<<8 ^ full[2:0]<<9.
         self.state = 0
 
     def reset(self):

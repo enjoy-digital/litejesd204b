@@ -224,10 +224,9 @@ class LiteJESD204CCoreRX(Module):
                 link.sh_lock.eq(sh_lock),
             ]
 
-            # Skew FIFO: starts at the lane's extended multiblock boundary and is
-            # released for all lanes at lemc.zero. If the lanes did not start on
-            # the same extended multiblock (checked at each lane's mid-EMB
-            # position), restart so they re-arm together (ADI-style handshake).
+            # Skew FIFO: starts at the lane's extended multiblock boundary and is released for all
+            # lanes at lemc.zero. If the lanes did not start on the same extended multiblock (checked
+            # at each lane's mid-EMB position), restart so they re-arm together (ADI-style handshake).
             started = Signal()
             lane_starts.append(started)
             self.sync.jesd += [
