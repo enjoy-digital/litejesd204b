@@ -247,7 +247,8 @@ class TestLink204C(unittest.TestCase):
         # extended multiblock boundary at each frame_start.
         start  = stats["frame_starts"][2]
         rx_seq = stats["rx_payload"][start:start + 2*lemc]
-        candidates = [k for k in range(0, len(payload) - 2*lemc + 1, lemc) if payload[k] == rx_seq[0]]
+        candidates = [k for k in range(0, len(payload) - 2*lemc + 1, lemc)
+            if payload[k] == rx_seq[0]]
         self.assertTrue(len(candidates) >= 1)
         matched = any(rx_seq == payload[k:k + 2*lemc] for k in candidates)
         self.assertTrue(matched)

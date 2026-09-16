@@ -225,8 +225,9 @@ class LiteJESD204CCoreRX(Module):
             ]
 
             # Skew FIFO: starts at the lane's extended multiblock boundary and is released for all
-            # lanes at lemc.zero. If the lanes did not start on the same extended multiblock (checked
-            # at each lane's mid-EMB position), restart so they re-arm together (ADI-style handshake).
+            # lanes at lemc.zero. If the lanes did not start on the same extended multiblock
+            # (checked at each lane's mid-EMB position), restart so they re-arm together (ADI-style
+            # handshake).
             started = Signal()
             lane_starts.append(started)
             self.sync.jesd += [
@@ -325,7 +326,7 @@ class LiteJESD204CCoreControl(Module, AutoCSR):
         ])
         self.crc_errors = CSRStatus(32, description="Accumulated CRC-12 errors, all lanes (``RX only``).")
         self.emb_debug  = CSRStatus(fields=[
-            CSRField("state",     size=8, offset=0, description="Per-lane EMB FSM state (2-bit/lane: 0=INIT,1=HUNT,2=LOCK) for lanes 0-3 (``RX only``)."),
+            CSRField("state",     size=8, offset=0, description="EMB FSM state of lanes 0-3, 2-bit per lane: 0=INIT, 1=HUNT, 2=LOCK (``RX only``)."),
             CSRField("eomb_seen", size=8, offset=8, description="Per-lane sticky EoMB-detected flag (``RX only``)."),
         ])
 
@@ -346,8 +347,10 @@ class LiteJESD204CCoreControl(Module, AutoCSR):
                 self.specials += MultiReg(link.ready, self.lane_status.fields.emb_lock[n])
             # EMB FSM diagnostics (per lane: 2-bit state + sticky EoMB-seen).
             for n, link in enumerate(core.links[:4]):
-                self.specials += MultiReg(link.sync_word.state,     self.emb_debug.fields.state[2*n:2*(n + 1)])
-                self.specials += MultiReg(link.sync_word.eomb_seen, self.emb_debug.fields.eomb_seen[n])
+                state     = self.emb_debug.fields.state[2*n:2*(n + 1)]
+                eomb_seen = self.emb_debug.fields.eomb_seen[n]
+                self.specials += MultiReg(link.sync_word.state,     state)
+                self.specials += MultiReg(link.sync_word.eomb_seen, eomb_seen)
             # CRC error accumulation (jesd domain), then resynchronized.
             crc_errors = Signal(32, reset_less=True)
             crc_error_pulses = Signal(max=len(core.links) + 1)

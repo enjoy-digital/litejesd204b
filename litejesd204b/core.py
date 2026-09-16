@@ -362,7 +362,7 @@ class LiteJESD204BCoreRX(Module):
         assert hasattr(self, "jsync_registered")
         assert hasattr(self, "jref_registered")
 
-# Core Control ----------------------------------------------------------------------------------
+# Core Control -------------------------------------------------------------------------------------
 
 class LiteJESD204BCoreControl(Module, AutoCSR):
     def __init__(self, core, sys_clk_freq, default_enable=0, default_ilas_check_disable=0, default_stpl_enable=0,

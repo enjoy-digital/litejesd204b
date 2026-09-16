@@ -241,7 +241,11 @@ class SyncWordRX(Module):
         ]
 
         # Sticky EoMB-seen diagnostic.
-        self.sync += If(eomb, self.eomb_seen.eq(1))
+        self.sync += [
+            If(eomb,
+                self.eomb_seen.eq(1),
+            )
+        ]
 
         # EMB lock: INIT -> (EoEMB seen) HUNT -> (4 consecutive EoEMB at the expected extended
         # multiblock spacing) LOCK. A mis-positioned EoMB/EoEMB restarts the hunt; in LOCK an error
@@ -498,7 +502,8 @@ class LiteJESD204CLinkRX(Module):
         # CRC of multiblock N is conveyed in the sync word of multiblock N+1:
         # compare the previously latched computed CRC with the newly received one.
         self.comb += self.crc_error.eq(
-            (crc_rdy == 3) & sync_word.valid_eomb & (crc_prev != sync_word.crc12))
+            (crc_rdy == 3) & sync_word.valid_eomb & (crc_prev != sync_word.crc12)
+        )
 
         # Descrambler (combinational output) + register + octet reorder.
         self.submodules.descrambler = descrambler = Descrambler64b66b()
