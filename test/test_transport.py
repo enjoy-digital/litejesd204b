@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -9,9 +9,9 @@ from math import ceil
 
 from migen import *
 
-from litejesd204b.common import *
-from litejesd204b.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
-from litejesd204b.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
+from litejesd204.common import *
+from litejesd204.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
+from litejesd204.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
 
 from test.model.transport import samples_to_lanes, lanes_to_samples
 

@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2016 Robert Jordens <jordens@gmail.com>
@@ -17,9 +17,9 @@ from litex.build.io import DifferentialInput, DifferentialOutput
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
-from litejesd204b.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
-from litejesd204b.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
-from litejesd204b.link import LiteJESD204BLinkTX, LiteJESD204BLinkRX
+from litejesd204.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
+from litejesd204.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
+from litejesd204.link import LiteJESD204BLinkTX, LiteJESD204BLinkRX
 
 # Clock Domain Crossing ----------------------------------------------------------------------------
 
