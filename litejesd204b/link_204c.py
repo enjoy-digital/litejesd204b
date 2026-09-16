@@ -50,42 +50,25 @@ class Scrambler64b66b(Module):
         # 64-bit parallel implementation, most significant bit processed first: the output is
         # combinational (latency 0) and the 58-bit state is registered. The descrambler is
         # self-synchronizing, no seed/reset coordination is needed.
-        state = Signal(58, reset=(1 << 57))
-
-        # full = {state, word} with word = data_in (descrambler) or feedback (scrambler).
-        # feedback[j] = full[58+j] ^ full[39+j] (j < 25) ^ data_in[j], computed per bit to keep the
-        # feed-forward bit chain at signal granularity.
-        din = sink.data
-        fb  = [Signal(name=f"fb{j}") for j in range(64)]
-
-        def full_bit(k):
-            # full[k]: k < 64 -> word bit, k >= 64 -> state bit.
-            if k >= 64:
-                return state[k-64]
-            return din[k] if descramble else fb[k]
-
-        for j in reversed(range(64)):
-            expr = full_bit(58+j) ^ din[j]
-            if 39+j < 64+58 and j < 25:
-                expr = expr ^ full_bit(39+j)
-            self.comb += fb[j].eq(expr)
+        #
+        # full = {state, word} with word = feedback (scrambler) or data_in (descrambler):
+        # feedback[j] = full[58+j] ^ full[39+j] (j < 25) ^ data_in[j]. The registered state is
+        # pre-folded (state <= full[57:0] ^ full[38:0] << 19) so that the single full[58+j] tap also
+        # covers the x^39 term for j >= 25.
+        state    = Signal(58, reset=(1 << 57))
+        feedback = Signal(64)
+        full     = Signal(64 + 58)
 
         self.comb += [
+            full.eq(Cat(sink.data if descramble else feedback, state)),
+            feedback.eq(full[58:122] ^ Cat(full[39:64], C(0, 39)) ^ sink.data),
             If(self.enable,
-                source.data.eq(Cat(*fb)),
+                source.data.eq(feedback),
             ).Else(
-                source.data.eq(din),
+                source.data.eq(sink.data),
             )
         ]
-
-        # state <= full[57:0] ^ (full[38:0] << 19).
-        state_next = []
-        for i in range(58):
-            expr = full_bit(i)
-            if i >= 19:
-                expr = expr ^ full_bit(i-19)
-            state_next.append(expr)
-        self.sync += state.eq(Cat(*state_next))
+        self.sync += state.eq(full[0:58] ^ Cat(C(0, 19), full[0:39]))
 
 
 class Descrambler64b66b(Scrambler64b66b):
@@ -108,40 +91,35 @@ class CRC12(Module):
         # 64 bits per cycle, computed over the scrambled payload. init restarts the accumulation
         # with the current cycle's data; value (registered) then holds the CRC of the completed span
         # on the same cycle init is asserted for the next span.
-        state = Signal(12)
+        #
+        # full = {init ? 0 : state, feedback} with feedback[j] = data[j] ^ full[12+j] ^ full[11+j]
+        # ^ full[10+j] ^ full[9+j] ^ full[4+j] ^ full[3+j] (taps beyond the 64-bit word excluded)
+        # and state <= full[11:0] ^ full[10:0] << 1 ^ full[9:0] << 2 ^ full[8:0] << 3
+        # ^ full[3:0] << 8 ^ full[2:0] << 9.
+        state    = Signal(12)
+        feedback = Signal(64)
+        full     = Signal(64 + 12)
 
-        # full = {init ? 0 : state, feedback}.
-        # feedback[j] = full[12+j] ^ full[11+j] ^ full[10+j] ^ full[9+j] ^ full[4+j] ^ full[3+j]
-        #               ^ data[j] (taps beyond the 76-bit window excluded).
-        fb = [Signal(name=f"fb{j}") for j in range(64)]
-
-        def full_bit(k):
-            # full[k]: k < 64 -> feedback bit, 64 <= k < 76 -> state bit (0 on init).
-            if k >= 64:
-                return Mux(self.init, 0, state[k-64])
-            return fb[k]
-
-        for j in reversed(range(64)):
-            # full[12+j] spans the whole vector (state included); the other tap slices are bounded
-            # to the 64-bit word (zero extended above).
-            expr = self.data[j] ^ full_bit(12+j)
-            for tap in [11, 10, 9, 4, 3]:
-                if tap+j <= 63:
-                    expr = expr ^ full_bit(tap+j)
-            self.comb += fb[j].eq(expr)
-
-        # state <= full[11:0] ^ (full[10:0]<<1) ^ (full[9:0]<<2) ^ (full[8:0]<<3)
-        #          ^ (full[3:0]<<8) ^ (full[2:0]<<9).
-        state_next = []
-        for i in range(12):
-            expr = full_bit(i)
-            for shift in [1, 2, 3, 8, 9]:
-                if i >= shift:
-                    expr = expr ^ full_bit(i-shift)
-            state_next.append(expr)
-        self.sync += state.eq(Cat(*state_next))
-
-        self.comb += self.value.eq(state)
+        self.comb += [
+            full.eq(Cat(feedback, Mux(self.init, 0, state))),
+            feedback.eq(self.data ^
+                full[12:76] ^
+                Cat(full[11:64], C(0, 11)) ^
+                Cat(full[10:64], C(0, 10)) ^
+                Cat(full[ 9:64], C(0,  9)) ^
+                Cat(full[ 4:64], C(0,  4)) ^
+                Cat(full[ 3:64], C(0,  3))
+            ),
+            self.value.eq(state),
+        ]
+        self.sync += state.eq(
+            full[0:12] ^
+            Cat(C(0, 1), full[0:11]) ^
+            Cat(C(0, 2), full[0:10]) ^
+            Cat(C(0, 3), full[0: 9]) ^
+            Cat(C(0, 8), full[0: 4]) ^
+            Cat(C(0, 9), full[0: 3])
+        )
 
 # Sync Word ----------------------------------------------------------------------------------------
 
