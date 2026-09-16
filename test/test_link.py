@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -9,8 +9,8 @@ import random
 
 from migen import *
 
-from litejesd204b.link import link_layout
-from litejesd204b.link import LiteJESD204BLinkTXDatapath, LiteJESD204BLinkRXDatapath
+from litejesd204.link import link_layout
+from litejesd204.link import LiteJESD204BLinkTXDatapath, LiteJESD204BLinkRXDatapath
 
 from test.model.common import Control
 from test.model.link import scramble_lanes, descramble_lanes

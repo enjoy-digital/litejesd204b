@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -16,11 +16,11 @@ from litex.build.io import DifferentialInput
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
-from litejesd204b.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
-from litejesd204b.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
-from litejesd204b.core      import LMFC
-from litejesd204b.link_204c import LiteJESD204CLinkTX, LiteJESD204CLinkRX
-from litejesd204b.link_204c import BlockSync, link_204c_layout
+from litejesd204.transport import LiteJESD204BTransportTX, LiteJESD204BTransportRX
+from litejesd204.transport import LiteJESD204BSTPLGenerator, LiteJESD204BSTPLChecker
+from litejesd204.core      import LMFC
+from litejesd204.link_204c import LiteJESD204CLinkTX, LiteJESD204CLinkRX
+from litejesd204.link_204c import BlockSync, link_204c_layout
 
 # JESD204C PHY contract: phy.sink/source = Endpoint([("data", 64), ("header", 2)]), one 66-bit block
 # per beat at linerate/66, plus phy.rx_slip (RX gearbox slip, PHY RX clock domain). There is no
