@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -10,9 +10,9 @@ from migen import *
 
 from litex.soc.interconnect import stream
 
-from litejesd204b.common import *
-from litejesd204b.link_204c import link_204c_layout
-from litejesd204b.core_204c import LiteJESD204CCoreTX, LiteJESD204CCoreRX
+from litejesd204.common import *
+from litejesd204.link_204c import link_204c_layout
+from litejesd204.core_204c import LiteJESD204CCoreTX, LiteJESD204CCoreRX
 
 # Core-level TX -> RX loopback through fake PHYs: each PHY loops its TX blocks back to its RX side
 # (block aligned, so BlockSync locks without slipping), the cores run in the "jesd" domain and the

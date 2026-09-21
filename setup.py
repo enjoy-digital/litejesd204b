@@ -9,15 +9,15 @@ with open("README.md", "r", encoding="utf-8") as fp:
 
 
 setup(
-    name                          = "litejesd204b",
+    name                          = "litejesd204",
     version                       = "2026.04",
-    description                   = "Small footprint and configurable JESD204B core",
+    description                   = "Small footprint and configurable JESD204B/JESD204C core",
     long_description              = long_description,
     long_description_content_type = "text/markdown",
     author                        = "Florent Kermarrec",
     author_email                  = "florent@enjoy-digital.fr",
     url                           = "http://enjoy-digital.fr",
-    download_url                  = "https://github.com/enjoy-digital/litejesd204b",
+    download_url                  = "https://github.com/enjoy-digital/litejesd204",
     license                       = "BSD",
     python_requires               = "~=3.7",
     install_requires              = ["pyyaml", "litex"],

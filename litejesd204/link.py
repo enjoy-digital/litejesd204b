@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -10,7 +10,7 @@ from migen import *
 
 from litex.gen.genlib.misc import WaitTimer
 
-from litejesd204b.common import control_characters
+from litejesd204.common import control_characters
 
 
 Control = namedtuple("Control", "value")

@@ -1,12 +1,12 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
 
-from litejesd204b.common import *
+from litejesd204.common import *
 
 from test.model.common import seed_to_data
 

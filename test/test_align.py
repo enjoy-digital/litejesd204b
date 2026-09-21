@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -8,8 +8,8 @@ import unittest
 
 from migen import *
 
-from litejesd204b.common import *
-from litejesd204b.link import Aligner
+from litejesd204.common import *
+from litejesd204.link import Aligner
 
 def aligner_datas_input():
     return [

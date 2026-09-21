@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -9,10 +9,10 @@ import unittest
 
 from migen import *
 
-from litejesd204b.common import *
-from litejesd204b.link_204c import Scrambler64b66b, Descrambler64b66b, CRC12
-from litejesd204b.link_204c import SyncWordTX, SyncWordRX, BlockSync
-from litejesd204b.link_204c import LiteJESD204CLinkTX, LiteJESD204CLinkRX
+from litejesd204.common import *
+from litejesd204.link_204c import Scrambler64b66b, Descrambler64b66b, CRC12
+from litejesd204.link_204c import SyncWordTX, SyncWordRX, BlockSync
+from litejesd204.link_204c import LiteJESD204CLinkTX, LiteJESD204CLinkRX
 
 from test.model.link_204c import Scrambler64b66bModel, Descrambler64b66bModel, CRC12Model
 from test.model.link_204c import sync_word_crc12_mode, sync_word_to_headers

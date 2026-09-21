@@ -1,5 +1,5 @@
 #
-# This file is part of LiteJESD204B
+# This file is part of LiteJESD204
 #
 # Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -8,7 +8,7 @@ import unittest
 
 from migen import *
 
-from litejesd204b.link import Scrambler, Descrambler
+from litejesd204.link import Scrambler, Descrambler
 
 from test.model.common import swap_bytes, seed_to_data
 from test.model.link import Scrambler as ScramblerModel
