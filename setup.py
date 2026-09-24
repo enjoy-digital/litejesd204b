@@ -10,7 +10,7 @@ with open("README.md", "r", encoding="utf-8") as fp:
 
 setup(
     name                          = "litejesd204",
-    version                       = "2026.04",
+    version = "2026.08",
     description                   = "Small footprint and configurable JESD204B/JESD204C core",
     long_description              = long_description,
     long_description_content_type = "text/markdown",
